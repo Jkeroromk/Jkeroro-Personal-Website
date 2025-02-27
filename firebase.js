@@ -6,7 +6,7 @@ import axios from "axios";
 
 // ✅ Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAYbNpbetNWc7MaKzWHESheYaO48n-ZGu4",
+  apiKey: process.env.FIREBASE_API_KEY,
   authDomain: "jkeroro-website.firebaseapp.com",
   projectId: "jkeroro-website",
   storageBucket: "jkeroro-website.appspot.com",
