@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+import { gsap } from 'gsap';
 import {
   SiHtml5,
   SiCss3,
@@ -28,16 +29,59 @@ const techStack = [
 ];
 
 const Stack = () => {
+  const iconRefs = useRef([]);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      iconRefs.current.forEach((icon) => {
+        if (!icon) return;
+
+        gsap.set(icon, { transformOrigin: 'center' }); // Pre-set for smoother animations
+
+        icon.addEventListener('mouseenter', () =>
+          gsap.to(icon, {
+            scale: 2,
+            rotationY: 360,
+            duration: 0.3,
+            ease: 'power2.inOut',
+            overwrite: 'auto', // Prevents animation pile-up
+          })
+        );
+
+        icon.addEventListener('mouseleave', () =>
+          gsap.to(icon, {
+            scale: 1,
+            rotationY: 0,
+            duration: 0.3,
+            ease: 'power2.inOut',
+            overwrite: 'auto',
+          })
+        );
+      });
+    });
+
+    return () => {
+      iconRefs.current.forEach((icon) => {
+        if (icon) {
+          icon.removeEventListener('mouseenter', () => {});
+          icon.removeEventListener('mouseleave', () => {});
+        }
+      });
+      ctx.revert(); // Cleanup GSAP context
+    };
+  }, []);
+
   return (
     <div className="flex flex-col items-center mt-12" style={{ minHeight: '300px' }}>
       <h1 className="text-white font-extrabold text-2xl">Tech Stack</h1>
       <div className="grid grid-cols-5 gap-6 mt-6 text-white max-w-[600px] mx-4 sm:mx-0">
-        {techStack.map(({ Icon, name }) => (
+        {techStack.map(({ Icon, name }, index) => (
           <div key={name} className="flex flex-col items-center justify-center group w-[60px]">
             <div className="relative flex flex-col items-center mt-5">
               <Icon
                 size={25}
-                className="text-white transition-transform duration-300 ease-in-out group-hover:scale-[2] group-hover:rotate-y-360 will-change-transform"
+                className="text-white will-change-transform"
+                ref={(el) => (iconRefs.current[index] = el)}
               />
               <span className="absolute top-full mt-4 font-bold text-sm opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none text-white text-center">
                 {name}
