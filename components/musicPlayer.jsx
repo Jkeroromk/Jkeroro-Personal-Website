@@ -19,7 +19,7 @@ const MusicPlayer = () => {
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(true);
   const audioRef = useRef(null);
 
-  // Handle user response to audio permission prompt
+  // Handle permission response
   const handlePermissionResponse = (allow) => {
     if (allow) {
       const audio = audioRef.current;
@@ -34,7 +34,7 @@ const MusicPlayer = () => {
     }
   };
 
-  // Toggle play/pause state
+  // Toggle play/pause
   const togglePlayPause = () => {
     const audio = audioRef.current;
     if (isPlaying) {
@@ -45,21 +45,21 @@ const MusicPlayer = () => {
     setIsPlaying(!isPlaying);
   };
 
-  // Skip forward or backward in the track list
+  // Skip tracks
   const skipTrack = (direction) => {
     const newIndex = (currentTrackIndex + direction + tracks.length) % tracks.length;
     setCurrentTrackIndex(newIndex);
     setIsPlaying(true);
   };
 
-  // Update current time and duration as audio plays
+  // Update time and duration
   const handleTimeUpdate = () => {
     const audio = audioRef.current;
     setCurrentTime(audio.currentTime);
     setDuration(audio.duration);
   };
 
-  // Format time in MM:SS
+  // Format time as MM:SS
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -67,14 +67,14 @@ const MusicPlayer = () => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // Toggle mute state
+  // Toggle mute
   const toggleMute = () => {
     const audio = audioRef.current;
     audio.volume = isMuted ? volume / 100 : 0;
     setIsMuted(!isMuted);
   };
 
-  // Change volume up or down
+  // Adjust volume
   const changeVolume = (delta) => {
     const newVolume = Math.max(0, Math.min(100, volume + delta));
     setVolume(newVolume);
@@ -82,7 +82,7 @@ const MusicPlayer = () => {
     setIsMuted(newVolume === 0);
   };
 
-  // Set up audio event listeners and initial volume
+  // Setup audio listeners and initial volume
   useEffect(() => {
     const audio = audioRef.current;
     audio.volume = volume / 100;
@@ -95,7 +95,7 @@ const MusicPlayer = () => {
     };
   }, [volume, currentTrackIndex]);
 
-  // Update audio source and media session when track changes
+  // Update audio source and media session
   useEffect(() => {
     const audio = audioRef.current;
     audio.src = tracks[currentTrackIndex].src;
@@ -123,25 +123,18 @@ const MusicPlayer = () => {
   }, [currentTrackIndex, isPlaying]);
 
   return (
-    // Outer container with min-height to prevent layout shifts
-    <div className="flex flex-col items-center justify-center mt-10 w-full" style={{ minHeight: '400px' }}>
-      {/* Permission prompt modal, fixed and isolated */}
+    <>
+      {/* Permission prompt outside main container */}
       {showPermissionPrompt && (
         <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-lg text-center max-w-sm w-full">
             <h2 className="text-lg font-bold mb-4">Allow Audio Playback</h2>
             <p className="mb-4">This website requires audio playback to continue. Would you like to enable sound?</p>
             <div className="flex justify-center gap-4">
-              <button
-                onClick={() => handlePermissionResponse(true)}
-                className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-              >
+              <button onClick={() => handlePermissionResponse(true)} className="bg-blue-500 text-white px-4 py-2 rounded-lg">
                 Allow
               </button>
-              <button
-                onClick={() => handlePermissionResponse(false)}
-                className="bg-red-300 text-black px-4 py-2 rounded-lg"
-              >
+              <button onClick={() => handlePermissionResponse(false)} className="bg-red-300 text-black px-4 py-2 rounded-lg">
                 Decline
               </button>
             </div>
@@ -149,86 +142,110 @@ const MusicPlayer = () => {
         </div>
       )}
 
-      {/* Audio element */}
-      <audio ref={audioRef} src={tracks[currentTrackIndex].src} muted={isMuted} onEnded={() => skipTrack(1)} />
+      {/* Main player container with fixed height */}
+      <div
+        className="flex flex-col items-center justify-center mt-10 w-full"
+        style={{ height: '400px' }} // Fixed height to prevent shifts
+      >
+        <audio
+          ref={audioRef}
+          src={tracks[currentTrackIndex].src}
+          muted={isMuted}
+          preload="metadata" // Preload metadata to avoid late duration updates
+          onEnded={() => skipTrack(1)}
+        />
 
-      {/* Player UI with min-height and stable dimensions */}
-      <div className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white" style={{ minHeight: '300px' }}>
-        {/* Track info with truncation to prevent overflow */}
-        <h3 className="mb-2 text-xl font-bold truncate w-full text-center">{tracks[currentTrackIndex].title}</h3>
-        {tracks[currentTrackIndex].subtitle && (
-          <p className="text-sm text-gray-300 mb-5 truncate w-full text-center">{tracks[currentTrackIndex].subtitle}</p>
-        )}
-
-        {/* Playback controls */}
-        <div className="flex justify-between w-full mb-5">
-          <SkipBack
-            onClick={() => skipTrack(-1)}
-            className="cursor-pointer text-white text-2xl hover:scale-[1.5] transition duration-300"
-          />
-          <div
-            onClick={togglePlayPause}
-            className="cursor-pointer text-white text-2xl hover:scale-[1.5] transition duration-300"
+        {/* Player UI with fixed dimensions */}
+        <div
+          className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white"
+          style={{ height: '300px' }} // Fixed height for stability
+        >
+          {/* Track info with fixed heights */}
+          <h3
+            className="mb-2 text-xl font-bold truncate w-full text-center"
+            style={{ height: '28px' }} // Fixed height for title
           >
-            {isPlaying ? <Pause /> : <Play />}
-          </div>
-          <SkipForward
-            onClick={() => skipTrack(1)}
-            className="cursor-pointer text-white text-2xl hover:scale-[1.5] transition duration-300"
-          />
-        </div>
+            {tracks[currentTrackIndex].title}
+          </h3>
+          {tracks[currentTrackIndex].subtitle && (
+            <p
+              className="text-sm text-gray-300 mb-5 truncate w-full text-center"
+              style={{ height: '20px' }} // Fixed height for subtitle
+            >
+              {tracks[currentTrackIndex].subtitle}
+            </p>
+          )}
 
-        {/* Progress bar with fixed height */}
-        <div className="w-full flex flex-col items-center mb-2 mt-2">
-          <input
-            type="range"
-            min="0"
-            max={duration || 0}
-            value={currentTime || 0}
-            onChange={(e) => {
-              audioRef.current.currentTime = e.target.value;
-            }}
-            className="w-full mb-2 h-2"
-            style={{
-              appearance: 'none',
-              background: `linear-gradient(to right, #4a4a4a ${
-                duration ? (currentTime / duration) * 100 : 0
-              }%, #e0e0e0 0%)`,
-              height: '8px',
-              borderRadius: '5px',
-            }}
-          />
-          <div className="flex justify-between w-full text-sm text-white">
-            <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
-          </div>
-        </div>
-
-        {/* Volume controls with reserved space */}
-        <div className="items-center justify-center gap-3 mt-5 flex min-h-[40px] volume-controls">
-          <Minus
-            className="cursor-pointer text-white text-xl hover:scale-[1.5] transition duration-300"
-            onPointerDown={() => changeVolume(-5)}
-            title="Decrease Volume"
-          />
-          <div
-            className="flex flex-col items-center cursor-pointer"
-            onPointerDown={toggleMute}
-            title={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted ? <VolumeX className="text-white text-xl" /> : <Volume2 className="text-white text-xl" />}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-white font-bold">{isMuted ? '0' : volume}</span>
-            <Plus
-              className="cursor-pointer text-white text-xl hover:scale-[1.5] transition duration-300"
-              onPointerDown={() => changeVolume(5)}
-              title="Increase Volume"
+          {/* Playback controls with reserved space */}
+          <div className="flex justify-between w-full mb-5" style={{ height: '40px' }}>
+            <SkipBack
+              onClick={() => skipTrack(-1)}
+              className="cursor-pointer text-white text-2xl hover:scale-[1.5] transition duration-300"
             />
+            <div
+              onClick={togglePlayPause}
+              className="cursor-pointer text-white text-2xl hover:scale-[1.5] transition duration-300"
+            >
+              {isPlaying ? <Pause /> : <Play />}
+            </div>
+            <SkipForward
+              onClick={() => skipTrack(1)}
+              className="cursor-pointer text-white text-2xl hover:scale-[1.5] transition duration-300"
+            />
+          </div>
+
+          {/* Progress bar with fixed height */}
+          <div className="w-full flex flex-col items-center mb-2 mt-2" style={{ height: '40px' }}>
+            <input
+              type="range"
+              min="0"
+              max={duration || 0}
+              value={currentTime || 0}
+              onChange={(e) => {
+                audioRef.current.currentTime = e.target.value;
+              }}
+              className="w-full mb-2 h-2"
+              style={{
+                appearance: 'none',
+                background: `linear-gradient(to right, #4a4a4a ${
+                  duration ? (currentTime / duration) * 100 : 0
+                }%, #e0e0e0 0%)`,
+                height: '8px',
+                borderRadius: '5px',
+              }}
+            />
+            <div className="flex justify-between w-full text-sm text-white">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(duration)}</span>
+            </div>
+          </div>
+
+          {/* Volume controls with reserved space */}
+          <div className="items-center justify-center gap-3 mt-5 flex" style={{ height: '40px' }}>
+            <Minus
+              className="cursor-pointer text-white text-xl hover:scale-[1.5] transition duration-300"
+              onPointerDown={() => changeVolume(-5)}
+              title="Decrease Volume"
+            />
+            <div
+              className="flex flex-col items-center cursor-pointer"
+              onPointerDown={toggleMute}
+              title={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? <VolumeX className="text-white text-xl" /> : <Volume2 className="text-white text-xl" />}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-white font-bold">{isMuted ? '0' : volume}</span>
+              <Plus
+                className="cursor-pointer text-white text-xl hover:scale-[1.5] transition duration-300"
+                onPointerDown={() => changeVolume(5)}
+                title="Increase Volume"
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
