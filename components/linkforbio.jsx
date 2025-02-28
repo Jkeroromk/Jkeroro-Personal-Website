@@ -308,7 +308,7 @@ export default function LinkforBio() {
 
         <div className="absolute bottom-[-45px] flex flex-col gap-y-1 items-center">
           <Avatar className="size-20 border">
-            <AvatarImage src="/pfp.jpg" />
+            <AvatarImage src="/pfp.webp" />
             <AvatarFallback>CN</AvatarFallback>
           </Avatar>
           <div className="flex items-center gap-2 mt-1 mr-2">
