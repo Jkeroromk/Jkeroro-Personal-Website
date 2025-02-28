@@ -128,3 +128,9 @@ body, html {
 * {
   cursor: none !important; /* Override pointer cursor */
 }
+
+@media (max-width: 640px) {
+  .volume-controls {
+    display: none;
+  }
+}
