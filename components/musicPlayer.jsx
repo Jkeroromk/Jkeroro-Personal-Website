@@ -14,18 +14,18 @@ const MusicPlayer = () => {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(50); 
+  const [volume, setVolume] = useState(50);
   const [isMuted, setIsMuted] = useState(false);
-  const [showPermissionPrompt, setShowPermissionPrompt] = useState(true); 
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(true);
   const audioRef = useRef(null);
 
+  // Handle user response to audio permission prompt
   const handlePermissionResponse = (allow) => {
     if (allow) {
       const audio = audioRef.current;
-      audio.muted = false; 
+      audio.muted = false;
       setShowPermissionPrompt(false);
       setIsPlaying(true);
-  
       setTimeout(() => {
         audio.play().catch((error) => console.error('Error playing audio:', error));
       }, 0);
@@ -33,8 +33,8 @@ const MusicPlayer = () => {
       setShowPermissionPrompt(false);
     }
   };
-  
 
+  // Toggle play/pause state
   const togglePlayPause = () => {
     const audio = audioRef.current;
     if (isPlaying) {
@@ -45,18 +45,21 @@ const MusicPlayer = () => {
     setIsPlaying(!isPlaying);
   };
 
+  // Skip forward or backward in the track list
   const skipTrack = (direction) => {
     const newIndex = (currentTrackIndex + direction + tracks.length) % tracks.length;
     setCurrentTrackIndex(newIndex);
-    setIsPlaying(true); 
+    setIsPlaying(true);
   };
 
+  // Update current time and duration as audio plays
   const handleTimeUpdate = () => {
     const audio = audioRef.current;
     setCurrentTime(audio.currentTime);
     setDuration(audio.duration);
   };
 
+  // Format time in MM:SS
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -64,13 +67,14 @@ const MusicPlayer = () => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  // Volume and Mute Control
+  // Toggle mute state
   const toggleMute = () => {
     const audio = audioRef.current;
     audio.volume = isMuted ? volume / 100 : 0;
     setIsMuted(!isMuted);
   };
 
+  // Change volume up or down
   const changeVolume = (delta) => {
     const newVolume = Math.max(0, Math.min(100, volume + delta));
     setVolume(newVolume);
@@ -78,11 +82,12 @@ const MusicPlayer = () => {
     setIsMuted(newVolume === 0);
   };
 
+  // Set up audio event listeners and initial volume
   useEffect(() => {
     const audio = audioRef.current;
-    audio.volume = volume / 100; // Set initial volume
+    audio.volume = volume / 100;
     audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', () => skipTrack(1)); // Skip to next track when current one ends
+    audio.addEventListener('ended', () => skipTrack(1));
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -90,40 +95,40 @@ const MusicPlayer = () => {
     };
   }, [volume, currentTrackIndex]);
 
+  // Update audio source and media session when track changes
   useEffect(() => {
     const audio = audioRef.current;
     audio.src = tracks[currentTrackIndex].src;
-  
-    
+
     if (isPlaying) {
-      audio.play().catch((error) => console.error("Error playing audio:", error));
+      audio.play().catch((error) => console.error('Error playing audio:', error));
     }
-  
-    
-    if ("mediaSession" in navigator) {
+
+    if ('mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: tracks[currentTrackIndex].title,
-        artist: tracks[currentTrackIndex].subtitle || "Unknown Artist",
-        album: "Jkeroro Music",
+        artist: tracks[currentTrackIndex].subtitle || 'Unknown Artist',
+        album: 'Jkeroro Music',
         artwork: [
-          { src: "/512.png", sizes: "512x512", type: "image/png" },
-          { src: "/192.png", sizes: "192x192", type: "image/png" },
+          { src: '/512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/192.png', sizes: '192x192', type: 'image/png' },
         ],
       });
-  
-      navigator.mediaSession.setActionHandler("play", togglePlayPause);
-      navigator.mediaSession.setActionHandler("pause", togglePlayPause);
-      navigator.mediaSession.setActionHandler("previoustrack", () => skipTrack(-1));
-      navigator.mediaSession.setActionHandler("nexttrack", () => skipTrack(1));
+
+      navigator.mediaSession.setActionHandler('play', togglePlayPause);
+      navigator.mediaSession.setActionHandler('pause', togglePlayPause);
+      navigator.mediaSession.setActionHandler('previoustrack', () => skipTrack(-1));
+      navigator.mediaSession.setActionHandler('nexttrack', () => skipTrack(1));
     }
-  }, [currentTrackIndex, isPlaying]); 
-  
+  }, [currentTrackIndex, isPlaying]);
 
   return (
-    <div className="flex flex-col items-center justify-center mt-10 w-full">
+    // Outer container with min-height to prevent layout shifts
+    <div className="flex flex-col items-center justify-center mt-10 w-full" style={{ minHeight: '400px' }}>
+      {/* Permission prompt modal, fixed and isolated */}
       {showPermissionPrompt && (
         <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+          <div className="bg-white p-6 rounded-lg shadow-lg text-center max-w-sm w-full">
             <h2 className="text-lg font-bold mb-4">Allow Audio Playback</h2>
             <p className="mb-4">This website requires audio playback to continue. Would you like to enable sound?</p>
             <div className="flex justify-center gap-4">
@@ -144,27 +149,36 @@ const MusicPlayer = () => {
         </div>
       )}
 
-      {/* Audio Element */}
+      {/* Audio element */}
       <audio ref={audioRef} src={tracks[currentTrackIndex].src} muted={isMuted} onEnded={() => skipTrack(1)} />
 
-      {/* Player UI */}
-      <div className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white">
-        {/* Track Info */}
-        <h3 className="mb-2 text-xl font-bold">{tracks[currentTrackIndex].title}</h3>
+      {/* Player UI with min-height and stable dimensions */}
+      <div className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white" style={{ minHeight: '300px' }}>
+        {/* Track info with truncation to prevent overflow */}
+        <h3 className="mb-2 text-xl font-bold truncate w-full text-center">{tracks[currentTrackIndex].title}</h3>
         {tracks[currentTrackIndex].subtitle && (
-          <p className="text-sm text-gray-300 mb-5">{tracks[currentTrackIndex].subtitle}</p>
+          <p className="text-sm text-gray-300 mb-5 truncate w-full text-center">{tracks[currentTrackIndex].subtitle}</p>
         )}
 
-        {/* Playback Controls */}
+        {/* Playback controls */}
         <div className="flex justify-between w-full mb-5">
-          <SkipBack onClick={() => skipTrack(-1)} className="cursor-pointer text-white text-2xl  hover:scale-[1.5] transition duration-300" />
-          <div onClick={togglePlayPause} className="cursor-pointer text-white text-2xl  hover:scale-[1.5] transition duration-300">
+          <SkipBack
+            onClick={() => skipTrack(-1)}
+            className="cursor-pointer text-white text-2xl hover:scale-[1.5] transition duration-300"
+          />
+          <div
+            onClick={togglePlayPause}
+            className="cursor-pointer text-white text-2xl hover:scale-[1.5] transition duration-300"
+          >
             {isPlaying ? <Pause /> : <Play />}
           </div>
-          <SkipForward onClick={() => skipTrack(1)} className="cursor-pointer text-white text-2xl  hover:scale-[1.5] transition duration-300" />
+          <SkipForward
+            onClick={() => skipTrack(1)}
+            className="cursor-pointer text-white text-2xl hover:scale-[1.5] transition duration-300"
+          />
         </div>
 
-        {/* Progress Bar */}
+        {/* Progress bar with fixed height */}
         <div className="w-full flex flex-col items-center mb-2 mt-2">
           <input
             type="range"
@@ -174,7 +188,7 @@ const MusicPlayer = () => {
             onChange={(e) => {
               audioRef.current.currentTime = e.target.value;
             }}
-            className="w-full mb-2"
+            className="w-full mb-2 h-2"
             style={{
               appearance: 'none',
               background: `linear-gradient(to right, #4a4a4a ${
@@ -190,29 +204,25 @@ const MusicPlayer = () => {
           </div>
         </div>
 
-        {/* Volume Controls */}
-        <div className="items-center justify-center gap-3 mt-5 hidden sm:flex">
+        {/* Volume controls with reserved space */}
+        <div className="items-center justify-center gap-3 mt-5 flex min-h-[40px] volume-controls">
           <Minus
             className="cursor-pointer text-white text-xl hover:scale-[1.5] transition duration-300"
-            onPointerDown={() => changeVolume(-5)} // Works for mobile and desktop
+            onPointerDown={() => changeVolume(-5)}
             title="Decrease Volume"
           />
           <div
             className="flex flex-col items-center cursor-pointer"
-            onPointerDown={toggleMute} // Works for mobile and desktop
+            onPointerDown={toggleMute}
             title={isMuted ? 'Unmute' : 'Mute'}
           >
-            {isMuted ? (
-              <VolumeX className="text-white text-xl" />
-            ) : (
-              <Volume2 className="text-white text-xl" />
-            )}
+            {isMuted ? <VolumeX className="text-white text-xl" /> : <Volume2 className="text-white text-xl" />}
           </div>
           <div className="flex items-center gap-3">
             <span className="text-white font-bold">{isMuted ? '0' : volume}</span>
             <Plus
-              className="cursor-pointer text-white text-xl  hover:scale-[1.5] transition duration-300"
-              onPointerDown={() => changeVolume(5)} // Works for mobile and desktop
+              className="cursor-pointer text-white text-xl hover:scale-[1.5] transition duration-300"
+              onPointerDown={() => changeVolume(5)}
               title="Increase Volume"
             />
           </div>
