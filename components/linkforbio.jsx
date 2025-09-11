@@ -154,14 +154,6 @@ export default function LinkforBio() {
       setCommentError(true);
       return;
     }
-    if (!user) {
-      toast({
-        title: "Login Required",
-        description: "Please log in to submit a comment.",
-        variant: "destructive",
-      });
-      return;
-    }
     try {
       await addComment(comment);
       setComment("");
