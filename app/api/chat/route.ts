@@ -87,9 +87,10 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('API Error:', error);
-    return new Response('Internal server error', {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+      headers: { 'Content-Type': 'application/json; charset=utf-8' }
     });
   }
 }
