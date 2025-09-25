@@ -1,0 +1,10 @@
+# 环境变量配置示例
+# 请复制此内容到 .env.local 文件中
+
+# OpenAI API 配置
+OPENAI_API_KEY=sk-your-openai-api-key-here
+MODEL_PROVIDER=openai
+MODEL_NAME=gpt-4o-mini
+
+# Firebase 配置（如果需要）
+NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key-here

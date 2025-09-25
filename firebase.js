@@ -6,7 +6,7 @@ import axios from "axios";
 
 // ✅ Firebase Configuration
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "demo-key",
   authDomain: "jkeroro-website.firebaseapp.com",
   projectId: "jkeroro-website",
   storageBucket: "jkeroro-website.appspot.com",
@@ -15,14 +15,29 @@ const firebaseConfig = {
   databaseURL: "https://jkeroro-website-default-rtdb.firebaseio.com/"
 };
 
-// ✅ Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const database = getDatabase(app);
-const firestore = getFirestore(app);
-const auth = getAuth(app);
+// ✅ Initialize Firebase (with error handling)
+let app, database, firestore, auth;
+
+try {
+  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  database = getDatabase(app);
+  firestore = getFirestore(app);
+  auth = getAuth(app);
+} catch (error) {
+  console.warn('Firebase initialization failed:', error.message);
+  // 创建占位符对象以避免运行时错误
+  app = null;
+  database = null;
+  firestore = null;
+  auth = null;
+}
 
 // ✅ Function to Increment Viewer Count (Realtime Database)
 const incrementViewCount = async () => {
+  if (!database) {
+    console.warn('Firebase database not initialized');
+    return;
+  }
   try {
     const countRef = ref(database, "viewCount");
     await update(countRef, {
@@ -65,6 +80,10 @@ const normalizeCountry = (countryCode, countryName) => {
 
 // ✅ Function to Track Visitor Location (Realtime Database)
 const trackVisitorLocation = async () => {
+  if (!database) {
+    console.warn('Firebase database not initialized');
+    return;
+  }
   try {
     const cachedCountry = localStorage.getItem("visitorCountry");
     if (cachedCountry) return; // Skip API call if data is already stored
@@ -91,6 +110,10 @@ const trackVisitorLocation = async () => {
 // ✅ Function to Add a Comment (Realtime Database)
 const addComment = async (comment) => {
   if (!comment.trim()) return;
+  if (!database) {
+    console.warn('Firebase database not initialized');
+    return;
+  }
 
   try {
     const commentsRef = ref(database, "comments");
@@ -106,6 +129,10 @@ const addComment = async (comment) => {
 
 // ✅ Function to Cleanup Duplicate Countries (Merging Codes into Full Names)
 const cleanupDuplicateCountries = async () => {
+  if (!database) {
+    console.warn('Firebase database not initialized');
+    return;
+  }
   try {
     const countriesRef = ref(database, "countries");
     const snapshot = await get(countriesRef);
