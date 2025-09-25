@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     try {
       requestBody = await req.json();
     } catch (error) {
+      console.error('JSON parsing error:', error);
       return new Response('Invalid JSON in request body', {
         status: 400,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' }
