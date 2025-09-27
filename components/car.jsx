@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import GUI from 'lil-gui';
+import ModernControlPanel from './ModernControlPanel';
 
 const vertexShader = `
 uniform vec2 uResolution;
@@ -79,7 +79,27 @@ export default function Car() {
     vertexShader,
     fragmentShader,
   });
-  const guiRef = useRef(null);
+  const [showControlPanel, setShowControlPanel] = useState(false);
+  const [guiParams, setGuiParams] = useState({
+    basePointSize: window.innerWidth <= 768 ? 0.5 : 0.35,
+    brightness: window.innerWidth <= 768 ? 0.9 : 0.35,
+    displacementStrength: window.innerWidth <= 768 ? 3 : 3.0,
+    glowSize: 0.12,
+    glowAlpha: 0.3,
+    decayRate: 0.025,
+    cameraZ: 20
+  });
+
+  const guiParamsRef = useRef(guiParams);
+
+  const handleParamChange = (param, value) => {
+    setGuiParams(prev => ({ ...prev, [param]: value }));
+  };
+
+  // Update ref whenever guiParams changes
+  useEffect(() => {
+    guiParamsRef.current = guiParams;
+  }, [guiParams]);
 
   useEffect(() => {
     if (!shaders.vertexShader || !shaders.fragmentShader) return;
@@ -158,75 +178,8 @@ export default function Car() {
 
     let particles, particlesMaterial;
 
-    // GUI parameters
-    const guiParams = {
-      basePointSize: window.innerWidth <= 768 ? 0.5 : 0.35,
-      brightness: window.innerWidth <= 768 ? 0.9 : 0.35,
-      displacementStrength: window.innerWidth <= 768 ? 3 : 3.0,
-      glowSize: 0.12,
-      glowAlpha: 0.3,
-      decayRate: 0.025,
-    };
-
-    // Initialize GUI
-    if (!guiRef.current) {
-      guiRef.current = new GUI();
-      const gui = guiRef.current;
-      
-      // Set GUI to be closed by default
-      gui.closeOnTop = true;
-      gui.close();
-      
-      gui.add(guiParams, 'basePointSize', 0.1, 1, 0.05)
-        .name('Point Size')
-        .onChange((value) => {
-          if (particlesMaterial) {
-            particlesMaterial.uniforms.uBasePointSize.value = value;
-          }
-        });
-
-      gui.add(guiParams, 'brightness', 0, 1, 0.05)
-        .name('Brightness')
-        .onChange((value) => {
-          if (particlesMaterial) {
-            particlesMaterial.uniforms.uBrightness.value = value;
-          }
-        });
-
-      gui.add(guiParams, 'displacementStrength', 0, 5, 0.1)
-        .name('Displacement')
-        .onChange((value) => {
-          if (particlesMaterial) {
-            particlesMaterial.uniforms.uDisplacementStrength.value = value;
-          }
-        });
-
-      gui.add(guiParams, 'glowSize', 0.05, 0.3, 0.01)
-        .name('Glow Size')
-        .onChange((value) => {
-          displacement.glowSize = value;
-        });
-
-      gui.add(guiParams, 'glowAlpha', 0.1, 0.5, 0.05)
-        .name('Glow Alpha')
-        .onChange((value) => {
-          displacement.glowAlpha = value;
-        });
-
-      gui.add(guiParams, 'decayRate', 0.01, 0.1, 0.005)
-        .name('Decay Rate')
-        .onChange((value) => {
-          displacement.decayRate = value;
-        });
-
-      // Add a folder for camera controls
-      const cameraFolder = gui.addFolder('Camera');
-      cameraFolder.add(camera.position, 'z', 5, 30, 0.1)
-        .name('Distance')
-        .onChange((value) => {
-          camera.position.z = value;
-        });
-    }
+    // Initialize camera position
+    camera.position.z = guiParamsRef.current.cameraZ;
 
     function createParticles(aspectRatio, imageTexture) {
       const baseResolution = 512;
@@ -300,6 +253,17 @@ export default function Car() {
     const tick = () => {
       controls.update();
 
+      // Get current parameters from ref
+      const currentParams = guiParamsRef.current;
+
+      // Update parameters in real-time
+      if (particlesMaterial) {
+        particlesMaterial.uniforms.uBasePointSize.value = currentParams.basePointSize;
+        particlesMaterial.uniforms.uBrightness.value = currentParams.brightness;
+        particlesMaterial.uniforms.uDisplacementStrength.value = currentParams.displacementStrength;
+      }
+      camera.position.z = currentParams.cameraZ;
+
       displacement.raycaster.setFromCamera(displacement.screenCursor, camera);
       const intersections = displacement.raycaster.intersectObject(displacement.interactivePlane);
 
@@ -310,15 +274,15 @@ export default function Car() {
       }
 
       displacement.context.globalCompositeOperation = "source-over";
-      displacement.context.globalAlpha = guiParams.decayRate;
+      displacement.context.globalAlpha = currentParams.decayRate;
       displacement.context.fillStyle = "black";
       displacement.context.fillRect(0, 0, displacement.canvas.width, displacement.canvas.height);
 
       const cursorDistance = displacement.canvasCursorPrevious.distanceTo(displacement.canvasCursor);
       displacement.canvasCursorPrevious.copy(displacement.canvasCursor);
-      const alpha = Math.min(cursorDistance * guiParams.glowAlpha, 1);
+      const alpha = Math.min(cursorDistance * currentParams.glowAlpha, 1);
 
-      const glowSize = displacement.canvas.width * guiParams.glowSize;
+      const glowSize = displacement.canvas.width * currentParams.glowSize;
       displacement.context.globalCompositeOperation = "lighten";
       displacement.context.globalAlpha = alpha;
       displacement.context.drawImage(
@@ -374,16 +338,21 @@ export default function Car() {
         particles.material.dispose();
       }
       renderer.dispose();
-      if (guiRef.current) {
-        guiRef.current.destroy();
-        guiRef.current = null;
-      }
+      // Cleanup completed
     };
   }, [shaders]);
 
   return (
+    <>
     <div className="relative w-full max-w-[600px] aspect-[2/1]">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full bg-black rounded-lg" />
     </div>
+      <ModernControlPanel
+        params={guiParams}
+        onParamChange={handleParamChange}
+        isVisible={showControlPanel}
+        onToggle={() => setShowControlPanel(!showControlPanel)}
+      />
+    </>
   );
 }

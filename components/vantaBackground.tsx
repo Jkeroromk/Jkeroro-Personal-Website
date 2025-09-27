@@ -35,25 +35,33 @@ export default function VantaBackground() {
   const vantaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.VANTA && !vantaEffect) {
-      const BIRDS = window.VANTA.BIRDS;
-      if (BIRDS) {
-        const effect = BIRDS({
-          el: vantaRef.current,
-          mouseControls: true,
-          touchControls: true,
-          gyroControls: false,
-          backgroundAlpha: 0.0,
-          color1: 0xffffff,
-          color2: 0x000000,
-          scale: 1.0,
-          scaleMobile: 1.0,
-          quantity: 2.0
-        });
-        setVantaEffect(effect);
+    // 延迟初始化 Vanta 效果，避免阻塞页面加载
+    const initVanta = () => {
+      if (typeof window !== "undefined" && window.VANTA && !vantaEffect) {
+        const BIRDS = window.VANTA.BIRDS;
+        if (BIRDS && vantaRef.current) {
+          const effect = BIRDS({
+            el: vantaRef.current,
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            backgroundAlpha: 0.0,
+            color1: 0xffffff,
+            color2: 0x000000,
+            scale: 1.0,
+            scaleMobile: 1.0,
+            quantity: 2.0
+          });
+          setVantaEffect(effect);
+        }
       }
-    }
+    };
+
+    // 延迟 500ms 初始化，让页面先加载
+    const timer = setTimeout(initVanta, 500);
+
     return () => {
+      clearTimeout(timer);
       if (vantaEffect) {
         vantaEffect.destroy();
       }
@@ -69,6 +77,15 @@ export default function VantaBackground() {
         muted
         playsInline
         className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          minWidth: '100vw',
+          minHeight: '100vh',
+          width: 'auto',
+          height: 'auto',
+          objectFit: 'cover',
+          transform: 'scale(1.3)',
+          transformOrigin: 'center center'
+        }}
       />
       <div ref={vantaRef} className="absolute inset-0" />
     </div>
