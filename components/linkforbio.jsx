@@ -256,7 +256,7 @@ export default function LinkforBio() {
                 {commentsError ? (
                   <p className="text-red-500 text-sm">{commentsError}</p>
                 ) : (
-                  <div className="max-h-50 overflow-y-auto mb-4">
+                  <div className="max-h-50 overflow-y-auto modern-scrollbar mb-4">
                     {comments.length > 0 ? (
                       comments.map((c, index) => (
                         <div key={index} className="text-white text-sm border-b border-gray-600 pb-2 mb-2">

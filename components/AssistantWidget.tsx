@@ -206,21 +206,22 @@ export default function AssistantWidget() {
       {/* 悬浮按钮 - 黑色圆圈配白色J字 */}
       <label
         htmlFor="assistant-toggle"
-        className="flex items-center justify-center w-14 h-14 bg-black text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 peer-checked:bg-black relative overflow-hidden"
+        className="flex items-center justify-center w-10 h-10 bg-white/5 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 peer-checked:bg-white/5 relative overflow-hidden border border-white/20"
+        style={{ backdropFilter: 'blur(20px)' }}
       >
         {/* 动态白色J字 */}
-        <span className="text-lg font-bold relative z-10 animate-pulse">J</span>
+        <span className="text-sm font-bold relative z-10 animate-pulse">J</span>
         {/* 动态背景效果 */}
         <div className="absolute inset-0 bg-white opacity-0 peer-checked:opacity-10 transition-opacity duration-300 rounded-full"></div>
       </label>
 
       {/* 聊天窗口 - 纯黑白色主题 */}
-      <div className="absolute bottom-16 right-0 w-96 h-[520px] bg-black border border-white/20 rounded-lg shadow-2xl opacity-0 invisible peer-checked:opacity-100 peer-checked:visible transition-all duration-300 transform peer-checked:translate-y-0 translate-y-4">
+      <div className="absolute bottom-16 right-0 w-72 h-[420px] bg-white/5 border border-white/20 rounded-lg shadow-2xl opacity-0 invisible peer-checked:opacity-100 peer-checked:visible transition-all duration-300 transform peer-checked:translate-y-0 translate-y-4" style={{ backdropFilter: 'blur(20px)' }}>
         {/* 窗口头部 */}
-        <div className="flex items-center justify-between p-4 border-b border-white/20 bg-black/80 rounded-t-lg">
+        <div className="flex items-center justify-between p-2 border-b border-white/20 bg-white/5 rounded-t-lg" style={{ backdropFilter: 'blur(10px)' }}>
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-            <h3 className="text-white font-semibold">J 助手</h3>
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <h3 className="text-white font-semibold text-sm">J 助手</h3>
           </div>
           <label
             htmlFor="assistant-toggle"
@@ -231,23 +232,23 @@ export default function AssistantWidget() {
         </div>
 
         {/* 消息区域 */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 h-[400px] modern-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 space-y-3 h-[330px] modern-scrollbar">
           {messages.map((message) => (
             <div
               key={message.id}
               className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] p-3 rounded-lg ${
+                className={`max-w-[80%] p-2 rounded-lg ${
                   message.role === 'user'
                     ? 'bg-white text-black'
                     : 'bg-white/10 text-white'
                 }`}
               >
-                <div className="whitespace-pre-wrap text-sm">
+                <div className="whitespace-pre-wrap text-xs">
                   {message.content}
                 </div>
-                <div className="text-xs opacity-70 mt-1">
+                <div className="text-[10px] opacity-70 mt-1">
                   {message.timestamp.toLocaleTimeString()}
                 </div>
               </div>
@@ -257,11 +258,11 @@ export default function AssistantWidget() {
           {/* 加载指示器 */}
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-white/10 text-white p-3 rounded-lg">
+              <div className="bg-white/10 text-white p-2 rounded-lg">
                 <div className="flex space-x-1">
-                  <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
               </div>
             </div>
@@ -271,7 +272,7 @@ export default function AssistantWidget() {
         </div>
 
         {/* 输入区域 */}
-        <div className="p-4 border-t border-white/20 bg-black/80 rounded-b-lg">
+        <div className="p-2 border-t border-white/20 bg-white/5 rounded-b-lg" style={{ backdropFilter: 'blur(10px)' }}>
           <form onSubmit={handleSubmit} className="flex space-x-2">
             <input
               ref={inputRef}
@@ -281,12 +282,12 @@ export default function AssistantWidget() {
               onKeyPress={handleKeyPress}
               placeholder="输入消息..."
               disabled={isLoading}
-              className="flex-1 px-3 py-2 bg-white/10 text-white placeholder-white/50 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent disabled:opacity-50"
+              className="flex-1 px-2 py-1.5 bg-white/10 text-white placeholder-white/50 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent disabled:opacity-50 text-xs"
             />
             <button
               type="submit"
               disabled={isLoading || !inputValue.trim()}
-              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold"
+              className="px-3 py-1.5 bg-white/10 text-white rounded-lg hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold border border-white/20 text-xs"
             >
               发送
             </button>
