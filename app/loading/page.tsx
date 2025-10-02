@@ -7,10 +7,7 @@ import MouseTrail from '@/components/mousetrail'
 
 const LoadingPage = () => {
   const [progress, setProgress] = useState(0)
-  const [loadingText, setLoadingText] = useState('Loading...')
-  const [dots, setDots] = useState('')
   const [isFadingOut, setIsFadingOut] = useState(false)
-  const [isHidden, setIsHidden] = useState(false)
   const [showAudioPermission, setShowAudioPermission] = useState(false)
   const [loadingDescription, setLoadingDescription] = useState({
     en: 'Brewing digital coffee...',
@@ -86,13 +83,6 @@ const LoadingPage = () => {
       { en: 'Almost there, I promise...', zh: '快好了，我保证...' }
     ]
 
-    // 动态加载文本
-    const textInterval = setInterval(() => {
-      setDots(prev => {
-        if (prev === '...') return ''
-        return prev + '.'
-      })
-    }, 500)
 
     // 更新加载描述
     const descriptionInterval = setInterval(() => {
@@ -114,7 +104,6 @@ const LoadingPage = () => {
     // 3秒后强制显示音频权限选择
     setTimeout(() => {
       setProgress(100)
-      setLoadingText('Ready!')
       setTimeout(() => {
         setShowAudioPermission(true)
       }, 500)
@@ -123,8 +112,8 @@ const LoadingPage = () => {
     // 确保MouseTrail在loading页面正确初始化
     const initMouseTrail = setTimeout(() => {
       // 使用记录的鼠标位置或屏幕中心
-      const mouseX = (window as any).lastMouseX || window.innerWidth / 2;
-      const mouseY = (window as any).lastMouseY || window.innerHeight / 2;
+      const mouseX = (window as typeof window & { lastMouseX?: number }).lastMouseX || window.innerWidth / 2;
+      const mouseY = (window as typeof window & { lastMouseY?: number }).lastMouseY || window.innerHeight / 2;
       
       const event = new MouseEvent('mousemove', {
         clientX: mouseX,
@@ -135,16 +124,11 @@ const LoadingPage = () => {
 
     return () => {
       clearInterval(progressInterval)
-      clearInterval(textInterval)
       clearInterval(descriptionInterval)
       clearTimeout(initMouseTrail)
     }
   }, [router])
 
-  // 如果已经跳转，完全隐藏loading页面
-  if (isHidden) {
-    return null
-  }
 
   return (
     <>
