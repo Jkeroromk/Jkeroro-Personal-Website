@@ -67,8 +67,8 @@ const HomePage = () => {
             // 确保MouseTrail在动画完成后初始化
             setTimeout(() => {
               // 使用记录的鼠标位置或屏幕中心
-              const mouseX = (window as any).lastMouseX || window.innerWidth / 2;
-              const mouseY = (window as any).lastMouseY || window.innerHeight / 2;
+              const mouseX = (window as typeof window & { lastMouseX?: number }).lastMouseX || window.innerWidth / 2;
+              const mouseY = (window as typeof window & { lastMouseY?: number }).lastMouseY || window.innerHeight / 2;
               
               const event = new MouseEvent('mousemove', {
                 clientX: mouseX,
