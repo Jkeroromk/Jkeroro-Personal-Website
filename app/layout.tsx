@@ -4,7 +4,6 @@ import "./globals.css";
 import Script from "next/script";
 import { Toaster } from "@/components/ui/toaster";
 import AssistantWidget from "@/components/AssistantWidget";
-import LoadingScreen from "@/components/LoadingScreen";
 
 const fredoka = Fredoka({
   weight: ["400", "500", "600"],
@@ -37,13 +36,15 @@ export default function RootLayout({
           src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.birds.min.js"
           strategy="lazyOnload"
         />
-        {/* 关键资源预加载 */}
-        <link rel="preload" as="image" href="/pfp.webp" type="image/webp" />
-        <link rel="preload" as="image" href="/me.webp" type="image/webp" />
-        <link rel="preload" as="image" href="/static/car.png" type="image/png" />
-        <link rel="preload" as="image" href="/static/glow.png" type="image/png" />
-        <link rel="preload" as="video" href="/background.mp4" type="video/mp4" />
-        <link rel="preload" as="font" href="/_next/static/media/X7n64b87HvSqjb_WIi2yDCRwoQ_k7367_DWu89XgHPyh-s.p.87515403.woff2" type="font/woff2" crossOrigin="anonymous" />
+        {/* 关键资源预加载 - 只预加载loading页面立即需要的资源 */}
+        {/* 移除字体预加载，因为可能导致警告 */}
+        
+        {/* 延迟预加载 - 这些资源在home页面中才会使用 */}
+        <link rel="prefetch" as="image" href="/pfp.webp" type="image/webp" />
+        <link rel="prefetch" as="image" href="/me.webp" type="image/webp" />
+        <link rel="prefetch" as="image" href="/static/car.png" type="image/png" />
+        <link rel="prefetch" as="image" href="/static/glow.png" type="image/png" />
+        <link rel="prefetch" as="video" href="/background.mp4" type="video/mp4" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/192.png" />
         
@@ -52,11 +53,10 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="//cdnjs.cloudflare.com" />
         <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
       </head>
-      <body className={`${fredoka.className} antialiased modern-scrollbar`} style={{ backgroundColor: "#000000" }}>
+      <body className={`${fredoka.className} antialiased modern-scrollbar bg-black`}>
         {children}
         <Toaster/>
         <AssistantWidget />
-        <LoadingScreen />
       </body>
     </html>
   );

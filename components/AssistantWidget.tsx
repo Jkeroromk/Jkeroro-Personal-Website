@@ -47,7 +47,7 @@ export default function AssistantWidget() {
           id: '1',
           role: 'assistant',
           content: '你好！我是 Jkeroro 的 AI 助手。有什么可以帮助您的吗？',
-          timestamp: new Date()
+          timestamp: new Date() // 这个在客户端运行，不会导致hydration错误
         }
       ]);
       setIsInitialized(true);

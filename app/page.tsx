@@ -1,32 +1,14 @@
-import LinkforBio from "@/components/linkforbio";
-import Tabs from "@/components/tabs";
-import Stack from "@/components/stack";
-import MusicPlayer from "@/components/musicPlayer";
-import Footer from "@/components/footer";
-import Album from "@/components/album";
-import Interact from "@/components/interact";
-import MouseTrail from "@/components/mousetrail";
-import PersonalStore from "@/components/personalStore";
+'use client'
 
-import { AuthProvider } from "../auth";
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function Home() {
+  const router = useRouter()
 
-  return (
-    <>
-      <main>
-        <AuthProvider>
-        <MouseTrail/>
-        <Interact/>
-        <LinkforBio/>
-        <Stack/>
-        <MusicPlayer />
-        <Tabs />
-        <PersonalStore/>
-        <Album />
-        <Footer />
-        </AuthProvider>
-      </main> 
-    </>
-  );
+  useEffect(() => {
+    router.replace('/loading')
+  }, [router])
+
+  return null
 }

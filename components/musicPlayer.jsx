@@ -16,8 +16,59 @@ const MusicPlayer = () => {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(50);
   const [isMuted, setIsMuted] = useState(false);
-  const [showPermissionPrompt, setShowPermissionPrompt] = useState(true);
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
   const audioRef = useRef(null);
+
+  // 检查localStorage中的音频权限设置
+  useEffect(() => {
+    console.log('🎵 音乐播放器初始化，检查权限...')
+    const audioPermission = localStorage.getItem('audioPermission');
+    console.log('🎵 当前音频权限:', audioPermission)
+    
+    if (audioPermission === 'allowed') {
+      // 如果用户允许了音频，自动开始播放
+      const audio = audioRef.current;
+      console.log('🎵 音频元素:', audio)
+      if (audio) {
+        audio.muted = false;
+        // 延迟一点时间确保音频元素完全准备好
+        setTimeout(() => {
+          audio.play().then(() => {
+            setIsPlaying(true);
+            console.log('🎵 音频权限已允许，自动开始播放成功');
+          }).catch((error) => {
+            console.log('🎵 自动播放失败，需要用户交互:', error);
+          });
+        }, 100);
+      }
+    } else {
+      console.log('🎵 音频权限未允许或未设置')
+    }
+  }, []);
+
+  // 监听localStorage变化
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'audioPermission' && e.newValue === 'allowed') {
+        console.log('🎵 检测到localStorage变化，音频权限已允许')
+        const audio = audioRef.current;
+        if (audio) {
+          audio.muted = false;
+          setTimeout(() => {
+            audio.play().then(() => {
+              setIsPlaying(true);
+              console.log('🎵 通过localStorage变化自动开始播放');
+            }).catch((error) => {
+              console.log('🎵 通过localStorage变化自动播放失败:', error);
+            });
+          }, 100);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Handle permission response
   const handlePermissionResponse = (allow) => {
@@ -25,10 +76,13 @@ const MusicPlayer = () => {
       const audio = audioRef.current;
       audio.muted = false;
       setShowPermissionPrompt(false);
-      setIsPlaying(true);
-      setTimeout(() => {
-        audio.play().catch((error) => console.error('Error playing audio:', error));
-      }, 0);
+      // 自动播放音乐
+      audio.play().then(() => {
+        setIsPlaying(true);
+        console.log('音频权限已允许，自动开始播放');
+      }).catch((error) => {
+        console.log('自动播放失败，需要用户交互:', error);
+      });
     } else {
       setShowPermissionPrompt(false);
     }
@@ -49,7 +103,10 @@ const MusicPlayer = () => {
   const skipTrack = (direction) => {
     const newIndex = (currentTrackIndex + direction + tracks.length) % tracks.length;
     setCurrentTrackIndex(newIndex);
-    setIsPlaying(true);
+    // 只有在当前正在播放时才继续播放下一首
+    if (isPlaying) {
+      setIsPlaying(true);
+    }
   };
 
   // Update time and duration
@@ -100,8 +157,13 @@ const MusicPlayer = () => {
     const audio = audioRef.current;
     audio.src = tracks[currentTrackIndex].src;
 
+    // 只有在用户已经交互过且当前正在播放时才自动播放
     if (isPlaying) {
-      audio.play().catch((error) => console.error('Error playing audio:', error));
+      audio.play().catch((error) => {
+        console.error('Error playing audio:', error);
+        // 如果播放失败，重置播放状态
+        setIsPlaying(false);
+      });
     }
 
     if ('mediaSession' in navigator) {
@@ -124,23 +186,6 @@ const MusicPlayer = () => {
 
   return (
     <>
-      {/* Permission prompt outside main container */}
-      {showPermissionPrompt && (
-        <div className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg text-center max-w-sm w-full">
-            <h2 className="text-lg font-bold mb-4">Allow Audio Playback</h2>
-            <p className="mb-4">This website requires audio playback to continue. Would you like to enable sound?</p>
-            <div className="flex justify-center gap-4">
-              <button onClick={() => handlePermissionResponse(true)} className="bg-blue-500 text-white px-4 py-2 rounded-lg">
-                Allow
-              </button>
-              <button onClick={() => handlePermissionResponse(false)} className="bg-red-300 text-black px-4 py-2 rounded-lg">
-                Decline
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main player container with fixed height */}
       <div
