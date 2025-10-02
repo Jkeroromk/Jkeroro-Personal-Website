@@ -68,7 +68,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
       displacementStrength: window.innerWidth <= 768 ? 3 : 3.0,
       glowSize: 0.12,
       glowAlpha: 0.3,
-      decayRate: 0.025,
+      decayRate: 0.015,
       cameraZ: 20
     }
     
@@ -96,22 +96,22 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
   }
   
   return (
-    <div className="fixed top-4 right-4 z-50 w-56 max-w-[calc(100vw-2rem)] max-h-[50vh] bg-white/5 text-white rounded-xl p-2 overflow-y-auto modern-scrollbar animate-in slide-in-from-right-4 duration-300 border border-white/20" style={{ backdropFilter: 'blur(20px)' }}>
+    <div className="fixed top-4 right-4 z-50 w-72 max-w-[calc(100vw-2rem)] max-h-[60vh] bg-white/5 text-white rounded-xl p-4 overflow-y-auto modern-scrollbar animate-in slide-in-from-right-4 duration-300 border border-white/20" style={{ backdropFilter: 'blur(20px)' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold">{t.title}</h3>
+        <h3 className="text-base font-semibold">{t.title}</h3>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
-            className="px-1 py-0.5 text-xs bg-white/10 rounded-md hover:bg-white/20 transition-colors"
+            className="px-2 py-1 text-sm bg-white/10 rounded-md hover:bg-white/20 transition-colors"
           >
             {language === 'zh' ? 'EN' : '中文'}
           </button>
           <button
             onClick={onToggle}
-            className="p-1 hover:bg-white/10 rounded-md transition-colors"
+            className="p-1.5 hover:bg-white/10 rounded-md transition-colors"
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -120,12 +120,12 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
       
       {/* Visual Effects Tab */}
       <div className="mb-6">
-        <h4 className="text-xs font-medium mb-2 text-cyan-300">{t.visual}</h4>
+        <h4 className="text-sm font-medium mb-3 text-cyan-300">{t.visual}</h4>
         
-        <div className="space-y-2">
+        <div className="space-y-3">
           {/* Point Size */}
           <div>
-            <label className="block text-xs text-gray-200 mb-1">{t.pointSize}</label>
+            <label className="block text-sm text-gray-200 mb-2">{t.pointSize}</label>
             <input
               type="range"
               min="0.1"
@@ -133,17 +133,17 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
               step="0.05"
               value={localParams.basePointSize}
               onChange={(e) => handleParamChangeDebounced('basePointSize', parseFloat(e.target.value))}
-              className="w-full h-0.5 bg-white/10 rounded-full appearance-none cursor-pointer slider"
+              className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer slider"
               style={{
                 background: `linear-gradient(to right, #9ca3af 0%, #9ca3af ${(localParams.basePointSize - 0.1) / 0.9 * 100}%, rgba(255,255,255,0.1) ${(localParams.basePointSize - 0.1) / 0.9 * 100}%, rgba(255,255,255,0.1) 100%)`
               }}
             />
-            <div className="text-xs text-gray-300 mt-0.5">{localParams.basePointSize.toFixed(2)}</div>
+            <div className="text-sm text-gray-300 mt-1">{localParams.basePointSize.toFixed(2)}</div>
           </div>
           
           {/* Brightness */}
           <div>
-            <label className="block text-xs text-gray-200 mb-1">{t.brightness}</label>
+            <label className="block text-sm text-gray-200 mb-2">{t.brightness}</label>
             <input
               type="range"
               min="0"
@@ -151,17 +151,17 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
               step="0.05"
               value={localParams.brightness}
               onChange={(e) => handleParamChangeDebounced('brightness', parseFloat(e.target.value))}
-              className="w-full h-0.5 bg-white/10 rounded-full appearance-none cursor-pointer slider"
+              className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer slider"
               style={{
                 background: `linear-gradient(to right, #9ca3af 0%, #9ca3af ${params.brightness * 100}%, rgba(255,255,255,0.1) ${params.brightness * 100}%, rgba(255,255,255,0.1) 100%)`
               }}
             />
-            <div className="text-xs text-gray-300 mt-0.5">{localParams.brightness.toFixed(2)}</div>
+            <div className="text-sm text-gray-300 mt-1">{localParams.brightness.toFixed(2)}</div>
           </div>
           
           {/* Displacement */}
           <div>
-            <label className="block text-xs text-gray-200 mb-1">{t.displacement}</label>
+            <label className="block text-sm text-gray-200 mb-2">{t.displacement}</label>
             <input
               type="range"
               min="0"
@@ -169,17 +169,17 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
               step="0.1"
               value={localParams.displacementStrength}
               onChange={(e) => handleParamChangeDebounced('displacementStrength', parseFloat(e.target.value))}
-              className="w-full h-0.5 bg-white/10 rounded-full appearance-none cursor-pointer slider"
+              className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer slider"
               style={{
                 background: `linear-gradient(to right, #9ca3af 0%, #9ca3af ${params.displacementStrength / 5 * 100}%, rgba(255,255,255,0.1) ${params.displacementStrength / 5 * 100}%, rgba(255,255,255,0.1) 100%)`
               }}
             />
-            <div className="text-xs text-gray-300 mt-0.5">{localParams.displacementStrength.toFixed(1)}</div>
+            <div className="text-sm text-gray-300 mt-1">{localParams.displacementStrength.toFixed(1)}</div>
           </div>
           
           {/* Glow Size */}
           <div>
-            <label className="block text-xs text-gray-200 mb-1">{t.glowSize}</label>
+            <label className="block text-sm text-gray-200 mb-2">{t.glowSize}</label>
             <input
               type="range"
               min="0.05"
@@ -187,17 +187,17 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
               step="0.01"
               value={localParams.glowSize}
               onChange={(e) => handleParamChangeDebounced('glowSize', parseFloat(e.target.value))}
-              className="w-full h-0.5 bg-white/10 rounded-full appearance-none cursor-pointer slider"
+              className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer slider"
               style={{
                 background: `linear-gradient(to right, #9ca3af 0%, #9ca3af ${(localParams.glowSize - 0.05) / 0.25 * 100}%, rgba(255,255,255,0.1) ${(params.glowSize - 0.05) / 0.25 * 100}%, rgba(255,255,255,0.1) 100%)`
               }}
             />
-            <div className="text-xs text-gray-300 mt-0.5">{localParams.glowSize.toFixed(2)}</div>
+            <div className="text-sm text-gray-300 mt-1">{localParams.glowSize.toFixed(2)}</div>
           </div>
           
           {/* Glow Alpha */}
           <div>
-            <label className="block text-xs text-gray-200 mb-1">{t.glowAlpha}</label>
+            <label className="block text-sm text-gray-200 mb-2">{t.glowAlpha}</label>
             <input
               type="range"
               min="0.1"
@@ -205,17 +205,17 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
               step="0.05"
               value={localParams.glowAlpha}
               onChange={(e) => handleParamChangeDebounced('glowAlpha', parseFloat(e.target.value))}
-              className="w-full h-0.5 bg-white/10 rounded-full appearance-none cursor-pointer slider"
+              className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer slider"
               style={{
                 background: `linear-gradient(to right, #9ca3af 0%, #9ca3af ${(localParams.glowAlpha - 0.1) / 0.4 * 100}%, rgba(255,255,255,0.1) ${(params.glowAlpha - 0.1) / 0.4 * 100}%, rgba(255,255,255,0.1) 100%)`
               }}
             />
-            <div className="text-xs text-gray-300 mt-0.5">{localParams.glowAlpha.toFixed(2)}</div>
+            <div className="text-sm text-gray-300 mt-1">{localParams.glowAlpha.toFixed(2)}</div>
           </div>
           
           {/* Decay Rate */}
           <div>
-            <label className="block text-xs text-gray-200 mb-1">{t.decayRate}</label>
+            <label className="block text-sm text-gray-200 mb-2">{t.decayRate}</label>
             <input
               type="range"
               min="0.01"
@@ -223,22 +223,22 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
               step="0.005"
               value={localParams.decayRate}
               onChange={(e) => handleParamChangeDebounced('decayRate', parseFloat(e.target.value))}
-              className="w-full h-0.5 bg-white/10 rounded-full appearance-none cursor-pointer slider"
+              className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer slider"
               style={{
                 background: `linear-gradient(to right, #9ca3af 0%, #9ca3af ${(localParams.decayRate - 0.01) / 0.09 * 100}%, rgba(255,255,255,0.1) ${(params.decayRate - 0.01) / 0.09 * 100}%, rgba(255,255,255,0.1) 100%)`
               }}
             />
-            <div className="text-xs text-gray-300 mt-0.5">{localParams.decayRate.toFixed(3)}</div>
+            <div className="text-sm text-gray-300 mt-1">{localParams.decayRate.toFixed(3)}</div>
           </div>
         </div>
       </div>
       
       {/* Camera Controls Tab */}
       <div className="mb-6">
-        <h4 className="text-xs font-medium mb-2 text-emerald-300">{t.camera}</h4>
+        <h4 className="text-sm font-medium mb-3 text-emerald-300">{t.camera}</h4>
         
         <div>
-          <label className="block text-xs text-gray-200 mb-1">{t.distance}</label>
+          <label className="block text-sm text-gray-200 mb-2">{t.distance}</label>
           <input
             type="range"
             min="5"
@@ -251,14 +251,14 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
               background: `linear-gradient(to right, #9ca3af 0%, #9ca3af ${(localParams.cameraZ - 5) / 25 * 100}%, rgba(255,255,255,0.1) ${(params.cameraZ - 5) / 25 * 100}%, rgba(255,255,255,0.1) 100%)`
             }}
           />
-          <div className="text-xs text-gray-300 mt-0.5">{localParams.cameraZ.toFixed(1)}</div>
+          <div className="text-sm text-gray-300 mt-1">{localParams.cameraZ.toFixed(1)}</div>
         </div>
       </div>
       
       {/* Reset Button */}
       <button
         onClick={handleReset}
-        className="w-full py-1 px-2 bg-red-500/20 hover:bg-red-500/30 text-white rounded-lg transition-colors font-medium text-xs border border-red-500/30"
+        className="w-full py-2 px-3 bg-red-500/20 hover:bg-red-500/30 text-white rounded-lg transition-colors font-medium text-sm border border-red-500/30"
       >
         {t.reset}
       </button>
@@ -266,22 +266,34 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
       <style jsx>{`
         .slider::-webkit-slider-thumb {
           appearance: none;
-          width: 10px;
-          height: 10px;
+          width: 16px;
+          height: 16px;
           border-radius: 50%;
           background: white;
           cursor: pointer;
-          box-shadow: 0 0 0 1px rgba(255,255,255,0.2), 0 2px 4px rgba(0,0,0,0.2);
+          box-shadow: 0 0 0 2px rgba(255,255,255,0.2), 0 2px 6px rgba(0,0,0,0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .slider::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 0 0 2px rgba(255,255,255,0.3), 0 3px 8px rgba(0,0,0,0.4);
         }
         
         .slider::-moz-range-thumb {
-          width: 10px;
-          height: 10px;
+          width: 16px;
+          height: 16px;
           border-radius: 50%;
           background: white;
           cursor: pointer;
           border: none;
-          box-shadow: 0 0 0 1px rgba(255,255,255,0.2), 0 2px 4px rgba(0,0,0,0.2);
+          box-shadow: 0 0 0 2px rgba(255,255,255,0.2), 0 2px 6px rgba(0,0,0,0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .slider::-moz-range-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 0 0 2px rgba(255,255,255,0.3), 0 3px 8px rgba(0,0,0,0.4);
         }
       `}</style>
     </div>
