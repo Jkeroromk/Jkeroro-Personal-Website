@@ -228,21 +228,17 @@ const LoadingPage = () => {
                       scale: 1.05,
                       transition: { duration: 0.2 }
                     }}
-                    className="w-20 h-20 mx-auto bg-gradient-to-br from-gray-100/30 to-gray-200/30 rounded-full flex items-center justify-center backdrop-blur-sm border border-gray-500/50 hover:border-gray-400/60 transition-all duration-300"
+                    className="w-28 h-28 mx-auto bg-gradient-to-br from-gray-100/30 to-gray-200/30 rounded-full flex items-center justify-center backdrop-blur-sm border border-gray-500/50 hover:border-gray-400/60 transition-all duration-300"
                   >
-                    <motion.div 
-                      animate={{ 
-                        scale: [1, 1.05, 1]
-                      }}
-                      transition={{ 
-                        duration: 4, 
-                        repeat: Infinity, 
-                        ease: "easeInOut" 
-                      }}
-                      className="text-3xl"
+                    <div 
+                      className="w-28 h-28 rounded-full overflow-hidden"
                     >
-                      🎵
-                    </motion.div>
+                      <img 
+                        src="/pfp.webp" 
+                        alt="Jkeroro" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                   </motion.div>
                   
                   {/* 简化的装饰性光环 */}

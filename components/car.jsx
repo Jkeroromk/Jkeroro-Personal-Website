@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-// 使用全局Three.js实例，避免多重导入
-// import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import ModernControlPanel from './ModernControlPanel';
 
 const vertexShader = `
@@ -87,7 +86,7 @@ export default function Car() {
     displacementStrength: window.innerWidth <= 768 ? 3 : 3.0,
     glowSize: 0.12,
     glowAlpha: 0.3,
-    decayRate: 0.025,
+    decayRate: 0.08,
     cameraZ: 20
   });
 
@@ -110,7 +109,6 @@ export default function Car() {
     // Use global THREE
     const THREE = window.THREE;
     if (!THREE) {
-      console.error('THREE.js not loaded');
       return;
     }
 
@@ -133,51 +131,21 @@ export default function Car() {
     camera.position.set(0, 0, 18);
     scene.add(camera);
 
-    // 由于CDN版本的Three.js没有OrbitControls，我们跳过controls设置
-    // 这不会影响3D场景的渲染，只是没有鼠标交互控制
-    console.info('OrbitControls not available in CDN version, 3D scene will render without mouse controls');
-    
-    // 创建一个简单的controls对象来避免后续代码错误
-    const controls = {
-      enableDamping: false,
-      enableZoom: false,
-      enableRotate: false,
-      enablePan: false,
-      update: () => {} // 空函数
-    };
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.enableZoom = false;
+    controls.enableRotate = false;
+    controls.enablePan = false;
 
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
       alpha: true,
-      powerPreference: "high-performance",
-      failIfMajorPerformanceCaveat: false,
     });
     renderer.setClearColor(0x000000, 0);
     renderer.setSize(sizes.width, sizes.height);
-    // 限制像素比以提升性能，但保持视觉效果
-    renderer.setPixelRatio(Math.min(sizes.pixelRatio, 2));
+    renderer.setPixelRatio(sizes.pixelRatio);
     renderer.setViewport(0, 0, sizes.width, sizes.height);
-    
-    // 启用WebGL扩展以提升性能
-    const gl = renderer.getContext();
-    if (gl) {
-      gl.getExtension('WEBGL_lose_context');
-      gl.getExtension('OES_element_index_uint');
-      
-      // 添加WebGL错误处理
-      gl.getExtension('WEBGL_debug_renderer_info');
-      
-      // 设置错误回调
-      const originalGetError = gl.getError;
-      gl.getError = function() {
-        const error = originalGetError.call(this);
-        if (error !== gl.NO_ERROR) {
-          console.warn('WebGL Error:', error);
-        }
-        return error;
-      };
-    }
 
     const displacement = {};
     displacement.canvas = document.createElement("canvas");
@@ -227,7 +195,7 @@ export default function Car() {
       displacement.interactivePlane.position.z = 0;
 
       const isMobile = window.innerWidth <= 768;
-      const subdivisions = isMobile ? 256 : 512; // 保持原始粒子数量
+      const subdivisions = isMobile ? 256 : 512;
 
       const particlesGeometry = new THREE.PlaneGeometry(
         planeWidth,
@@ -281,77 +249,52 @@ export default function Car() {
       createParticles(aspectRatio, imageTexture);
     };
 
-    // 性能优化：帧率控制
-    let lastTime = 0;
-    const targetFPS = 30; // 降低到30FPS以提升性能
-    const frameInterval = 1000 / targetFPS;
-    let frameCount = 0;
-    let fpsCounter = 0;
-    let lastFpsTime = 0;
+    const tick = () => {
+      controls.update();
 
-    const tick = (currentTime) => {
-      // 帧率控制，保持30FPS
-      if (currentTime - lastTime >= frameInterval) {
-        frameCount++;
-        controls.update();
+      // Get current parameters from ref
+      const currentParams = guiParamsRef.current;
 
-        // Get current parameters from ref
-        const currentParams = guiParamsRef.current;
-
-        // Update parameters in real-time
-        if (particlesMaterial) {
-          particlesMaterial.uniforms.uBasePointSize.value = currentParams.basePointSize;
-          particlesMaterial.uniforms.uBrightness.value = currentParams.brightness;
-          particlesMaterial.uniforms.uDisplacementStrength.value = currentParams.displacementStrength;
-        }
-        camera.position.z = currentParams.cameraZ;
-
-        // 降低交互更新频率，每3帧更新一次
-        if (frameCount % 3 === 0) {
-          displacement.raycaster.setFromCamera(displacement.screenCursor, camera);
-          const intersections = displacement.raycaster.intersectObject(displacement.interactivePlane);
-
-          if (intersections.length) {
-            const uv = intersections[0].uv;
-            displacement.canvasCursor.x = uv.x * displacement.canvas.width;
-            displacement.canvasCursor.y = (1 - uv.y) * displacement.canvas.height;
-          }
-
-          displacement.context.globalCompositeOperation = "source-over";
-          displacement.context.globalAlpha = currentParams.decayRate;
-          displacement.context.fillStyle = "black";
-          displacement.context.fillRect(0, 0, displacement.canvas.width, displacement.canvas.height);
-
-          const cursorDistance = displacement.canvasCursorPrevious.distanceTo(displacement.canvasCursor);
-          displacement.canvasCursorPrevious.copy(displacement.canvasCursor);
-          const alpha = Math.min(cursorDistance * currentParams.glowAlpha, 1);
-
-          const glowSize = displacement.canvas.width * currentParams.glowSize;
-          displacement.context.globalCompositeOperation = "lighten";
-          displacement.context.globalAlpha = alpha;
-          displacement.context.drawImage(
-            displacement.glowImage,
-            displacement.canvasCursor.x - glowSize * 0.5,
-            displacement.canvasCursor.y - glowSize * 0.5,
-            glowSize,
-            glowSize
-          );
-
-          displacement.texture.needsUpdate = true;
-        }
-
-        renderer.render(scene, camera);
-        lastTime = currentTime;
-        
-        // 性能监控
-        fpsCounter++;
-        if (currentTime - lastFpsTime >= 1000) {
-          console.log(`3D Scene FPS: ${fpsCounter}`);
-          fpsCounter = 0;
-          lastFpsTime = currentTime;
-        }
+      // Update parameters in real-time
+      if (particlesMaterial) {
+        particlesMaterial.uniforms.uBasePointSize.value = currentParams.basePointSize;
+        particlesMaterial.uniforms.uBrightness.value = currentParams.brightness;
+        particlesMaterial.uniforms.uDisplacementStrength.value = currentParams.displacementStrength;
       }
-      
+      camera.position.z = currentParams.cameraZ;
+
+      displacement.raycaster.setFromCamera(displacement.screenCursor, camera);
+      const intersections = displacement.raycaster.intersectObject(displacement.interactivePlane);
+
+      if (intersections.length) {
+        const uv = intersections[0].uv;
+        displacement.canvasCursor.x = uv.x * displacement.canvas.width;
+        displacement.canvasCursor.y = (1 - uv.y) * displacement.canvas.height;
+      }
+
+      displacement.context.globalCompositeOperation = "source-over";
+      displacement.context.globalAlpha = currentParams.decayRate;
+      displacement.context.fillStyle = "black";
+      displacement.context.fillRect(0, 0, displacement.canvas.width, displacement.canvas.height);
+
+      const cursorDistance = displacement.canvasCursorPrevious.distanceTo(displacement.canvasCursor);
+      displacement.canvasCursorPrevious.copy(displacement.canvasCursor);
+      const alpha = Math.min(cursorDistance * currentParams.glowAlpha, 1);
+
+      const glowSize = displacement.canvas.width * currentParams.glowSize;
+      displacement.context.globalCompositeOperation = "lighten";
+      displacement.context.globalAlpha = alpha;
+      displacement.context.drawImage(
+        displacement.glowImage,
+        displacement.canvasCursor.x - glowSize * 0.5,
+        displacement.canvasCursor.y - glowSize * 0.5,
+        glowSize,
+        glowSize
+      );
+
+      displacement.texture.needsUpdate = true;
+
+      renderer.render(scene, camera);
       window.requestAnimationFrame(tick);
     };
 
@@ -394,7 +337,6 @@ export default function Car() {
         particles.material.dispose();
       }
       renderer.dispose();
-      // Cleanup completed
     };
   }, [shaders]);
 
