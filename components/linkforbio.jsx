@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Eye, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
+import ClientTimeDisplay from "./ClientTimeDisplay";
 import { FaTiktok, FaInstagram, FaYoutube, FaTwitch, FaSpotify, FaSoundcloud } from "react-icons/fa";
 import {
   AlertDialog,
@@ -262,7 +263,7 @@ export default function LinkforBio() {
                         <div key={index} className="text-white text-sm border-b border-gray-600 pb-2 mb-2">
                           <p>{c.text}</p>
                           <p className="text-gray-400 text-xs">
-                            {c.timestamp ? new Date(c.timestamp).toLocaleString() : "Just now"}
+                            <ClientTimeDisplay timestamp={c.timestamp} fallback="Just now" />
                           </p>
                         </div>
                       ))

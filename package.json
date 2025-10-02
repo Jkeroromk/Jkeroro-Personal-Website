@@ -24,6 +24,7 @@
     "embla-carousel-autoplay": "^8.5.2",
     "embla-carousel-react": "^8.5.2",
     "firebase": "^11.2.0",
+    "framer-motion": "^12.23.22",
     "gsap": "^3.12.7",
     "lil-gui": "^0.20.0",
     "lucide-react": "^0.474.0",

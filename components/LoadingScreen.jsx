@@ -87,8 +87,8 @@ const LoadingScreen = () => {
             // 淡出完成后隐藏加载屏幕
             setTimeout(() => {
               setIsLoading(false)
-            }, 1200)
-          }, 800) // 减少等待时间
+            }, 1000) // 与CSS动画持续时间匹配
+          }, 500) // 减少等待时间，让fade out更快开始
         }
       }, 50) // 更频繁的检查
 
@@ -101,8 +101,8 @@ const LoadingScreen = () => {
           setIsFadingOut(true)
           setTimeout(() => {
             setIsLoading(false)
-          }, 1200)
-        }, 800)
+          }, 1000) // 与CSS动画持续时间匹配
+        }, 500) // 减少等待时间
       }, 3000)
     }
 
@@ -140,8 +140,8 @@ const LoadingScreen = () => {
       
       {/* 主要内容层 */}
       <div 
-        className={`loading-screen fixed bg-black flex items-center justify-center transition-opacity duration-1200 ${
-          isFadingOut ? 'opacity-0' : 'opacity-100'
+        className={`loading-screen fixed bg-black flex items-center justify-center transition-all duration-1000 ease-in-out ${
+          isFadingOut ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
         }`}
         style={{ 
           zIndex: 99999,
@@ -162,7 +162,7 @@ const LoadingScreen = () => {
           outline: 'none'
         }}
       >
-      <div className="text-center">
+      <div className={`text-center transition-all duration-1000 ${isFadingOut ? 'opacity-0 translate-y-4' : 'opacity-100 translate-y-0'}`}>
         <h1 className="text-4xl font-bold text-white mb-4">
           <span className="inline-block animate-bounce" style={{ animationDelay: '0s' }}>J</span>
           <span className="inline-block animate-bounce" style={{ animationDelay: '0.1s' }}>k</span>

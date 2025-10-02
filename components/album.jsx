@@ -58,9 +58,10 @@ const Album = () => {
           src="/me.webp"
           alt="me"
           width={550}
-          height={200}
+          height={550}
           priority
           className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 w-full h-auto object-cover"
+          style={{ width: '100%', height: 'auto' }}
         />
       </div>
       <div ref={addToRefs} className="w-full max-w-[550px]">
@@ -69,7 +70,8 @@ const Album = () => {
           alt="album"
           width={550}
           height={400}
-          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 w-full h-auto object-cover"
+          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 object-cover"
+          style={{ width: '100%', height: 'auto' }}
         />
       </div>
       <div ref={addToRefs} className="w-full max-w-[550px]">
@@ -78,7 +80,8 @@ const Album = () => {
           alt="album"
           width={550}
           height={400}
-          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 w-full h-auto object-cover"
+          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 object-cover"
+          style={{ width: '100%', height: 'auto' }}
         />
       </div>
       <div ref={addToRefs} className="w-full max-w-[550px]">
@@ -87,7 +90,8 @@ const Album = () => {
           alt="album"
           width={550}
           height={400}
-          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 w-full h-auto object-cover"
+          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 object-cover"
+          style={{ width: '100%', height: 'auto' }}
         />
       </div>
     </div>
