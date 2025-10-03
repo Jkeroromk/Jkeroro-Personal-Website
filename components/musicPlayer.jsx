@@ -21,6 +21,9 @@ const MusicPlayer = () => {
 
   // 检查localStorage中的音频权限设置
   useEffect(() => {
+    // 确保在客户端环境运行
+    if (typeof window === 'undefined') return
+    
     console.log('🎵 音乐播放器初始化，检查权限...')
     const audioPermission = localStorage.getItem('audioPermission');
     console.log('🎵 当前音频权限:', audioPermission)
@@ -48,6 +51,9 @@ const MusicPlayer = () => {
 
   // 监听localStorage变化
   useEffect(() => {
+    // 确保在客户端环境运行
+    if (typeof window === 'undefined') return
+    
     const handleStorageChange = (e) => {
       if (e.key === 'audioPermission' && e.newValue === 'allowed') {
         console.log('🎵 检测到localStorage变化，音频权限已允许')

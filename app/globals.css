@@ -8,6 +8,13 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 移动端优化 - 单独设置避免hydration问题 */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-touch-callout: none; /* 禁用移动端长按弹出菜单 */
+  }
+}
+
 /* 减少重绘和重排 */
 .motion-reduce {
   animation-duration: 0.01ms !important;

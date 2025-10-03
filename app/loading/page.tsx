@@ -49,19 +49,52 @@ const LoadingPage = () => {
   const handleAudioPermission = (allow: boolean) => {
     console.log('🎵 处理音频权限:', allow)
     setShowAudioPermission(false)
-    // 设置Cookie，不设置过期时间（会话Cookie）
-    document.cookie = `perm=${allow ? 'allowed' : 'declined'}; Path=/; SameSite=Lax`
-    // 设置localStorage，供音乐播放器使用
-    localStorage.setItem('audioPermission', allow ? 'allowed' : 'declined')
-    // 设置一个标记，表示这是正常跳转
-    sessionStorage.setItem('fromLoading', 'true')
-    console.log('✅ 设置Cookie、localStorage和sessionStorage完成')
-    console.log('✅ localStorage中的audioPermission:', localStorage.getItem('audioPermission'))
+    
+    // 确保在客户端环境运行
+    if (typeof window === 'undefined') return
+    
+    // 移动端Safari兼容性：使用多种方式设置状态
+    try {
+      // 设置Cookie，不设置过期时间（会话Cookie）
+      document.cookie = `perm=${allow ? 'allowed' : 'declined'}; Path=/; SameSite=Lax`
+      
+      // 设置localStorage，供音乐播放器使用
+      localStorage.setItem('audioPermission', allow ? 'allowed' : 'declined')
+      
+      // 设置一个标记，表示这是正常跳转
+      sessionStorage.setItem('fromLoading', 'true')
+      
+      // 移动端Safari额外保障：使用URL参数
+      const timestamp = Date.now().toString()
+      sessionStorage.setItem('loadingTimestamp', timestamp)
+      
+      console.log('✅ 设置Cookie、localStorage和sessionStorage完成')
+      console.log('✅ localStorage中的audioPermission:', localStorage.getItem('audioPermission'))
+    } catch (error) {
+      console.warn('⚠️ 设置存储时出错:', error)
+    }
+    
     setIsFadingOut(true)
+    
+    // 移动端Safari兼容性：使用更短的延迟和强制跳转
     setTimeout(() => {
       console.log('🚀 开始跳转到home页面')
-      router.replace('/home')
-    }, 800)
+      try {
+        // 尝试使用replace
+        router.replace('/home')
+        
+        // 移动端Safari备用方案：如果replace失败，使用push
+        setTimeout(() => {
+          if (window.location.pathname !== '/home') {
+            console.log('🔄 使用备用跳转方案')
+            window.location.href = '/home'
+          }
+        }, 100)
+      } catch (error) {
+        console.warn('⚠️ 路由跳转失败，使用window.location:', error)
+        window.location.href = '/home'
+      }
+    }, 600) // 减少延迟时间
   }
 
 
@@ -111,6 +144,9 @@ const LoadingPage = () => {
 
     // 确保MouseTrail在loading页面正确初始化
     const initMouseTrail = setTimeout(() => {
+      // 确保在客户端环境运行
+      if (typeof window === 'undefined') return
+      
       // 使用记录的鼠标位置或屏幕中心
       const mouseX = (window as typeof window & { lastMouseX?: number }).lastMouseX || window.innerWidth / 2;
       const mouseY = (window as typeof window & { lastMouseY?: number }).lastMouseY || window.innerHeight / 2;
