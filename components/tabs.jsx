@@ -8,19 +8,14 @@ import {
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { collection, getDocs, addDoc } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { firestore } from "../firebase";
 import { useAuth } from "../auth";
 
 const Tabs = () => {
   const { isAdmin, loading } = useAuth();
   const [carouselItems, setCarouselItems] = useState([]);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [link, setLink] = useState("");
-  const [projectLoading, setProjectLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
-
   const autoplayPlugin = useRef(Autoplay({ delay: 3000, stopOnInteraction: false }));
 
   const fetchCarouselItems = async () => {
@@ -46,29 +41,6 @@ const Tabs = () => {
     fetchCarouselItems();
   }, []);
 
-  const handleAddProject = async () => {
-    if (!title || !description || !link) {
-      alert("Please fill all fields");
-      return;
-    }
-    setProjectLoading(true);
-    try {
-      await addDoc(collection(firestore, "carouselItems"), {
-        title,
-        description,
-        link,
-      });
-      setTitle("");
-      setDescription("");
-      setLink("");
-      fetchCarouselItems();
-    } catch (error) {
-      console.error("Error adding project:", error);
-      alert("Failed to add project: " + error.message);
-    } finally {
-      setProjectLoading(false);
-    }
-  };
 
   const resetAutoplay = () => {
     if (autoplayPlugin.current) {
@@ -88,34 +60,15 @@ const Tabs = () => {
     <div className="mt-2 flex flex-col justify-center items-center w-full px-4 z-10">
       {isAdmin && (
         <div className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-10 w-full sm:w-[550px]">
-          <h1 className="text-xl font-extrabold text-black">Add Project</h1>
-          <input
-            type="text"
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="mt-4 p-2 border-2 border-black rounded-md bg-white"
-          />
-          <input
-            type="text"
-            placeholder="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="mt-4 p-2 border-2 border-black rounded-md bg-white"
-          />
-          <input
-            type="url"
-            placeholder="Link"
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            className="mt-4 p-2 border-2 border-black rounded-md bg-white"
-          />
+          <h1 className="text-xl font-extrabold text-black">Admin Panel</h1>
+          <p className="text-sm text-gray-600 mt-2 text-center">
+            Manage your website content, images, and music
+          </p>
           <button
-            onClick={handleAddProject}
-            disabled={projectLoading}
-            className="mt-4 py-2 px-4 bg-blue-600 text-white rounded-md disabled:bg-gray-500 hover:bg-blue-700 transition-colors"
+            onClick={() => window.open('/admin', '_blank')}
+            className="mt-4 py-2 px-6 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
-            {projectLoading ? "Adding..." : "Add Project"}
+            Open Admin Panel
           </button>
         </div>
       )}
@@ -163,14 +116,32 @@ const Tabs = () => {
                   href={item.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black hover:border-blue-600 transition-color duration-300 py-6 px-8 rounded-3xl w-full sm:w-[550px]"
+                  className="relative flex flex-col items-center justify-center border-2 border-black hover:border-blue-600 transition-all duration-300 py-6 px-8 rounded-3xl w-full sm:w-[550px] h-64 overflow-hidden group"
+                  style={{
+                    backgroundImage: item.image ? `url(${item.image})` : 'none',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundColor: item.image ? 'transparent' : '#1f2937'
+                  }}
                 >
-                  <h1 className="text-xl font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
-                    {item.title}
-                  </h1>
-                  <h2 className="text-sm font-semibold text-black hover:text-blue-600 transition-colors duration-300">
-                    {item.description}
-                  </h2>
+                  {/* 背景遮罩 */}
+                  <div className="absolute inset-0 bg-black bg-opacity-60 group-hover:bg-opacity-50 transition-all duration-300"></div>
+                  
+                  {/* 内容 */}
+                  <div className="relative z-10 text-center">
+                    <h1 className="text-xl font-extrabold text-white group-hover:text-blue-300 transition-colors duration-300 mb-2">
+                      {item.title}
+                    </h1>
+                    <h2 className="text-sm font-semibold text-gray-200 group-hover:text-blue-200 transition-colors duration-300">
+                      {item.description}
+                    </h2>
+                    {item.category && (
+                      <span className="inline-block mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded-full">
+                        {item.category}
+                      </span>
+                    )}
+                  </div>
                 </a>
               </CarouselItem>
             ))

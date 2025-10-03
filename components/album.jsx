@@ -1,24 +1,33 @@
 'use client';
 
 import Image from "next/image";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import DataManager from "@/lib/data-manager";
 
 gsap.registerPlugin(ScrollTrigger);
 
 const Album = () => {
   const albumRef = useRef(null);
   const imageRefs = useRef([]);
+  const [images, setImages] = useState([]);
+  const [dataManager] = useState(() => DataManager.getInstance());
+
+  // 加载图片数据
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    setImages(dataManager.getImages());
+  }, [dataManager]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const images = imageRefs.current;
+    const imageElements = imageRefs.current;
 
-    gsap.set(images, { opacity: 0 });
+    gsap.set(imageElements, { opacity: 0 });
 
-    images.forEach((image, index) => {
+    imageElements.forEach((image, index) => {
       const isMobile = window.innerWidth <= 768;
       // Reduce the animation distance for mobile to prevent overflow
       const direction = index % 2 === 0 ? (isMobile ? -50 : -200) : (isMobile ? 50 : 200);
@@ -53,47 +62,19 @@ const Album = () => {
       ref={albumRef}
       className="flex flex-col items-center justify-center mt-10 overflow-x-hidden"
     >
-      <div ref={addToRefs} className="w-full max-w-[550px]">
-        <Image
-          src="/me.webp"
-          alt="me"
-          width={550}
-          height={550}
-          priority
-          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 w-full h-auto object-cover"
-          style={{ width: '100%', height: 'auto' }}
-        />
-      </div>
-      <div ref={addToRefs} className="w-full max-w-[550px]">
-        <Image
-          src="/Room.jpg"
-          alt="album"
-          width={550}
-          height={400}
-          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 object-cover"
-          style={{ width: '100%', height: 'auto' }}
-        />
-      </div>
-      <div ref={addToRefs} className="w-full max-w-[550px]">
-        <Image
-          src="/lego-car.jpg"
-          alt="album"
-          width={550}
-          height={400}
-          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 object-cover"
-          style={{ width: '100%', height: 'auto' }}
-        />
-      </div>
-      <div ref={addToRefs} className="w-full max-w-[550px]">
-        <Image
-          src="/coffee.jpg"
-          alt="album"
-          width={550}
-          height={400}
-          className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 object-cover"
-          style={{ width: '100%', height: 'auto' }}
-        />
-      </div>
+      {images.map((image, index) => (
+        <div key={image.id} ref={addToRefs} className="w-full max-w-[550px]">
+          <Image
+            src={image.src}
+            alt={image.alt}
+            width={image.width}
+            height={image.height}
+            priority={image.priority}
+            className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 w-full h-auto object-cover"
+            style={{ width: '100%', height: 'auto' }}
+          />
+        </div>
+      ))}
     </div>
   );
 };

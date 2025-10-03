@@ -2,12 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Minus, Plus } from 'lucide-react';
-
-const tracks = [
-  { title: 'ReawakeR (Solo Leveling)', subtitle: 'LiSA(feat. Felix of Stray Kids)', src: '/ReawakeR.mp3' },
-  { title: 'Work (Hell Paradise)', subtitle: '椎名林檎 ● ꉈꀧ꒒꒒ꁄꍈꍈꀧ꒦ꉈ ꉣꅔꎡꅔꁕꁄ', src: '/Work.mp3' },
-  { title: 'SPECIALZ (Jujutsu Kaisen)', subtitle: 'Anifi', src: '/SPECIALZ (Jujutsu Kaisen).mp3' },
-];
+import DataManager from '@/lib/data-manager';
 
 const MusicPlayer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -17,14 +12,31 @@ const MusicPlayer = () => {
   const [volume, setVolume] = useState(50);
   const [isMuted, setIsMuted] = useState(false);
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
+  const [tracks, setTracks] = useState([]);
+  const [dataManager] = useState(() => DataManager.getInstance());
   const audioRef = useRef(null);
+
+  // 加载音乐数据
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const tracksData = dataManager.getTracks();
+    console.log('🎵 加载音乐数据:', tracksData);
+    setTracks(tracksData);
+  }, [dataManager]);
 
   // 检查localStorage中的音频权限设置
   useEffect(() => {
     // 确保在客户端环境运行
     if (typeof window === 'undefined') return
     
+    // 确保有音乐数据
+    if (!tracks || tracks.length === 0) {
+      console.log('🎵 没有音乐数据，跳过自动播放检查');
+      return;
+    }
+    
     console.log('🎵 音乐播放器初始化，检查权限...')
+    console.log('🎵 当前音乐数据:', tracks);
     const audioPermission = localStorage.getItem('audioPermission');
     console.log('🎵 当前音频权限:', audioPermission)
     
@@ -47,7 +59,7 @@ const MusicPlayer = () => {
     } else {
       console.log('🎵 音频权限未允许或未设置')
     }
-  }, []);
+  }, [tracks]); // 添加tracks作为依赖
 
   // 监听localStorage变化
   useEffect(() => {
@@ -97,16 +109,19 @@ const MusicPlayer = () => {
   // Toggle play/pause
   const togglePlayPause = () => {
     const audio = audioRef.current;
-    if (isPlaying) {
-      audio.pause();
-    } else {
-      audio.play().catch((error) => console.error('Error playing audio:', error));
+    if (audio) {
+      if (isPlaying) {
+        audio.pause();
+      } else {
+        audio.play().catch((error) => console.error('Error playing audio:', error));
+      }
+      setIsPlaying(!isPlaying);
     }
-    setIsPlaying(!isPlaying);
   };
 
   // Skip tracks
   const skipTrack = (direction) => {
+    if (!tracks || tracks.length === 0) return;
     const newIndex = (currentTrackIndex + direction + tracks.length) % tracks.length;
     setCurrentTrackIndex(newIndex);
     // 只有在当前正在播放时才继续播放下一首
@@ -118,8 +133,10 @@ const MusicPlayer = () => {
   // Update time and duration
   const handleTimeUpdate = () => {
     const audio = audioRef.current;
-    setCurrentTime(audio.currentTime);
-    setDuration(audio.duration);
+    if (audio) {
+      setCurrentTime(audio.currentTime);
+      setDuration(audio.duration);
+    }
   };
 
   // Format time as MM:SS
@@ -133,7 +150,9 @@ const MusicPlayer = () => {
   // Toggle mute
   const toggleMute = () => {
     const audio = audioRef.current;
-    audio.volume = isMuted ? volume / 100 : 0;
+    if (audio) {
+      audio.volume = isMuted ? volume / 100 : 0;
+    }
     setIsMuted(!isMuted);
   };
 
@@ -141,27 +160,36 @@ const MusicPlayer = () => {
   const changeVolume = (delta) => {
     const newVolume = Math.max(0, Math.min(100, volume + delta));
     setVolume(newVolume);
-    audioRef.current.volume = newVolume / 100;
+    const audio = audioRef.current;
+    if (audio) {
+      audio.volume = newVolume / 100;
+    }
     setIsMuted(newVolume === 0);
   };
 
   // Setup audio listeners and initial volume
   useEffect(() => {
     const audio = audioRef.current;
-    audio.volume = volume / 100;
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', () => skipTrack(1));
+    if (audio) {
+      audio.volume = volume / 100;
+      audio.addEventListener('timeupdate', handleTimeUpdate);
+      audio.addEventListener('ended', () => skipTrack(1));
+    }
 
     return () => {
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', () => skipTrack(1));
+      if (audio) {
+        audio.removeEventListener('timeupdate', handleTimeUpdate);
+        audio.removeEventListener('ended', () => skipTrack(1));
+      }
     };
   }, [volume, currentTrackIndex]);
 
   // Update audio source and media session
   useEffect(() => {
     const audio = audioRef.current;
-    audio.src = tracks[currentTrackIndex].src;
+    if (tracks[currentTrackIndex]?.src) {
+      audio.src = tracks[currentTrackIndex].src;
+    }
 
     // 只有在用户已经交互过且当前正在播放时才自动播放
     if (isPlaying) {
@@ -174,8 +202,8 @@ const MusicPlayer = () => {
 
     if ('mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: tracks[currentTrackIndex].title,
-        artist: tracks[currentTrackIndex].subtitle || 'Unknown Artist',
+        title: tracks[currentTrackIndex]?.title || 'Unknown Title',
+        artist: tracks[currentTrackIndex]?.subtitle || 'Unknown Artist',
         album: 'Jkeroro Music',
         artwork: [
           { src: '/512.png', sizes: '512x512', type: 'image/png' },
@@ -190,6 +218,18 @@ const MusicPlayer = () => {
     }
   }, [currentTrackIndex, isPlaying]);
 
+  // 如果没有音乐数据，显示空状态
+  if (!tracks || tracks.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center mt-10">
+        <div className="text-center text-gray-400">
+          <p>No music tracks available</p>
+          <p className="text-sm mt-2">Add tracks in the admin panel</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
 
@@ -198,13 +238,15 @@ const MusicPlayer = () => {
         className="flex flex-col items-center justify-center mt-10 w-full"
         style={{ height: '400px' }} // Fixed height to prevent shifts
       >
-        <audio
-          ref={audioRef}
-          src={tracks[currentTrackIndex].src}
-          muted={isMuted}
-          preload="metadata" // Preload metadata to avoid late duration updates
-          onEnded={() => skipTrack(1)}
-        />
+        {tracks[currentTrackIndex]?.src && (
+          <audio
+            ref={audioRef}
+            src={tracks[currentTrackIndex].src}
+            muted={isMuted}
+            preload="metadata" // Preload metadata to avoid late duration updates
+            onEnded={() => skipTrack(1)}
+          />
+        )}
 
         {/* Player UI with fixed dimensions */}
         <div
@@ -216,9 +258,9 @@ const MusicPlayer = () => {
             className="mb-2 text-xl font-bold truncate w-full text-center"
             style={{ height: '28px' }} // Fixed height for title
           >
-            {tracks[currentTrackIndex].title}
+            {tracks[currentTrackIndex]?.title || 'No Track'}
           </h3>
-          {tracks[currentTrackIndex].subtitle && (
+          {tracks[currentTrackIndex]?.subtitle && (
             <p
               className="text-sm text-gray-300 mb-5 truncate w-full text-center"
               style={{ height: '20px' }} // Fixed height for subtitle
