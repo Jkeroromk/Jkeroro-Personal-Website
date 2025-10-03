@@ -54,7 +54,11 @@ class DataManager {
   }
 
   // 保存所有数据
-  saveAllData(data: any) {
+  saveAllData(data: {
+    images: AlbumImage[]
+    tracks: MusicTrack[]
+    projects: Project[]
+  }) {
     if (typeof window === 'undefined') return
     
     try {
