@@ -261,16 +261,34 @@ const AdminPageContent = () => {
           <AdminHeader onLogout={handleLogout} />
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-gray-800">
-              <TabsTrigger value="images" className="data-[state=active]:bg-gray-700">
+            <TabsList className="grid w-full grid-cols-3 bg-gray-800 border border-gray-700 relative overflow-hidden">
+              <TabsTrigger 
+                value="images" 
+                className="relative z-10 text-white data-[state=active]:text-black transition-all duration-300 ease-in-out"
+              >
                 Images
               </TabsTrigger>
-              <TabsTrigger value="music" className="data-[state=active]:bg-gray-700">
+              <TabsTrigger 
+                value="music" 
+                className="relative z-10 text-white data-[state=active]:text-black transition-all duration-300 ease-in-out"
+              >
                 Music
               </TabsTrigger>
-              <TabsTrigger value="projects" className="data-[state=active]:bg-gray-700">
+              <TabsTrigger 
+                value="projects" 
+                className="relative z-10 text-white data-[state=active]:text-black transition-all duration-300 ease-in-out"
+              >
                 Projects
               </TabsTrigger>
+              
+              {/* 动态滑动条 */}
+              <div 
+                className="absolute top-0 h-full bg-white rounded-md transition-all duration-300 ease-in-out z-0"
+                style={{
+                  width: '33.333%',
+                  left: activeTab === 'images' ? '0%' : activeTab === 'music' ? '33.333%' : '66.666%'
+                }}
+              />
             </TabsList>
 
             <TabsContent value="images" className="mt-6">

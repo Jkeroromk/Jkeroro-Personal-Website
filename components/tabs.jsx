@@ -58,21 +58,6 @@ const Tabs = () => {
 
   return (
     <div className="mt-2 flex flex-col justify-center items-center w-full px-4 z-10">
-      {isAdmin && (
-        <div className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-10 w-full sm:w-[550px]">
-          <h1 className="text-xl font-extrabold text-black">Admin Panel</h1>
-          <p className="text-sm text-gray-600 mt-2 text-center">
-            Manage your website content, images, and music
-          </p>
-          <button
-            onClick={() => window.open('/admin', '_blank')}
-            className="mt-4 py-2 px-6 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Open Admin Panel
-          </button>
-        </div>
-      )}
-
       <div className="flex flex-col items-center w-full">
         <a
           href="https://3d-portfolio-jade-xi.vercel.app/"

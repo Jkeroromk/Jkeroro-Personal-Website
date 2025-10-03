@@ -42,16 +42,7 @@ export default function LinkforBio() {
   const { toast } = useToast();
   const debounceTimeoutRef = useRef(null); // Added to manage debounce timeout
 
-  // Secret key combo for login
-  useEffect(() => {
-    const handleSecretKeyCombo = (e) => {
-      if ((e.shiftKey && e.altKey && e.key === "L") || (e.metaKey && e.shiftKey && e.key === "L")) {
-        setShowLogin((prev) => !prev);
-      }
-    };
-    document.addEventListener("keydown", handleSecretKeyCombo);
-    return () => document.removeEventListener("keydown", handleSecretKeyCombo);
-  }, []);
+  // 移除隐藏键登录功能，现在使用专门的登录按钮
 
   // Admin activity tracking
   useEffect(() => {

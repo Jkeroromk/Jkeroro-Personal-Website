@@ -4,8 +4,17 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import MouseTrail from '@/components/mousetrail'
 import Interact from '@/components/interact'
+import LoginButton from '@/components/LoginButton'
+import AssistantWidget from '@/components/AssistantWidget'
 
 const HomeLayout = ({ children }) => {
+  // 确保页面滚动到顶部
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo(0, 0)
+    }
+  }, [])
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -37,6 +46,8 @@ const HomeLayout = ({ children }) => {
       >
         <MouseTrail/>
         <Interact/>
+        <LoginButton/>
+        <AssistantWidget/>
       </motion.div>
       
       {children}
