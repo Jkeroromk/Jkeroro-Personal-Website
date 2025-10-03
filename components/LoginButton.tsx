@@ -23,7 +23,7 @@ export default function LoginButton() {
   }, []);
 
   // 登录处理
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError("");
     try {
@@ -36,10 +36,11 @@ export default function LoginButton() {
         description: "Welcome back!",
       });
     } catch (error) {
-      setLoginError(error.message);
+      const errorMessage = error instanceof Error ? error.message : 'Login failed';
+      setLoginError(errorMessage);
       toast({
         title: "Login Failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -55,9 +56,10 @@ export default function LoginButton() {
         description: "See you next time!",
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Logout failed';
       toast({
         title: "Logout Failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }

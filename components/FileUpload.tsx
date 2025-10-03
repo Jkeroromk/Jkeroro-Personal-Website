@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef } from 'react'
-import { Upload, X, File, Image, Music } from 'lucide-react'
+import { X, File, Image, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 
@@ -37,11 +37,11 @@ const FileUpload: React.FC<FileUploadProps> = ({
   const getIcon = () => {
     switch (type) {
       case 'image':
-        return <Image className="w-6 h-6" />
+        return <Image className="w-6 h-6" aria-label="Image icon" />
       case 'audio':
-        return <Music className="w-6 h-6" />
+        return <Music className="w-6 h-6" aria-label="Music icon" />
       default:
-        return <File className="w-6 h-6" />
+        return <File className="w-6 h-6" aria-label="File icon" />
     }
   }
 
