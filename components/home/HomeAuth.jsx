@@ -20,6 +20,9 @@ const HomeAuth = ({ children }) => {
     // 确保在客户端环境运行
     if (typeof window === 'undefined') return
     
+    // 确保页面滚动到顶部
+    window.scrollTo(0, 0)
+    
     // 检查是否是从loading页面正常跳转过来的
     const fromLoading = sessionStorage.getItem('fromLoading')
     const loadingTimestamp = sessionStorage.getItem('loadingTimestamp')
@@ -33,6 +36,10 @@ const HomeAuth = ({ children }) => {
       // 如果是从loading页面跳转过来的，清除标记并正常显示
       sessionStorage.removeItem('fromLoading')
       sessionStorage.removeItem('loadingTimestamp')
+      // 再次确保滚动到顶部
+      setTimeout(() => {
+        window.scrollTo(0, 0)
+      }, 100)
     } else if (!permCookie) {
       // 如果没有Cookie（直接访问或刷新），跳转回根页面
       console.log('🔄 没有有效权限，跳转到loading页面')

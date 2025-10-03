@@ -3,7 +3,6 @@ import { Fredoka } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import { Toaster } from "@/components/ui/toaster";
-import AssistantWidget from "@/components/AssistantWidget";
 
 const fredoka = Fredoka({
   weight: ["400", "500", "600"],
@@ -56,7 +55,6 @@ export default function RootLayout({
       <body className={`${fredoka.className} antialiased modern-scrollbar bg-black`}>
         {children}
         <Toaster/>
-        <AssistantWidget />
       </body>
     </html>
   );
