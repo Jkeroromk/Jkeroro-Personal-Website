@@ -19,6 +19,7 @@ const HomePage = () => {
 
   // 检查Cookie，如果没有则跳转回根页面
   const getCookie = (name: string) => {
+    if (typeof window === 'undefined') return null
     const value = `; ${document.cookie}`
     const parts = value.split(`; ${name}=`)
     if (parts.length === 2) return parts.pop()?.split(';').shift()
@@ -26,28 +27,60 @@ const HomePage = () => {
   }
 
   useEffect(() => {
+    // 确保在客户端环境运行
+    if (typeof window === 'undefined') return
+    
     // 检查是否是从loading页面正常跳转过来的
     const fromLoading = sessionStorage.getItem('fromLoading')
+    const loadingTimestamp = sessionStorage.getItem('loadingTimestamp')
     const permCookie = getCookie('perm')
     
-    if (fromLoading) {
+    // 移动端Safari兼容性：检查时间戳确保是最近的跳转
+    const isValidJump = fromLoading && loadingTimestamp && 
+      (Date.now() - parseInt(loadingTimestamp)) < 30000 // 30秒内有效
+    
+    if (isValidJump) {
       // 如果是从loading页面跳转过来的，清除标记并正常显示
       sessionStorage.removeItem('fromLoading')
+      sessionStorage.removeItem('loadingTimestamp')
     } else if (!permCookie) {
-      // 如果没有Cookie（直接访问），跳转回根页面
+      // 如果没有Cookie（直接访问或刷新），跳转回根页面
+      console.log('🔄 没有有效权限，跳转到loading页面')
       router.replace('/')
     }
     
-    // 页面卸载时清除Cookie和localStorage，确保下次访问会重新走loading流程
+    // 移动端Safari兼容性：使用pagehide事件替代beforeunload
+    const handlePageHide = () => {
+      document.cookie = "perm=; Path=/; Max-Age=0; SameSite=Lax"
+      localStorage.removeItem('audioPermission')
+    }
+    
     const handleBeforeUnload = () => {
       document.cookie = "perm=; Path=/; Max-Age=0; SameSite=Lax"
       localStorage.removeItem('audioPermission')
     }
     
+    // 同时监听两个事件以确保兼容性
+    window.addEventListener('pagehide', handlePageHide)
     window.addEventListener('beforeunload', handleBeforeUnload)
     
+    // 移动端Safari特殊处理：检测页面可见性变化
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // 页面变为隐藏状态时清除状态
+        setTimeout(() => {
+          document.cookie = "perm=; Path=/; Max-Age=0; SameSite=Lax"
+          localStorage.removeItem('audioPermission')
+        }, 100)
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
     return () => {
+      window.removeEventListener('pagehide', handlePageHide)
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [router])
 
@@ -66,6 +99,9 @@ const HomePage = () => {
           onAnimationComplete={() => {
             // 确保MouseTrail在动画完成后初始化
             setTimeout(() => {
+              // 确保在客户端环境运行
+              if (typeof window === 'undefined') return
+              
               // 使用记录的鼠标位置或屏幕中心
               const mouseX = (window as typeof window & { lastMouseX?: number }).lastMouseX || window.innerWidth / 2;
               const mouseY = (window as typeof window & { lastMouseY?: number }).lastMouseY || window.innerHeight / 2;
