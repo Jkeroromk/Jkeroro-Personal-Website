@@ -92,7 +92,7 @@ const AudioPermissionModal = ({
 
           {/* 内容区域 */}
           <div className="pt-6">
-            {/* 音乐图标容器 */}
+            {/* 头像容器 */}
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -104,9 +104,11 @@ const AudioPermissionModal = ({
                   scale: 1.05,
                   transition: { duration: 0.2 }
                 }}
-                className="w-20 h-20 mx-auto bg-gradient-to-br from-gray-100/30 to-gray-200/30 rounded-full flex items-center justify-center backdrop-blur-sm border border-gray-500/50 hover:border-gray-400/60 transition-all duration-300"
+                className="w-20 h-20 mx-auto bg-gradient-to-br from-gray-100/30 to-gray-200/30 rounded-full flex items-center justify-center backdrop-blur-sm border border-gray-500/50 hover:border-gray-400/60 transition-all duration-300 overflow-hidden"
               >
-                <motion.div 
+                <motion.img 
+                  src="/pfp.webp"
+                  alt="Jkeroro"
                   animate={{ 
                     scale: [1, 1.05, 1]
                   }}
@@ -115,10 +117,8 @@ const AudioPermissionModal = ({
                     repeat: Infinity, 
                     ease: "easeInOut" 
                   }}
-                  className="text-3xl"
-                >
-                  🎵
-                </motion.div>
+                  className="w-full h-full object-cover rounded-full"
+                />
               </motion.div>
               
               {/* 简化的装饰性光环 */}

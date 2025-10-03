@@ -46,6 +46,10 @@ const MusicPlayer = () => {
       console.log('🎵 音频元素:', audio)
       if (audio) {
         audio.muted = false;
+        // 确保事件监听器已添加
+        audio.addEventListener('timeupdate', handleTimeUpdate);
+        audio.addEventListener('ended', () => skipTrack(1));
+        
         // 延迟一点时间确保音频元素完全准备好
         setTimeout(() => {
           audio.play().then(() => {

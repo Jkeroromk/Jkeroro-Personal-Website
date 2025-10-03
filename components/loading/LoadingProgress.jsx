@@ -23,14 +23,31 @@ const LoadingProgress = ({ progress, isFadingOut, loadingDescription }) => {
           animate={{ y: isFadingOut ? -20 : 0 }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
         >
-          <motion.span 
-            className="inline-block"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            {loadingDescription.en}
-          </motion.span>
+          {['J', 'k', 'e', 'r', 'o', 'r', 'o'].map((letter, index) => (
+            <motion.span 
+              key={index}
+              className="inline-block"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ 
+                opacity: 1, 
+                y: 0,
+                y: [0, -15, 0]
+              }}
+              transition={{ 
+                duration: 0.5, 
+                delay: 0.2 + index * 0.1,
+                y: {
+                  duration: 1.5,
+                  repeat: Infinity,
+                  repeatType: "reverse",
+                  ease: "easeInOut",
+                  delay: 1.5 + index * 0.2
+                }
+              }}
+            >
+              {letter}
+            </motion.span>
+          ))}
         </motion.h1>
         
         <motion.p 
