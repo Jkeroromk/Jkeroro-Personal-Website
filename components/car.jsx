@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import ModernControlPanel from './ModernControlPanel';
+import { useControlPanel } from '@/contexts/ControlPanelContext';
 
 const vertexShader = `
 uniform vec2 uResolution;
@@ -75,26 +76,13 @@ void main()
 
 export default function Car() {
   const canvasRef = useRef(null);
+  const { guiParams } = useControlPanel();
   const [shaders, setShaders] = useState({
     vertexShader,
     fragmentShader,
   });
-  const [showControlPanel, setShowControlPanel] = useState(false);
-  const [guiParams, setGuiParams] = useState({
-    basePointSize: window.innerWidth <= 768 ? 0.5 : 0.35,
-    brightness: window.innerWidth <= 768 ? 0.9 : 0.35,
-    displacementStrength: window.innerWidth <= 768 ? 3 : 3.0,
-    glowSize: 0.12,
-    glowAlpha: 0.3,
-    decayRate: 0.08,
-    cameraZ: 20
-  });
 
   const guiParamsRef = useRef(guiParams);
-
-  const handleParamChange = (param, value) => {
-    setGuiParams(prev => ({ ...prev, [param]: value }));
-  };
 
   // Update ref whenever guiParams changes
   useEffect(() => {
@@ -146,6 +134,11 @@ export default function Car() {
     renderer.setSize(sizes.width, sizes.height);
     renderer.setPixelRatio(sizes.pixelRatio);
     renderer.setViewport(0, 0, sizes.width, sizes.height);
+
+    // 保存three.js对象引用到canvas上，供参数更新使用
+    canvas.__renderer = renderer;
+    canvas.__scene = scene;
+    canvas.__camera = camera;
 
     const displacement = {};
     displacement.canvas = document.createElement("canvas");
@@ -340,17 +333,42 @@ export default function Car() {
     };
   }, [shaders]);
 
+  // 单独处理参数更新，只更新材质uniforms，不重新创建场景
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    
+    // 获取canvas上的three.js对象
+    const canvas = canvasRef.current;
+    const renderer = canvas.__renderer;
+    const scene = canvas.__scene;
+    const camera = canvas.__camera;
+    
+    if (!renderer || !scene || !camera) return;
+    
+    // 更新相机位置
+    camera.position.z = guiParams.cameraZ;
+    
+    // 查找粒子材质并更新uniforms
+    scene.traverse((child) => {
+      if (child.isPoints && child.material && child.material.uniforms) {
+        const uniforms = child.material.uniforms;
+        
+        // 更新所有相关的uniforms
+        if (uniforms.uBasePointSize) uniforms.uBasePointSize.value = guiParams.basePointSize;
+        if (uniforms.uBrightness) uniforms.uBrightness.value = guiParams.brightness;
+        if (uniforms.uDisplacementStrength) uniforms.uDisplacementStrength.value = guiParams.displacementStrength;
+        if (uniforms.uGlowSize) uniforms.uGlowSize.value = guiParams.glowSize;
+        if (uniforms.uGlowAlpha) uniforms.uGlowAlpha.value = guiParams.glowAlpha;
+        if (uniforms.uDecayRate) uniforms.uDecayRate.value = guiParams.decayRate;
+      }
+    });
+  }, [guiParams]);
+
   return (
     <>
     <div className="relative w-full max-w-[600px] aspect-[2/1]">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full bg-black rounded-lg" />
     </div>
-      <ModernControlPanel
-        params={guiParams}
-        onParamChange={handleParamChange}
-        isVisible={showControlPanel}
-        onToggle={() => setShowControlPanel(!showControlPanel)}
-      />
     </>
   );
 }
