@@ -96,11 +96,11 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
   }
   
   return (
-    <div className="fixed top-4 right-4 z-50 w-72 max-w-[calc(100vw-2rem)] max-h-[60vh] bg-white/5 text-white rounded-xl p-4 overflow-y-auto modern-scrollbar animate-in slide-in-from-right-4 duration-300 border border-white/20" style={{ backdropFilter: 'blur(20px)' }}>
+    <div className="w-64 max-w-[calc(100vw-2rem)] max-h-[60vh] bg-white/5 text-white rounded-xl p-3 overflow-y-auto modern-scrollbar animate-in slide-in-from-bottom-4 duration-300 border border-white/20" style={{ backdropFilter: 'blur(20px)' }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold">{t.title}</h3>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold">{t.title}</h3>
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}
             className="px-2 py-1 text-sm bg-white/10 rounded-md hover:bg-white/20 transition-colors"
@@ -109,7 +109,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
           </button>
           <button
             onClick={onToggle}
-            className="p-1.5 hover:bg-white/10 rounded-md transition-colors"
+            className="p-2 hover:bg-white/10 rounded-md transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -119,13 +119,13 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
       </div>
       
       {/* Visual Effects Tab */}
-      <div className="mb-6">
-        <h4 className="text-sm font-medium mb-3 text-cyan-300">{t.visual}</h4>
+      <div className="mb-4">
+        <h4 className="text-xs font-medium mb-2 text-cyan-300">{t.visual}</h4>
         
-        <div className="space-y-3">
+        <div className="space-y-2">
           {/* Point Size */}
           <div>
-            <label className="block text-sm text-gray-200 mb-2">{t.pointSize}</label>
+            <label className="block text-xs text-gray-200 mb-1">{t.pointSize}</label>
             <input
               type="range"
               min="0.1"
@@ -143,7 +143,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
           
           {/* Brightness */}
           <div>
-            <label className="block text-sm text-gray-200 mb-2">{t.brightness}</label>
+            <label className="block text-xs text-gray-200 mb-1">{t.brightness}</label>
             <input
               type="range"
               min="0"
@@ -161,7 +161,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
           
           {/* Displacement */}
           <div>
-            <label className="block text-sm text-gray-200 mb-2">{t.displacement}</label>
+            <label className="block text-xs text-gray-200 mb-1">{t.displacement}</label>
             <input
               type="range"
               min="0"
@@ -179,7 +179,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
           
           {/* Glow Size */}
           <div>
-            <label className="block text-sm text-gray-200 mb-2">{t.glowSize}</label>
+            <label className="block text-xs text-gray-200 mb-1">{t.glowSize}</label>
             <input
               type="range"
               min="0.05"
@@ -197,7 +197,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
           
           {/* Glow Alpha */}
           <div>
-            <label className="block text-sm text-gray-200 mb-2">{t.glowAlpha}</label>
+            <label className="block text-xs text-gray-200 mb-1">{t.glowAlpha}</label>
             <input
               type="range"
               min="0.1"
@@ -215,7 +215,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
           
           {/* Decay Rate */}
           <div>
-            <label className="block text-sm text-gray-200 mb-2">{t.decayRate}</label>
+            <label className="block text-xs text-gray-200 mb-1">{t.decayRate}</label>
             <input
               type="range"
               min="0.01"
@@ -234,11 +234,11 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
       </div>
       
       {/* Camera Controls Tab */}
-      <div className="mb-6">
-        <h4 className="text-sm font-medium mb-3 text-emerald-300">{t.camera}</h4>
+      <div className="mb-4">
+        <h4 className="text-xs font-medium mb-2 text-emerald-300">{t.camera}</h4>
         
         <div>
-          <label className="block text-sm text-gray-200 mb-2">{t.distance}</label>
+          <label className="block text-xs text-gray-200 mb-1">{t.distance}</label>
           <input
             type="range"
             min="5"
@@ -258,7 +258,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
       {/* Reset Button */}
       <button
         onClick={handleReset}
-        className="w-full py-2 px-3 bg-red-500/20 hover:bg-red-500/30 text-white rounded-lg transition-colors font-medium text-sm border border-red-500/30"
+        className="w-full py-1.5 px-2 bg-red-500/20 hover:bg-red-500/30 text-white rounded-lg transition-colors font-medium text-xs border border-red-500/30"
       >
         {t.reset}
       </button>

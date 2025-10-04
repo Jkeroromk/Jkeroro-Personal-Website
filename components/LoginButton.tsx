@@ -71,7 +71,7 @@ export default function LoginButton() {
   }
 
   return (
-    <div className="fixed bottom-20 right-6 z-50">
+    <div className="fixed bottom-6 right-20 z-50">
       {/* 登录按钮 */}
       <button
         onClick={() => setShowLogin(!showLogin)}
@@ -86,9 +86,16 @@ export default function LoginButton() {
         <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-white/10 animate-pulse opacity-50"></div>
       </button>
 
-      {/* 登录对话框 */}
+      {/* 登录对话框 - 居中显示 */}
       {showLogin && (
-        <div className="absolute bottom-16 right-0 w-72 bg-white/5 border border-white/20 rounded-lg shadow-2xl" style={{ backdropFilter: 'blur(20px)' }}>
+        <>
+          {/* 背景遮罩 */}
+          <div 
+            className="fixed inset-0 bg-black/20 z-40" 
+            onClick={() => setShowLogin(false)}
+          ></div>
+          
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 bg-white/5 border border-white/20 rounded-lg shadow-2xl z-50" style={{ backdropFilter: 'blur(20px)' }}>
           {/* 窗口头部 */}
           <div className="flex items-center justify-between p-3 border-b border-white/20 bg-white/5 rounded-t-lg" style={{ backdropFilter: 'blur(10px)' }}>
             <div className="flex items-center space-x-2">
@@ -165,6 +172,7 @@ export default function LoginButton() {
             )}
           </div>
         </div>
+        </>
       )}
     </div>
   );

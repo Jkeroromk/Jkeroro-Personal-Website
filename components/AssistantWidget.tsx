@@ -215,8 +215,16 @@ export default function AssistantWidget() {
         <div className="absolute inset-0 bg-white opacity-0 peer-checked:opacity-10 transition-opacity duration-300 rounded-full"></div>
       </label>
 
-      {/* 聊天窗口 - 纯黑白色主题 */}
-      <div className="absolute bottom-16 right-0 w-72 h-[420px] bg-white/5 border border-white/20 rounded-lg shadow-2xl opacity-0 invisible peer-checked:opacity-100 peer-checked:visible transition-all duration-300 transform peer-checked:translate-y-0 translate-y-4" style={{ backdropFilter: 'blur(20px)' }}>
+      {/* 背景遮罩 */}
+      <div className="fixed inset-0 bg-black/20 opacity-0 invisible peer-checked:opacity-100 peer-checked:visible transition-all duration-300 z-40" onClick={() => {
+        setIsOpen(false);
+        if (checkboxRef.current) {
+          checkboxRef.current.checked = false;
+        }
+      }}></div>
+      
+      {/* 聊天窗口 - 纯黑白色主题 - 居中显示 */}
+      <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 h-[420px] bg-white/5 border border-white/20 rounded-lg shadow-2xl opacity-0 invisible peer-checked:opacity-100 peer-checked:visible transition-all duration-300 z-50" style={{ backdropFilter: 'blur(20px)' }}>
         {/* 窗口头部 */}
         <div className="flex items-center justify-between p-2 border-b border-white/20 bg-white/5 rounded-t-lg" style={{ backdropFilter: 'blur(10px)' }}>
           <div className="flex items-center space-x-2">
