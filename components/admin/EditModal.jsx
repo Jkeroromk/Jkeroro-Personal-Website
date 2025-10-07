@@ -1,12 +1,13 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import FileUpload from '@/components/FileUpload'
+import ImageCropper from '@/components/ImageCropper'
 
 const EditModal = ({ 
   editingItem, 
@@ -18,6 +19,42 @@ const EditModal = ({
   uploadedFile,
   setUploadedFile 
 }) => {
+  const [showCropper, setShowCropper] = useState(false)
+  const [tempImageSrc, setTempImageSrc] = useState('')
+
+  const handleFileSelect = (file, filePath) => {
+    console.log('File selected:', file)
+    console.log('File path:', filePath)
+    setUploadedFile(file)
+    const imagePath = filePath || `/uploads/${file.name}`
+    console.log('Setting tempImageSrc to:', imagePath)
+    // 确保路径正确编码
+    const encodedPath = encodeURI(imagePath)
+    console.log('Encoded path:', encodedPath)
+    setTempImageSrc(encodedPath)
+    setShowCropper(true)
+  }
+
+  const handleCropConfirm = (cropData) => {
+    setFormData(prev => ({
+      ...prev,
+      src: tempImageSrc,
+      cropX: cropData.x,
+      cropY: cropData.y,
+      cropSize: cropData.width,
+      imageScale: cropData.scale,
+      imageOffsetX: cropData.offsetX,
+      imageOffsetY: cropData.offsetY
+    }))
+    setShowCropper(false)
+  }
+
+  const handleCropCancel = () => {
+    setShowCropper(false)
+    setTempImageSrc('')
+    setUploadedFile(null)
+  }
+
   if (!editingItem) return null
 
   return (
@@ -53,9 +90,9 @@ const EditModal = ({
                 </label>
                 <FileUpload
                   type="image"
-                  onFileSelect={(file) => {
+                  onFileSelect={(file, filePath) => {
                     setUploadedFile(file)
-                    setFormData({...formData, src: `/uploads/${file.name}`})
+                    setFormData({...formData, src: filePath || `/uploads/${file.name}`})
                   }}
                 />
               </div>
@@ -105,9 +142,9 @@ const EditModal = ({
                 </label>
                 <FileUpload
                   type="audio"
-                  onFileSelect={(file) => {
+                  onFileSelect={(file, filePath) => {
                     setUploadedFile(file)
-                    setFormData({...formData, src: `/uploads/${file.name}`})
+                    setFormData({...formData, src: filePath || `/uploads/${file.name}`})
                   }}
                 />
               </div>
@@ -155,18 +192,43 @@ const EditModal = ({
                 </label>
                 <FileUpload
                   type="image"
-                  onFileSelect={(file) => {
-                    setUploadedFile(file)
-                    setFormData({...formData, src: `/uploads/${file.name}`})
-                  }}
+                  onFileSelect={handleFileSelect}
                 />
                 {formData.src && (
                   <div className="mt-2">
-                    <img 
-                      src={formData.src} 
-                      alt="Preview" 
-                      className="w-full h-32 object-cover rounded border border-gray-600"
-                    />
+                    <div className="text-xs text-gray-400 mb-2 text-center">
+                      Preview (matches carousel display)
+                    </div>
+                    <div 
+                      className="relative w-full h-64 sm:h-80 rounded border border-gray-600 overflow-hidden"
+                      style={{
+                        backgroundImage: formData.src ? `url("${encodeURI(formData.src)}")` : 'none',
+                        backgroundSize: 'cover',
+                        backgroundPosition: formData.cropX !== undefined && formData.cropY !== undefined ? `${formData.cropX}% ${formData.cropY}%` : (formData.imagePosition || 'center'),
+                        backgroundRepeat: 'no-repeat',
+                        backgroundColor: formData.src ? 'transparent' : '#1f2937'
+                      }}
+                    >
+                      {/* 背景遮罩 - 模拟carousel效果 */}
+                      <div className="absolute inset-0 bg-black/20 transition-all duration-300"></div>
+                    </div>
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setTempImageSrc(formData.src)
+                          setShowCropper(true)
+                        }}
+                        className="w-full border-gray-600 text-black hover:bg-gray-800 hover:text-white"
+                      >
+                        🔧 Re-adjust Image Crop
+                      </Button>
+                      <p className="text-xs text-gray-400 mt-1 text-center">
+                        Crop area is locked to carousel display size (550×256px)
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -235,6 +297,14 @@ const EditModal = ({
           </Button>
         </div>
       </motion.div>
+      
+      {/* 图片裁剪器 */}
+      <ImageCropper
+        imageSrc={tempImageSrc}
+        onCrop={handleCropConfirm}
+        onCancel={handleCropCancel}
+        isVisible={showCropper}
+      />
     </motion.div>
   )
 }

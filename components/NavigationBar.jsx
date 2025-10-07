@@ -27,10 +27,49 @@ export default function NavigationBar() {
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
   const [loginError, setLoginError] = useState("")
+  const [isDesktop, setIsDesktop] = useState(false)
+  const [assistantPosition, setAssistantPosition] = useState({ x: 0, y: 0 })
+  const [loginPosition, setLoginPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+
+  // 重置位置到中心的函数
+  const resetToCenter = (type) => {
+    if (!isDesktop) return
+    
+    if (type === 'assistant') {
+      setAssistantPosition({ 
+        x: (window.innerWidth - 320) / 2, 
+        y: (window.innerHeight - 480) / 2 
+      })
+    } else if (type === 'login') {
+      setLoginPosition({ 
+        x: (window.innerWidth - 288) / 2, 
+        y: (window.innerHeight - 200) / 2 
+      })
+    }
+  }
 
   // 确保组件在客户端挂载
   useEffect(() => {
     setIsMounted(true)
+    
+    // 检测设备类型
+    const checkDevice = () => {
+      const isDesktopDevice = window.innerWidth > 768
+      setIsDesktop(isDesktopDevice)
+      
+      // 如果是桌面端，设置初始位置为屏幕中心
+      if (isDesktopDevice) {
+        resetToCenter('assistant')
+        resetToCenter('login')
+      }
+    }
+    
+    checkDevice()
+    window.addEventListener('resize', checkDevice)
+    return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
   // 键盘事件处理
@@ -169,6 +208,62 @@ export default function NavigationBar() {
     }
   }
 
+  // 拖拽处理函数
+  const [dragType, setDragType] = useState(null)
+  
+  const handleMouseDown = (e, type) => {
+    if (!isDesktop) return
+    
+    e.preventDefault()
+    setIsDragging(true)
+    setDragType(type)
+    setDragStart({ x: e.clientX, y: e.clientY })
+    
+    const currentPosition = type === 'assistant' ? assistantPosition : loginPosition
+    setDragOffset({
+      x: e.clientX - currentPosition.x,
+      y: e.clientY - currentPosition.y
+    })
+  }
+
+  const handleMouseMove = (e) => {
+    if (!isDragging || !isDesktop || !dragType) return
+    
+    e.preventDefault()
+    const newX = e.clientX - dragOffset.x
+    const newY = e.clientY - dragOffset.y
+    
+    // 限制在屏幕范围内
+    const maxX = window.innerWidth - (dragType === 'assistant' ? 320 : 288)
+    const maxY = window.innerHeight - (dragType === 'assistant' ? 480 : 200)
+    
+    const clampedX = Math.max(0, Math.min(newX, maxX))
+    const clampedY = Math.max(0, Math.min(newY, maxY))
+    
+    if (dragType === 'assistant') {
+      setAssistantPosition({ x: clampedX, y: clampedY })
+    } else {
+      setLoginPosition({ x: clampedX, y: clampedY })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+    setDragType(null)
+  }
+
+  // 添加全局鼠标事件监听
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, dragOffset])
+
   // 登录处理
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -236,6 +331,10 @@ export default function NavigationBar() {
           <div className="relative group/button">
             <button
               onClick={() => {
+                if (!showAssistant) {
+                  // 打开时重置到中心位置
+                  resetToCenter('assistant')
+                }
                 setShowAssistant(!showAssistant)
                 setIsExpanded(false)
               }}
@@ -259,6 +358,10 @@ export default function NavigationBar() {
           <div className="relative group/button">
             <button
               onClick={() => {
+                if (!showLogin) {
+                  // 打开时重置到中心位置
+                  resetToCenter('login')
+                }
                 setShowLogin(!showLogin)
                 setIsExpanded(false)
               }}
@@ -345,9 +448,24 @@ export default function NavigationBar() {
             onClick={() => setShowAssistant(false)}
           ></div>
           
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-[480px] bg-white/5 border border-white/20 rounded-lg shadow-2xl z-50 flex flex-col" style={{ backdropFilter: 'blur(20px)' }}>
+          <div 
+            className={`w-80 h-[480px] bg-white/5 border border-white/20 rounded-lg shadow-2xl z-50 flex flex-col ${
+              isDesktop ? 'fixed' : 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
+            }`}
+            style={{ 
+              backdropFilter: 'blur(20px)',
+              ...(isDesktop && {
+                left: `${assistantPosition.x}px`,
+                top: `${assistantPosition.y}px`
+              })
+            }}
+          >
             {/* 窗口头部 */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-white/20 bg-white/5 rounded-t-lg flex-shrink-0" style={{ backdropFilter: 'blur(10px)' }}>
+            <div 
+              className="flex items-center justify-between px-3 py-2 border-b border-white/20 bg-white/5 rounded-t-lg flex-shrink-0 cursor-move" 
+              style={{ backdropFilter: 'blur(10px)' }}
+              onMouseDown={(e) => handleMouseDown(e, 'assistant')}
+            >
               <div className="flex items-center space-x-2">
                 <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
                 <h3 className="text-white font-semibold text-xs">J 助手</h3>
@@ -413,9 +531,24 @@ export default function NavigationBar() {
             onClick={() => setShowLogin(false)}
           ></div>
           
-          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-72 bg-white/5 border border-white/20 rounded-lg shadow-2xl z-50" style={{ backdropFilter: 'blur(20px)' }}>
+          <div 
+            className={`w-72 bg-white/5 border border-white/20 rounded-lg shadow-2xl z-50 ${
+              isDesktop ? 'fixed' : 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
+            }`}
+            style={{ 
+              backdropFilter: 'blur(20px)',
+              ...(isDesktop && {
+                left: `${loginPosition.x}px`,
+                top: `${loginPosition.y}px`
+              })
+            }}
+          >
             {/* 窗口头部 */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-white/20 bg-white/5 rounded-t-lg" style={{ backdropFilter: 'blur(10px)' }}>
+            <div 
+              className="flex items-center justify-between px-3 py-2 border-b border-white/20 bg-white/5 rounded-t-lg cursor-move" 
+              style={{ backdropFilter: 'blur(10px)' }}
+              onMouseDown={(e) => handleMouseDown(e, 'login')}
+            >
               <div className="flex items-center space-x-2">
                 <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
                 <h3 className="text-white font-semibold text-xs">

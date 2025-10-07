@@ -10,6 +10,7 @@ const HomeSection = ({ children, delay = 0.4, className = "" }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay }}
       className={className}
+      style={{ overflow: 'visible' }}
     >
       {children}
     </motion.div>

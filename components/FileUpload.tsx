@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 
 interface FileUploadProps {
-  onFileSelect: (file: File) => void
+  onFileSelect: (file: File, filePath?: string) => void
   accept?: string
   maxSize?: number // in MB
   type?: 'image' | 'audio' | 'any'
@@ -78,10 +78,41 @@ const FileUpload: React.FC<FileUploadProps> = ({
     return true
   }
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = async (file: File) => {
     if (validateFile(file)) {
       setSelectedFile(file)
-      onFileSelect(file)
+      
+      try {
+        // 创建FormData并上传文件
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        const result = await response.json()
+        
+        if (result.success) {
+          // 上传成功，调用onFileSelect并传递文件路径
+          onFileSelect(file, result.filePath)
+          toast({
+            title: "Upload successful",
+            description: "File uploaded successfully",
+          })
+        } else {
+          throw new Error(result.error || 'Upload failed')
+        }
+      } catch (error) {
+        console.error('Upload error:', error)
+        toast({
+          title: "Upload failed",
+          description: error instanceof Error ? error.message : 'Failed to upload file',
+          variant: "destructive"
+        })
+        setSelectedFile(null)
+      }
     }
   }
 
