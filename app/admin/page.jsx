@@ -43,7 +43,14 @@ const AdminPageContent = () => {
     height: 400,
     description: '',
     link: '',
-    category: 'personal'
+    category: 'personal',
+    imagePosition: 'center',
+    cropX: 25,
+    cropY: 25,
+    cropSize: 50,
+    imageScale: 1,
+    imageOffsetX: 0,
+    imageOffsetY: 0
   })
 
   // 检查管理员权限
@@ -103,13 +110,22 @@ const AdminPageContent = () => {
           })
         } else if (activeTab === 'projects') {
           // 添加到Firebase
-          await addDoc(collection(firestore, "carouselItems"), {
+          const projectData = {
             title: formData.title,
             description: formData.description,
             image: formData.src,
             link: formData.link,
-            category: formData.category
-          })
+            category: formData.category,
+            imagePosition: formData.imagePosition,
+            cropX: formData.cropX,
+            cropY: formData.cropY,
+            cropSize: formData.cropSize,
+            imageScale: formData.imageScale,
+            imageOffsetX: formData.imageOffsetX,
+            imageOffsetY: formData.imageOffsetY
+          }
+          console.log("Saving project with crop data:", projectData)
+          await addDoc(collection(firestore, "carouselItems"), projectData)
         }
       } else {
         // 更新现有项目
@@ -128,13 +144,22 @@ const AdminPageContent = () => {
           })
         } else if (editingItem && activeTab === 'projects') {
           // 更新Firebase项目
-          await updateDoc(doc(firestore, "carouselItems", editingItem), {
+          const updateData = {
             title: formData.title,
             description: formData.description,
             image: formData.src,
             link: formData.link,
-            category: formData.category
-          })
+            category: formData.category,
+            imagePosition: formData.imagePosition,
+            cropX: formData.cropX,
+            cropY: formData.cropY,
+            cropSize: formData.cropSize,
+            imageScale: formData.imageScale,
+            imageOffsetX: formData.imageOffsetX,
+            imageOffsetY: formData.imageOffsetY
+          }
+          console.log("Updating project with crop data:", updateData)
+          await updateDoc(doc(firestore, "carouselItems", editingItem), updateData)
         }
       }
       
@@ -155,7 +180,14 @@ const AdminPageContent = () => {
         height: 400,
         description: '',
         link: '',
-        category: 'personal'
+        category: 'personal',
+        imagePosition: 'center',
+        cropX: 25,
+        cropY: 25,
+        cropSize: 50,
+        imageScale: 1,
+        imageOffsetX: 0,
+        imageOffsetY: 0
       })
     } catch (error) {
       console.error('Error saving data:', error)
@@ -210,7 +242,14 @@ const AdminPageContent = () => {
       height: item.height || 400,
       description: item.description || '',
       link: item.link || '',
-      category: item.category || 'personal'
+      category: item.category || 'personal',
+      imagePosition: item.imagePosition || 'center',
+      cropX: item.cropX || 25,
+      cropY: item.cropY || 25,
+      cropSize: item.cropSize || 50,
+      imageScale: item.imageScale || 1,
+      imageOffsetX: item.imageOffsetX || 0,
+      imageOffsetY: item.imageOffsetY || 0
     })
   }
 
@@ -225,7 +264,14 @@ const AdminPageContent = () => {
       height: 400,
       description: '',
       link: '',
-      category: 'personal'
+      category: 'personal',
+      imagePosition: 'center',
+      cropX: 25,
+      cropY: 25,
+      cropSize: 50,
+      imageScale: 1,
+      imageOffsetX: 0,
+      imageOffsetY: 0
     })
   }
 
