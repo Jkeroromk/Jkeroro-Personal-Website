@@ -31,7 +31,6 @@ const Card3D = ({ children, className = "", href, target, rel, onMouseEnter, onM
         transformOrigin: "center center"
       }}
       whileHover={{
-        scale: 1.02,
         transition: { duration: 0.2 }
       }}
     >
@@ -143,7 +142,7 @@ const Tabs = () => {
           href="https://3d-portfolio-jade-xi.vercel.app/"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-4 rounded-3xl mt-10 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
+          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-4 rounded-3xl mt-6 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
         >
           <h1 className="text-xl font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
             Personal Cv
@@ -154,47 +153,48 @@ const Tabs = () => {
         </Card3D>
       </div>
 
-      <h1 className="flex justify-center text-white font-extrabold text-2xl mt-10">
+      <h1 className="flex justify-center text-white font-extrabold text-2xl mt-6">
         Personal Project Collection
       </h1>
 
-      <div className="flex gap-x-3">
-        <ArrowLeft className="text-white mt-3 cursor-pointer hover:text-blue-300 transition-colors" onClick={resetAutoplay} />
-        <h2 className="flex justify-center text-white font-extrabold text-xl mt-2">
+      <div className="flex justify-center gap-x-3">
+        <ArrowLeft className="text-white mt-2 cursor-pointer hover:text-blue-300 transition-colors" onClick={resetAutoplay} />
+        <h2 className="flex justify-center text-white font-extrabold text-xl mt-1">
           Swap me
         </h2>
-        <ArrowRight className="text-white mt-3 cursor-pointer hover:text-blue-300 transition-colors" onClick={resetAutoplay} />
+        <ArrowRight className="text-white mt-2 cursor-pointer hover:text-blue-300 transition-colors" onClick={resetAutoplay} />
       </div>
 
-      <div className="py-16" style={{ overflow: 'visible' }}>
-        <Carousel
-          className="mt-5 w-full"
-          opts={{ 
-            loop: true,
-            align: "center"
-          }}
-          plugins={[autoplayPlugin.current]}
-          setApi={setEmblaApi}
-          style={{ overflow: 'visible' }}
-        >
-        <CarouselContent style={{ overflow: 'visible' }}>
+      <div className="flex justify-center w-full py-20 ml-[20px]" style={{ overflow: 'visible' }}>
+        <div className="w-full sm:w-[600px]" style={{ overflow: 'visible' }}>
+          <Carousel
+            className="mt-3 w-full"
+            opts={{ 
+              loop: true,
+              align: "center"
+            }}
+            plugins={[autoplayPlugin.current]}
+            setApi={setEmblaApi}
+            style={{ overflow: 'visible' }}
+          >
+        <CarouselContent className="w-full" style={{ overflow: 'visible' }}>
           {fetchError ? (
             <p className="text-red-600 font-bold text-center">{fetchError}</p>
           ) : carouselItems.length > 0 ? (
             carouselItems.map((item) => (
-              <CarouselItem key={item.id} className="flex justify-center" style={{ overflow: 'visible' }}>
-                <div className="w-full sm:w-[550px] mx-auto" style={{ overflow: 'visible' }}>
-                  <Card3D
+              <CarouselItem key={item.id} className="flex justify-center w-full relative z-30">
+                <div className="w-full sm:w-[550px] mx-auto group">
+                  <a
                     href={item.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block group bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl overflow-hidden shadow-2xl hover:shadow-white/20 transition-all duration-500 hover:border-white/40"
+                    className="block bg-white bg-opacity-80 border-2 border-black rounded-3xl overflow-hidden transition-all duration-300 h-[360px] sm:h-[400px] flex flex-col relative z-30 group-hover:shadow-[0_0_20px_white] my-4"
                     onMouseEnter={pauseAutoplay}
                     onMouseLeave={resumeAutoplay}
                   >
                       {/* 图片区域 */}
                       <div 
-                        className="relative h-64 sm:h-80 overflow-hidden"
+                        className="relative h-72 sm:h-96 overflow-hidden"
                         style={{
                           backgroundImage: item.image ? `url("${encodeURI(item.image)}")` : 'none',
                           backgroundSize: 'cover',
@@ -219,29 +219,31 @@ const Tabs = () => {
                       </div>
                       
                       {/* 文字内容区域 */}
-                      <div className="p-6">
-                        <div className="flex items-center gap-3 mb-3">
-                          <h1 className="text-2xl sm:text-3xl font-bold text-white group-hover:text-gray-200 transition-colors duration-300 leading-tight">
-                            {item.title}
-                          </h1>
-                          {item.category && (
-                            <span className="px-3 py-0.5 bg-blue-600/20 border-l-2 border-blue-500 text-blue-300 text-xs font-light tracking-wide uppercase">
-                              {item.category}
-                            </span>
-                          )}
+                      <div className="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <h1 className="text-xl sm:text-2xl font-bold text-black group-hover:text-gray-800 transition-colors duration-300 leading-tight">
+                              {item.title}
+                            </h1>
+                            {item.category && (
+                              <span className="px-2 py-0.5 bg-blue-600/20 border-l-2 border-blue-500 text-blue-600 text-xs font-light tracking-wide uppercase">
+                                {item.category}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-700 text-sm sm:text-base leading-relaxed group-hover:text-gray-800 transition-colors duration-300 line-clamp-3">
+                            {item.description}
+                          </p>
                         </div>
-                        <p className="text-gray-300 text-base sm:text-lg leading-relaxed mb-4 group-hover:text-gray-200 transition-colors duration-300">
-                          {item.description}
-                        </p>
                         
                         {/* 底部装饰线 */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 h-px bg-gradient-to-r from-white/30 to-transparent"></div>
-                          <div className="w-2 h-2 bg-white/60 rounded-full"></div>
-                          <div className="flex-1 h-px bg-gradient-to-l from-white/30 to-transparent"></div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <div className="flex-1 h-px bg-gradient-to-r from-black/30 to-transparent"></div>
+                          <div className="w-1.5 h-1.5 bg-black/60 rounded-full"></div>
+                          <div className="flex-1 h-px bg-gradient-to-l from-black/30 to-transparent"></div>
                         </div>
                       </div>
-                  </Card3D>
+                  </a>
                 </div>
               </CarouselItem>
             ))
@@ -252,7 +254,7 @@ const Tabs = () => {
         
         {/* Dot指示器 - 在carousel内部 */}
         {carouselItems.length > 1 && (
-          <div className="flex justify-center mt-4 gap-2">
+          <div className="flex justify-center mt-4 gap-2 px-4">
             {carouselItems.map((_, index) => (
               <button
                 key={index}
@@ -270,7 +272,8 @@ const Tabs = () => {
             ))}
           </div>
         )}
-        </Carousel>
+          </Carousel>
+        </div>
       </div>
 
       <div className="flex flex-col items-center w-full">
@@ -278,7 +281,7 @@ const Tabs = () => {
           href="https://www.xiaohongshu.com/user/profile/678e5f43000000000e0107ac?xsec_token=YBoDy4ooZI5wbVMGN9VSpV7OGN88SSTRIr5QQntEv1awY=&xsec_source=app_share&xhsshare=CopyLink&appuid=678e5f43000000000e0107ac&apptime=1738075633&share_id=d3e00f56b0ba47ecb739975076b7eb34"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-16 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
+          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-8 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
         >
           <h1 className="text-xl font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
             Rednote
