@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Minus, Plus, Repeat, Shuffle } from 'lucide-react';
 import DataManager from '@/lib/data-manager';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { firestore } from '../firebase';
 
 const MusicPlayer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -49,47 +51,92 @@ const MusicPlayer = () => {
     }
   };
 
-  // 加载音乐数据
+  // 从 Firebase 加载音乐数据
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    try {
-      const tracksData = dataManager.getTracks();
-      setTracks(tracksData);
-      
-      // 确保当前轨道索引在有效范围内
-      if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
+    
+    const loadTracksFromFirebase = async () => {
+      try {
+        if (!firestore) {
+          console.warn('🎵 Firebase 未初始化，使用本地数据');
+          const localTracks = dataManager.getTracks();
+          setTracks(localTracks);
+          return;
+        }
+
+        const tracksRef = collection(firestore, 'tracks');
+        const q = query(tracksRef, orderBy('order', 'asc'));
+        const querySnapshot = await getDocs(q);
+        
+        const tracksData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setTracks(tracksData);
+        
+        // 确保当前轨道索引在有效范围内
+        if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
+          setCurrentTrackIndex(0);
+        }
+      } catch (error) {
+        console.error('🎵 从 Firebase 加载音乐数据失败:', error);
+        // 降级到本地数据
+        try {
+          const localTracks = dataManager.getTracks();
+          setTracks(localTracks);
+        } catch (localError) {
+          console.error('🎵 本地音乐数据也加载失败:', localError);
+          setTracks([]);
+        }
         setCurrentTrackIndex(0);
       }
-    } catch (error) {
-      console.error('🎵 加载音乐数据时出错:', error);
-      setTracks([]);
-      setCurrentTrackIndex(0);
-    }
+    };
+
+    loadTracksFromFirebase();
   }, [dataManager, currentTrackIndex]);
 
-  // 监听 localStorage 变化，当歌曲顺序改变时重新加载
+  // 监听音乐数据变化（Firebase 和 localStorage）
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const handleStorageChange = (e) => {
-      if (e.key === 'jkeroro-website-data') {
-        try {
+    const reloadTracks = async () => {
+      try {
+        if (firestore) {
+          // 优先从 Firebase 重新加载
+          const tracksRef = collection(firestore, 'tracks');
+          const q = query(tracksRef, orderBy('order', 'asc'));
+          const querySnapshot = await getDocs(q);
+          
+          const tracksData = querySnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          
+          setTracks(tracksData);
+        } else {
+          // 降级到本地数据
           const tracksData = dataManager.getTracks();
           setTracks(tracksData);
-          
-          // 如果当前播放的歌曲索引超出范围，重置到0
-          if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
-            setCurrentTrackIndex(0);
-          }
-        } catch (error) {
-          console.error('🎵 重新加载音乐数据时出错:', error);
         }
+        
+        // 如果当前播放的歌曲索引超出范围，重置到0
+        if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
+          setCurrentTrackIndex(0);
+        }
+      } catch (error) {
+        console.error('🎵 重新加载音乐数据时出错:', error);
+      }
+    };
+
+    const handleStorageChange = (e) => {
+      if (e.key === 'jkeroro-website-data' || e.type === 'musicDataChanged') {
+        reloadTracks();
       }
     };
 
     // 监听 storage 事件（跨标签页）
     window.addEventListener('storage', handleStorageChange);
-    
+
     // 监听自定义事件（同标签页内的变化）
     window.addEventListener('musicDataChanged', handleStorageChange);
 

@@ -140,7 +140,7 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder }) => {
           </div>
         ) : (
           <div className="space-y-4">
-            {tracks.map((track, index) => (
+            {(tracks || []).map((track, index) => (
               <motion.div
                 key={track.id}
                 initial={{ opacity: 0, y: 20 }}

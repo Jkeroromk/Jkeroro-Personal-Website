@@ -49,8 +49,9 @@ const LoadingLogic = () => {
     
     // 移动端Safari兼容性：使用多种方式设置状态
     try {
-      // 设置Cookie，不设置过期时间（会话Cookie）
-      document.cookie = `perm=${allow ? 'allowed' : 'declined'}; Path=/; SameSite=Lax`
+      // 设置Cookie，24小时过期
+      const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toUTCString()
+      document.cookie = `perm=${allow ? 'allowed' : 'declined'}; Path=/; SameSite=Lax; Expires=${expires}`
       
       // 设置localStorage，供音乐播放器使用
       localStorage.setItem('audioPermission', allow ? 'allowed' : 'declined')

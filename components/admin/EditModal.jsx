@@ -107,6 +107,97 @@ const EditModal = ({
                     setFormData({...formData, src: filePath || `/uploads/${file.name}`})
                   }}
                 />
+                
+                {/* 图片预览和位置调整 */}
+                {formData.src && formData.src.trim() !== '' && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Image Preview & Position
+                    </label>
+                    <div className="relative w-full aspect-[4/3] rounded-lg border border-gray-600 overflow-hidden bg-gray-800">
+                      <img 
+                        src={formData.src} 
+                        alt={formData.alt || 'Preview'}
+                        className="w-full h-full object-cover"
+                        style={{
+                          objectPosition: `${formData.imageOffsetX || 50}% ${formData.imageOffsetY || 50}%`
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = 'none'
+                          e.target.nextSibling.style.display = 'flex'
+                        }}
+                      />
+                      <div 
+                        className="w-full h-full items-center justify-center text-gray-400"
+                        style={{ display: 'none' }}
+                      >
+                        <div className="text-center">
+                          <div className="text-sm">Failed to load image</div>
+                          <div className="text-xs text-gray-500 mt-1">{formData.src}</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* 位置调整控制 */}
+                    <div className="mt-4 space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Horizontal Position: {formData.imageOffsetX || 50}%
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={formData.imageOffsetX || 50}
+                          onChange={(e) => setFormData({...formData, imageOffsetX: parseInt(e.target.value)})}
+                          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Vertical Position: {formData.imageOffsetY || 50}%
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={formData.imageOffsetY || 50}
+                          onChange={(e) => setFormData({...formData, imageOffsetY: parseInt(e.target.value)})}
+                          className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFormData({...formData, imageOffsetX: 50, imageOffsetY: 50})}
+                          className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                        >
+                          Center
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFormData({...formData, imageOffsetX: 0, imageOffsetY: 0})}
+                          className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                        >
+                          Top Left
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setFormData({...formData, imageOffsetX: 100, imageOffsetY: 100})}
+                          className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                        >
+                          Bottom Right
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">

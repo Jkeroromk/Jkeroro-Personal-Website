@@ -72,20 +72,15 @@ class DataManager {
   getDefaultData() {
     return {
       images: [
-        { id: '1', src: '/me.webp', alt: 'me', width: 550, height: 550, priority: true },
-        { id: '2', src: '/Room.jpg', alt: 'album', width: 550, height: 400 },
-        { id: '3', src: '/lego-car.jpg', alt: 'album', width: 550, height: 400 },
-        { id: '4', src: '/coffee.jpg', alt: 'album', width: 550, height: 400 }
+        { id: '1', src: '/me.webp', alt: 'me', width: 550, height: 550, priority: true }
       ] as AlbumImage[],
       
       tracks: [] as MusicTrack[], // 空数组，完全依赖用户上传
       
       projects: [
         { id: '1', title: 'Personal Website', description: 'My personal portfolio website built with Next.js and React', image: '/me.webp', link: 'https://jkeroro.com', category: 'web' },
-        { id: '2', title: '3D Portfolio', description: 'Interactive 3D portfolio with Three.js animations', image: '/Room.jpg', link: 'https://3d-portfolio-jade-xi.vercel.app/', category: 'web' },
-        { id: '3', title: 'Lego Car Project', description: 'Custom LEGO car design and building project', image: '/lego-car.jpg', link: '#', category: 'design' },
-        { id: '4', title: 'Coffee Shop App', description: 'Mobile app for coffee shop management and ordering', image: '/coffee.jpg', link: '#', category: 'mobile' },
-        { id: '5', title: 'Music Player', description: 'Custom music player with WebGL visualizations', image: '/header.webp', link: '#', category: 'web' }
+        { id: '2', title: '3D Portfolio', description: 'Interactive 3D portfolio with Three.js animations', image: '/header.webp', link: 'https://3d-portfolio-jade-xi.vercel.app/', category: 'web' },
+        { id: '3', title: 'Music Player', description: 'Custom music player with WebGL visualizations', image: '/header.webp', link: '#', category: 'web' }
       ] as Project[]
     }
   }

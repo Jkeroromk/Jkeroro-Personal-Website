@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import DataManager from '@/lib/data-manager'
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore'
 import { firestore } from '../firebase'
 
 export const useAdminData = () => {
@@ -37,80 +37,186 @@ export const useAdminData = () => {
   })
 
   // 触发音乐数据变化事件的辅助函数
-  const triggerMusicDataChange = () => {
+  const triggerMusicDataChange = async () => {
     if (typeof window !== 'undefined') {
-      const tracksData = dataManager.getTracks()
-      window.dispatchEvent(new CustomEvent('musicDataChanged', {
-        detail: { tracks: tracksData }
-      }))
-    }
-  }
-
-  // 加载数据
-  useEffect(() => {
-    const loadData = async () => {
       try {
-        // 加载本地数据
-        const imagesData = dataManager.getImages()
-        const tracksData = dataManager.getTracks()
-        const projectsData = dataManager.getProjects()
+        let tracksData = []
         
-        setImages(imagesData)
-        setTracks(tracksData)
-        setProjects(projectsData)
-
-        // 加载 Firebase 项目数据
         if (firestore) {
-          const querySnapshot = await getDocs(collection(firestore, "carouselItems"))
-          const firebaseData = querySnapshot.docs.map(doc => ({
+          // 从 Firebase 获取最新数据
+          const tracksRef = collection(firestore, 'tracks')
+          const q = query(tracksRef, orderBy('order', 'asc'))
+          const tracksSnapshot = await getDocs(q)
+          tracksData = tracksSnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           }))
-          setFirebaseProjects(firebaseData)
+        } else {
+          // 降级到本地数据
+          tracksData = dataManager.getTracks()
         }
+        
+        window.dispatchEvent(new CustomEvent('musicDataChanged', {
+          detail: { tracks: tracksData }
+        }))
       } catch (error) {
-        console.error('加载数据失败:', error)
-        toast({
-          title: "加载失败",
-          description: "无法加载数据，请刷新页面重试",
-          variant: "destructive"
+        console.error('触发音乐数据变化事件失败:', error)
+        console.error('错误详情:', {
+          message: error?.message,
+          code: error?.code,
+          stack: error?.stack
         })
       }
     }
+  }
 
+  // 加载数据函数
+  const loadData = async () => {
+    try {
+      // 加载本地数据（仅用于项目数据）
+      const projectsData = dataManager.getProjects()
+      setProjects(projectsData)
+
+      // 加载 Firebase 数据
+      if (firestore) {
+        // 加载 Firebase 图片数据
+        const imagesSnapshot = await getDocs(collection(firestore, "images"))
+        const firebaseImages = imagesSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        setImages(firebaseImages)
+
+        // 加载 Firebase 项目数据
+        const projectsSnapshot = await getDocs(collection(firestore, "carouselItems"))
+        const firebaseProjects = projectsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        setFirebaseProjects(firebaseProjects)
+
+        // 加载 Firebase 音乐数据
+        const tracksRef = collection(firestore, 'tracks')
+        const q = query(tracksRef, orderBy('order', 'asc'))
+        const tracksSnapshot = await getDocs(q)
+        const firebaseTracks = tracksSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+        setTracks(firebaseTracks)
+      } else {
+        // 降级到本地数据
+        const imagesData = dataManager.getImages()
+        setImages(imagesData)
+      }
+    } catch (error) {
+      console.error('加载数据失败:', error)
+      toast({
+        title: "加载失败",
+        description: "无法加载数据，请刷新页面重试",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // 初始加载数据
+  useEffect(() => {
     loadData()
   }, [dataManager, toast])
 
   // 检查 Firebase 连接状态
   useEffect(() => {
-    if (!firestore) {
-      toast({
-        title: "Firebase 连接警告",
-        description: "Firebase 未正确初始化，项目功能可能受限",
-        variant: "destructive"
-      })
-    }
-  }, [toast])
-
-  // 处理保存
-  const handleSave = async () => {
-    try {
-      if (!formData.title.trim()) {
+    const testFirebaseConnection = async () => {
+      if (!firestore) {
+        console.error('Firebase 未初始化')
         toast({
-          title: "验证失败",
-          description: "请填写标题",
+          title: "Firebase 连接警告",
+          description: "Firebase 未正确初始化，某些功能可能不可用",
           variant: "destructive"
         })
         return
       }
 
-      if (activeTab === 'projects' && !formData.description.trim()) {
+      try {
+        // 测试 Firebase 连接
+        const testRef = collection(firestore, 'tracks')
+        const testSnapshot = await getDocs(testRef)
+      } catch (error) {
+        console.error('Firebase 连接测试失败:', error)
         toast({
-          title: "验证失败", 
-          description: "请填写项目描述",
+          title: "Firebase 连接失败",
+          description: `无法连接到 Firebase: ${error?.message || '未知错误'}`,
           variant: "destructive"
         })
-        return
+      }
+    }
+
+    testFirebaseConnection()
+  }, [toast])
+
+  // 处理保存
+  const handleSave = async () => {
+    try {
+      // 根据不同类型进行不同的验证
+      if (activeTab === 'images') {
+        if (!formData.alt.trim()) {
+          toast({
+            title: "验证失败",
+            description: "请填写图片描述 (Alt Text)",
+            variant: "destructive"
+          })
+          return
+        }
+        if (!formData.src.trim()) {
+          toast({
+            title: "验证失败",
+            description: "请上传图片文件",
+            variant: "destructive"
+          })
+          return
+        }
+      } else if (activeTab === 'music') {
+        if (!formData.title.trim()) {
+          toast({
+            title: "验证失败",
+            description: "请填写歌曲标题",
+            variant: "destructive"
+          })
+          return
+        }
+        if (!formData.subtitle.trim()) {
+          toast({
+            title: "验证失败",
+            description: "请填写艺术家名称",
+            variant: "destructive"
+          })
+          return
+        }
+        if (!formData.src.trim()) {
+          toast({
+            title: "验证失败",
+            description: "请上传音频文件",
+            variant: "destructive"
+          })
+          return
+        }
+      } else if (activeTab === 'projects') {
+        if (!formData.title.trim()) {
+          toast({
+            title: "验证失败",
+            description: "请填写项目标题",
+            variant: "destructive"
+          })
+          return
+        }
+        if (!formData.description.trim()) {
+          toast({
+            title: "验证失败", 
+            description: "请填写项目描述",
+            variant: "destructive"
+          })
+          return
+        }
       }
 
       // 过滤 undefined 值
@@ -124,23 +230,62 @@ export const useAdminData = () => {
         return filtered
       }
 
-      if (!editingItem) {
+      if (!editingItem || editingItem === 'new') {
         // 新增项目
         if (activeTab === 'images') {
-          dataManager.addImage({
+          // 检查 Firebase 连接
+          if (!firestore) {
+            throw new Error('Firebase not initialized. Please check your environment variables.')
+          }
+
+          const imageData = {
             src: formData.src,
             alt: formData.alt,
             width: formData.width,
             height: formData.height,
-            priority: false
-          })
+            imageOffsetX: formData.imageOffsetX || 50,
+            imageOffsetY: formData.imageOffsetY || 50,
+            priority: false,
+            createdAt: new Date().toISOString()
+          }
+
+          // 保存到 Firebase
+          await addDoc(collection(firestore, 'images'), imageData)
+          
+          // 重新加载数据以更新管理面板显示
+          loadData()
+          
+          // 触发图片数据变化事件，通知其他组件更新
+          window.dispatchEvent(new CustomEvent('imagesDataChanged'))
         } else if (activeTab === 'music') {
-          dataManager.addTrack({
+          // 检查 Firebase 连接
+          if (!firestore) {
+            throw new Error('Firebase not initialized. Please check your environment variables.')
+          }
+
+
+          // 获取当前轨道数量来确定顺序
+          const tracksRef = collection(firestore, 'tracks')
+          const tracksSnapshot = await getDocs(tracksRef)
+          const order = tracksSnapshot.size
+
+          const trackData = {
             title: formData.title,
             subtitle: formData.subtitle,
-            src: formData.src
-          })
-          triggerMusicDataChange()
+            src: formData.src,
+            order: order,
+            createdAt: new Date().toISOString()
+          }
+
+
+          // 保存到 Firebase
+          const docRef = await addDoc(collection(firestore, 'tracks'), trackData)
+          
+          // 重新加载数据以更新管理面板显示
+          setTimeout(() => {
+            loadData()
+            triggerMusicDataChange()
+          }, 100)
         } else if (activeTab === 'projects') {
           // 检查 Firebase 连接
           if (!firestore) {
@@ -166,18 +311,43 @@ export const useAdminData = () => {
       } else {
         // 更新项目
         if (activeTab === 'images') {
-          dataManager.updateImage(editingItem, {
+          // 检查 Firebase 连接
+          if (!firestore) {
+            throw new Error('Firebase not initialized. Please check your environment variables.')
+          }
+
+          // 更新 Firebase 中的图片
+          await updateDoc(doc(firestore, 'images', editingItem.id), {
             src: formData.src,
             alt: formData.alt,
             width: formData.width,
-            height: formData.height
+            height: formData.height,
+            imageOffsetX: formData.imageOffsetX || 50,
+            imageOffsetY: formData.imageOffsetY || 50,
+            updatedAt: new Date().toISOString()
           })
+          
+          // 重新加载数据以更新管理面板显示
+          loadData()
+          
+          // 触发图片数据变化事件，通知其他组件更新
+          window.dispatchEvent(new CustomEvent('imagesDataChanged'))
         } else if (editingItem && activeTab === 'music') {
-          dataManager.updateTrack(editingItem, {
+          // 检查 Firebase 连接
+          if (!firestore) {
+            throw new Error('Firebase not initialized. Please check your environment variables.')
+          }
+
+          // 更新 Firebase 中的轨道
+          await updateDoc(doc(firestore, 'tracks', editingItem.id), {
             title: formData.title,
             subtitle: formData.subtitle,
-            src: formData.src
+            src: formData.src,
+            updatedAt: new Date().toISOString()
           })
+          
+          // 重新加载数据以更新管理面板显示
+          loadData()
           triggerMusicDataChange()
         } else if (editingItem && activeTab === 'projects') {
           // 检查 Firebase 连接
@@ -205,11 +375,11 @@ export const useAdminData = () => {
 
       // 重新加载数据
       const imagesData = dataManager.getImages()
-      const tracksData = dataManager.getTracks()
+      // 音乐数据现在从 Firebase 加载，这里不再需要
       const projectsData = dataManager.getProjects()
       
       setImages(imagesData)
-      setTracks(tracksData)
+      // 音乐数据现在从 Firebase 加载，这里不再需要
       setProjects(projectsData)
 
       // 重新加载 Firebase 项目数据
@@ -250,19 +420,48 @@ export const useAdminData = () => {
 
     } catch (error) {
       console.error('保存失败:', error)
+      console.error('错误详情:', {
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack,
+        activeTab: activeTab,
+        formData: formData,
+        errorType: typeof error,
+        errorConstructor: error?.constructor?.name
+      })
       
       let errorMessage = "保存失败，请重试"
-      if (error.message.includes('Firebase connection failed')) {
+      let errorMsg = ''
+      
+      // 尝试多种方式获取错误信息
+      if (error?.message) {
+        errorMsg = error.message
+      } else if (error?.toString) {
+        errorMsg = error.toString()
+      } else if (typeof error === 'string') {
+        errorMsg = error
+      } else {
+        errorMsg = '未知错误'
+      }
+      
+      
+      if (errorMsg.includes('Firebase connection failed') || errorMsg.includes('Firebase not initialized')) {
         errorMessage = "Firebase 连接失败，请检查网络连接"
-      } else if (error.message.includes('Permission denied')) {
+      } else if (errorMsg.includes('Permission denied') || errorMsg.includes('permission-denied')) {
         errorMessage = "权限不足，请检查 Firebase 配置"
-      } else if (error.message.includes('Network error')) {
+      } else if (errorMsg.includes('Network error') || errorMsg.includes('network')) {
         errorMessage = "网络错误，请检查网络连接"
+      } else if (errorMsg.includes('Missing or insufficient permissions')) {
+        errorMessage = "权限不足，请检查 Firebase 安全规则"
+      } else if (errorMsg.includes('Firestore')) {
+        errorMessage = "Firestore 错误，请检查数据库配置"
+      } else if (errorMsg.includes('请填写完整的歌曲信息')) {
+        errorMessage = errorMsg
       }
 
       toast({
         title: "保存失败",
-        description: errorMessage,
+        description: `${errorMessage}${errorMsg ? ` (${errorMsg})` : ''}`,
         variant: "destructive"
       })
     }
@@ -284,8 +483,8 @@ export const useAdminData = () => {
         cropX: 50,
         cropY: 50,
         cropSize: 100,
-        imageOffsetX: 0,
-        imageOffsetY: 0,
+        imageOffsetX: item.imageOffsetX || 50,
+        imageOffsetY: item.imageOffsetY || 50,
         scale: 1
       })
     } else if (type === 'track') {
@@ -325,7 +524,7 @@ export const useAdminData = () => {
         scale: item.scale || 1
       })
     }
-    setEditingItem(item.id)
+    setEditingItem(item)
   }
 
   // 处理删除
@@ -333,10 +532,29 @@ export const useAdminData = () => {
     try {
       switch (type) {
         case 'image':
-          dataManager.deleteImage(id)
+          // 检查 Firebase 连接
+          if (!firestore) {
+            throw new Error('Firebase not initialized. Please check your environment variables.')
+          }
+
+          // 从 Firebase 删除图片
+          await deleteDoc(doc(firestore, 'images', id))
+          // 重新加载数据以更新管理面板显示
+          loadData()
+          
+          // 触发图片数据变化事件，通知其他组件更新
+          window.dispatchEvent(new CustomEvent('imagesDataChanged'))
           break
         case 'track':
-          dataManager.deleteTrack(id)
+          // 检查 Firebase 连接
+          if (!firestore) {
+            throw new Error('Firebase not initialized. Please check your environment variables.')
+          }
+
+          // 从 Firebase 删除轨道
+          await deleteDoc(doc(firestore, 'tracks', id))
+          // 重新加载数据以更新管理面板显示
+          loadData()
           triggerMusicDataChange()
           break
         case 'project':
@@ -347,11 +565,11 @@ export const useAdminData = () => {
 
       // 重新加载数据
       const imagesData = dataManager.getImages()
-      const tracksData = dataManager.getTracks()
+      // 音乐数据现在从 Firebase 加载，这里不再需要
       const projectsData = dataManager.getProjects()
       
       setImages(imagesData)
-      setTracks(tracksData)
+      // 音乐数据现在从 Firebase 加载，这里不再需要
       setProjects(projectsData)
 
       // 重新加载 Firebase 项目数据
@@ -398,14 +616,19 @@ export const useAdminData = () => {
       imageOffsetY: 0,
       scale: 1
     })
-    setEditingItem(null)
+    setEditingItem('new')
     setUploadedFile(null)
   }
 
   // 处理音乐拖拽排序
-  const handleTrackReorder = (dragIndex, dropIndex) => {
+  const handleTrackReorder = async (dragIndex, dropIndex) => {
     try {
-      const newTracks = [...tracks]
+      // 检查 Firebase 连接
+      if (!firestore) {
+        throw new Error('Firebase not initialized. Please check your environment variables.')
+      }
+
+      const newTracks = [...(tracks || [])]
       const draggedTrack = newTracks[dragIndex]
       
       // 移除拖拽的项目
@@ -413,8 +636,14 @@ export const useAdminData = () => {
       // 在目标位置插入
       newTracks.splice(dropIndex, 0, draggedTrack)
       
-      // 保存新的顺序
-      dataManager.saveTracks(newTracks)
+      // 更新 Firebase 中每个轨道的顺序
+      const updatePromises = newTracks.map((track, index) => {
+        return updateDoc(doc(firestore, 'tracks', track.id), {
+          order: index
+        })
+      })
+      
+      await Promise.all(updatePromises)
       
       // 更新本地状态
       setTracks(newTracks)
@@ -455,7 +684,7 @@ export const useAdminData = () => {
       imageOffsetY: 0,
       scale: 1
     })
-    setEditingItem(null)
+    setEditingItem('new') // 设置为 'new' 来打开编辑模态框
     setUploadedFile(null)
   }
 
