@@ -53,8 +53,17 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder }) => {
   const handleDragStart = (e, index) => {
     e.dataTransfer.setData('text/plain', index);
     e.dataTransfer.effectAllowed = 'move';
-    // 移除拖拽虚影
-    e.dataTransfer.setDragImage(new Image(), 0, 0);
+    // 移除拖拽虚影 - 使用原生HTMLImageElement而不是Next.js Image组件
+    const dragImage = document.createElement('img');
+    dragImage.style.display = 'none';
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    // 清理临时元素
+    setTimeout(() => {
+      if (document.body.contains(dragImage)) {
+        document.body.removeChild(dragImage);
+      }
+    }, 0);
     
     setDraggedIndex(index);
   };

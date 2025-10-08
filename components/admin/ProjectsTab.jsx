@@ -56,7 +56,9 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew }) => {
                     src={project.image}
                     alt={project.title}
                     fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-contain transition-transform duration-300 group-hover:scale-105"
+                    unoptimized={project.image.startsWith('/api/file/') || project.image.startsWith('https://')}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -132,7 +134,9 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew }) => {
                         src={project.image}
                         alt={project.title}
                         fill
+                        sizes="48px"
                         className="object-contain rounded-lg"
+                        unoptimized={project.image.startsWith('/api/file/') || project.image.startsWith('https://')}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400">

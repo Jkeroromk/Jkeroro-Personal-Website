@@ -32,11 +32,27 @@ const Album = () => {
         ...doc.data()
       }));
       
+      // 按order字段排序，如果没有order字段则按创建时间排序
+      const sortedImages = firebaseImages.sort((a, b) => {
+        if (a.order !== undefined && b.order !== undefined) {
+          return a.order - b.order
+        } else if (a.order !== undefined) {
+          return -1
+        } else if (b.order !== undefined) {
+          return 1
+        } else {
+          // 如果都没有order字段，按创建时间排序
+          const aTime = new Date(a.createdAt || 0).getTime()
+          const bTime = new Date(b.createdAt || 0).getTime()
+          return aTime - bTime
+        }
+      });
+      
       // 如果 Firestore 中没有图片，不显示任何内容
-      if (firebaseImages.length === 0) {
+      if (sortedImages.length === 0) {
         setImages([]);
       } else {
-        setImages(firebaseImages);
+        setImages(sortedImages);
       }
     } catch (error) {
       console.error('Album: Error loading images from Firestore:', error);
@@ -49,18 +65,7 @@ const Album = () => {
     loadImages();
   }, []);
 
-  // 监听图片数据变化事件
-  useEffect(() => {
-    const handleImagesDataChange = () => {
-      loadImages();
-    };
-
-    window.addEventListener('imagesDataChanged', handleImagesDataChange);
-    
-    return () => {
-      window.removeEventListener('imagesDataChanged', handleImagesDataChange);
-    };
-  }, []);
+  // 注意：不再监听全局事件，直接通过Firebase数据变化自动更新
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -104,9 +109,16 @@ const Album = () => {
     }
   };
 
-  // 如果没有图片，不渲染任何内容
+  // 如果没有图片，显示占位内容而不是完全不渲染
   if (images.length === 0) {
-    return null;
+    return (
+      <div className="flex flex-col items-center justify-center mt-6 px-4 sm:px-6">
+        <div className="text-center text-gray-400">
+          <p className="text-lg mb-2">📸 相册</p>
+          <p className="text-sm">暂无图片</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -121,11 +133,13 @@ const Album = () => {
               src={image.src}
               alt={image.alt}
               fill
+              sizes="(max-width: 640px) 100vw, 550px"
               priority={image.priority}
               className="object-cover"
               style={{ 
                 objectPosition: `${image.imageOffsetX || 50}% ${image.imageOffsetY || 50}%`
               }}
+              unoptimized={image.src.startsWith('/api/file/') || image.src.startsWith('https://')}
             />
           </div>
         </div>

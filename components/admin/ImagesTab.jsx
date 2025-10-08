@@ -2,12 +2,64 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Edit, Trash2, Image as ImageIcon } from 'lucide-react'
+import { Edit, Trash2, Image as ImageIcon, GripVertical } from 'lucide-react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const ImagesTab = ({ images, onEdit, onDelete, onAddNew }) => {
+const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder }) => {
+  const [draggedIndex, setDraggedIndex] = React.useState(null);
+  const [dragOverIndex, setDragOverIndex] = React.useState(null);
+
+  // 拖拽处理函数
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData('text/plain', index);
+    e.dataTransfer.effectAllowed = 'move';
+    // 移除拖拽虚影 - 使用原生HTMLImageElement而不是Next.js Image组件
+    const dragImage = document.createElement('img');
+    dragImage.style.display = 'none';
+    document.body.appendChild(dragImage);
+    e.dataTransfer.setDragImage(dragImage, 0, 0);
+    // 清理临时元素
+    setTimeout(() => {
+      if (document.body.contains(dragImage)) {
+        document.body.removeChild(dragImage);
+      }
+    }, 0);
+    
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = (e) => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    // 设置拖拽悬停的索引
+    if (index !== draggedIndex) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    // 只有当鼠标真正离开元素时才清除拖拽悬停状态
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    if (dragIndex !== dropIndex && onReorder) {
+      onReorder(dragIndex, dropIndex);
+    }
+    setDragOverIndex(null);
+  };
   return (
     <Card className="bg-gray-800 border-gray-600">
       <CardHeader>
@@ -28,14 +80,31 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew }) => {
       <CardContent>
         {/* 桌面端：网格布局 */}
         <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {images.map((image) => (
+          {images.map((image, index) => (
             <motion.div
               key={image.id}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
-              className="group bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl overflow-hidden border border-gray-600 hover:border-gray-500 transition-all duration-300 hover:shadow-lg hover:shadow-gray-800/50"
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              className={`group bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl overflow-hidden border transition-all duration-300 hover:shadow-lg hover:shadow-gray-800/50 cursor-move ${
+                draggedIndex === index 
+                  ? 'border-gray-400 scale-105 shadow-lg' 
+                  : dragOverIndex === index 
+                    ? 'border-dashed border-gray-400' 
+                    : 'border-gray-600 hover:border-gray-500'
+              }`}
             >
+              {/* 拖拽手柄 */}
+              <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                <GripVertical className="w-4 h-4 text-white bg-black/50 rounded p-1" />
+              </div>
+              
               {/* 图片容器 */}
               <div className="relative aspect-square bg-gray-600 overflow-hidden">
                 {image.src && image.src.trim() !== '' ? (
@@ -43,7 +112,9 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew }) => {
                     src={image.src}
                     alt={image.alt}
                     fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-contain transition-transform duration-300 group-hover:scale-105"
+                    unoptimized={image.src.startsWith('/api/file/') || image.src.startsWith('https://')}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -98,7 +169,19 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew }) => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
-              className="rounded-lg p-3 bg-gray-700 hover:bg-gray-600 transition-colors duration-150"
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              className={`rounded-lg p-3 transition-colors duration-150 cursor-move group ${
+                draggedIndex === index 
+                  ? 'bg-gray-600 border-2 border-gray-400' 
+                  : dragOverIndex === index 
+                    ? 'bg-gray-600 border-2 border-dashed border-gray-400' 
+                    : 'bg-gray-700 hover:bg-gray-600'
+              }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center flex-1 min-w-0">
@@ -108,13 +191,16 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew }) => {
                         src={image.src}
                         alt={image.alt}
                         fill
+                        sizes="48px"
                         className="object-cover rounded-lg"
+                        unoptimized={image.src.startsWith('/api/file/') || image.src.startsWith('https://')}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-400">
                         <ImageIcon className="w-5 h-5" />
                       </div>
                     )}
+                    <GripVertical className="absolute -left-6 w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

@@ -65,19 +65,34 @@ const ImageEditModal = ({
                 </label>
                 <div className="relative w-full aspect-[4/3] sm:aspect-[550/384] rounded-lg border border-gray-600 overflow-hidden bg-gray-800">
                   {formData.src ? (
-                    <Image
-                      src={formData.src}
-                      alt={formData.alt || 'Preview'}
-                      fill
-                      className="object-cover"
-                      style={{
-                        objectPosition: `${formData.imageOffsetX || 50}% ${formData.imageOffsetY || 50}%`
-                      }}
-                      onError={(e) => {
-                        e.target.style.display = 'none'
-                        e.target.nextSibling.style.display = 'flex'
-                      }}
-                    />
+                    <>
+                      <Image
+                        src={formData.src}
+                        alt={formData.alt || 'Preview'}
+                        fill
+                        className="object-cover"
+                        style={{
+                          objectPosition: `${formData.imageOffsetX || 50}% ${formData.imageOffsetY || 50}%`
+                        }}
+                        onError={(e) => {
+                          console.error('Image load error:', formData.src, e)
+                          e.target.style.display = 'none'
+                          if (e.target.nextSibling) {
+                            e.target.nextSibling.style.display = 'flex'
+                          }
+                        }}
+                        unoptimized={formData.src.startsWith('/api/file/') || formData.src.startsWith('https://')}
+                      />
+                      <div 
+                        className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-800"
+                        style={{ display: 'none' }}
+                      >
+                        <div className="text-center">
+                          <div className="text-sm">Failed to load image</div>
+                          <div className="text-xs text-gray-500 mt-1">Path: {formData.src}</div>
+                        </div>
+                      </div>
+                    </>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-400">
                       <div className="text-center">

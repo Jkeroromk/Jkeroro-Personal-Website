@@ -20,6 +20,17 @@ const HomeAuth = ({ children }) => {
     // 确保在客户端环境运行
     if (typeof window === 'undefined') return
     
+    // 使用ref来避免重复执行
+    const hasInitialized = sessionStorage.getItem('homeAuthInitialized')
+    if (hasInitialized) {
+      // 如果已经初始化过，只确保滚动到顶部
+      window.scrollTo(0, 0)
+      return
+    }
+    
+    // 标记为已初始化
+    sessionStorage.setItem('homeAuthInitialized', 'true')
+    
     // 确保页面滚动到顶部
     window.scrollTo(0, 0)
     
@@ -49,11 +60,15 @@ const HomeAuth = ({ children }) => {
     const handlePageHide = () => {
       document.cookie = "perm=; Path=/; Max-Age=0; SameSite=Lax"
       localStorage.removeItem('audioPermission')
+      sessionStorage.removeItem('hasCheckedAuth')
+      sessionStorage.removeItem('homeAuthInitialized')
     }
     
     const handleBeforeUnload = () => {
       document.cookie = "perm=; Path=/; Max-Age=0; SameSite=Lax"
       localStorage.removeItem('audioPermission')
+      sessionStorage.removeItem('hasCheckedAuth')
+      sessionStorage.removeItem('homeAuthInitialized')
     }
     
     // 同时监听两个事件以确保兼容性
@@ -67,6 +82,8 @@ const HomeAuth = ({ children }) => {
         setTimeout(() => {
           document.cookie = "perm=; Path=/; Max-Age=0; SameSite=Lax"
           localStorage.removeItem('audioPermission')
+          sessionStorage.removeItem('hasCheckedAuth')
+          sessionStorage.removeItem('homeAuthInitialized')
         }, 100)
       }
     }

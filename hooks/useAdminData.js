@@ -80,12 +80,30 @@ export const useAdminData = () => {
       // 加载 Firebase 数据
       if (firestore) {
         // 加载 Firebase 图片数据
-        const imagesSnapshot = await getDocs(collection(firestore, "images"))
+        const imagesRef = collection(firestore, "images")
+        const imagesSnapshot = await getDocs(imagesRef)
         const firebaseImages = imagesSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }))
-        setImages(firebaseImages)
+        
+        // 按order字段排序，如果没有order字段则按创建时间排序
+        const sortedImages = firebaseImages.sort((a, b) => {
+          if (a.order !== undefined && b.order !== undefined) {
+            return a.order - b.order
+          } else if (a.order !== undefined) {
+            return -1
+          } else if (b.order !== undefined) {
+            return 1
+          } else {
+            // 如果都没有order字段，按创建时间排序
+            const aTime = new Date(a.createdAt || 0).getTime()
+            const bTime = new Date(b.createdAt || 0).getTime()
+            return aTime - bTime
+          }
+        })
+        
+        setImages(sortedImages)
 
         // 加载 Firebase 项目数据
         const projectsSnapshot = await getDocs(collection(firestore, "carouselItems"))
@@ -238,6 +256,11 @@ export const useAdminData = () => {
             throw new Error('Firebase not initialized. Please check your environment variables.')
           }
 
+          // 获取当前图片数量来确定顺序
+          const imagesRef = collection(firestore, 'images')
+          const imagesSnapshot = await getDocs(imagesRef)
+          const order = imagesSnapshot.size
+
           const imageData = {
             src: formData.src,
             alt: formData.alt,
@@ -245,9 +268,12 @@ export const useAdminData = () => {
             height: formData.height,
             imageOffsetX: formData.imageOffsetX || 50,
             imageOffsetY: formData.imageOffsetY || 50,
+            order: order,
             priority: false,
             createdAt: new Date().toISOString()
           }
+          
+          console.log('Saving image data to Firebase:', imageData)
 
           // 保存到 Firebase
           await addDoc(collection(firestore, 'images'), imageData)
@@ -257,9 +283,7 @@ export const useAdminData = () => {
           
           // 触发图片数据变化事件，通知其他组件更新
           // 添加小延迟确保数据已保存到 Firestore
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('imagesDataChanged'))
-          }, 100)
+          // 注意：不再触发全局事件，避免影响其他页面
         } else if (activeTab === 'music') {
           // 检查 Firebase 连接
           if (!firestore) {
@@ -335,9 +359,7 @@ export const useAdminData = () => {
           
           // 触发图片数据变化事件，通知其他组件更新
           // 添加小延迟确保数据已保存到 Firestore
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('imagesDataChanged'))
-          }, 100)
+          // 注意：不再触发全局事件，避免影响其他页面
         } else if (editingItem && activeTab === 'music') {
           // 检查 Firebase 连接
           if (!firestore) {
@@ -544,9 +566,7 @@ export const useAdminData = () => {
           
           // 触发图片数据变化事件，通知其他组件更新
           // 添加小延迟确保数据已保存到 Firestore
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('imagesDataChanged'))
-          }, 100)
+          // 注意：不再触发全局事件，避免影响其他页面
           break
         case 'track':
           // 检查 Firebase 连接
@@ -668,6 +688,51 @@ export const useAdminData = () => {
     }
   }
 
+  // 处理图片拖拽排序
+  const handleImageReorder = async (dragIndex, dropIndex) => {
+    try {
+      // 检查 Firebase 连接
+      if (!firestore) {
+        throw new Error('Firebase not initialized. Please check your environment variables.')
+      }
+
+      const newImages = [...(images || [])]
+      const draggedImage = newImages[dragIndex]
+      
+      // 移除拖拽的项目
+      newImages.splice(dragIndex, 1)
+      // 在目标位置插入
+      newImages.splice(dropIndex, 0, draggedImage)
+      
+      // 更新 Firebase 中每个图片的顺序
+      const updatePromises = newImages.map((image, index) => {
+        return updateDoc(doc(firestore, 'images', image.id), {
+          order: index
+        })
+      })
+      
+      await Promise.all(updatePromises)
+      
+      // 更新本地状态
+      setImages(newImages)
+      
+      // 注意：不再触发全局事件，避免影响其他页面
+      // album组件会通过Firebase实时监听自动更新
+      
+      toast({
+        title: "Success",
+        description: "Image order updated successfully",
+      })
+    } catch (error) {
+      console.error('Image reorder error:', error)
+      toast({
+        title: "Error",
+        description: `Failed to reorder images: ${error.message}`,
+        variant: "destructive"
+      })
+    }
+  }
+
   // 处理添加新音乐轨道
   const handleAddTrack = () => {
     setFormData({
@@ -712,6 +777,7 @@ export const useAdminData = () => {
     handleDelete,
     handleAddNew,
     handleTrackReorder,
+    handleImageReorder,
     handleAddTrack
   }
 }
