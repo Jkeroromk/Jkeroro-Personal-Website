@@ -6,7 +6,7 @@ import React from "react";
 const Interact = () => {
   // Dynamically import VantaBackground
   const VantaBackground = dynamic(
-    () => import("@/components/vantaBackground"),
+    () => import("@/components/effects/vantaBackground"),
     { ssr: false }
   );
 

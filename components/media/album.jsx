@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { collection, getDocs } from "firebase/firestore";
-import { firestore } from "../firebase";
+import { firestore } from "../../firebase";
 
 gsap.registerPlugin(ScrollTrigger);
 

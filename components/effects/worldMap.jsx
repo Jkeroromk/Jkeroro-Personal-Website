@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { database, ref, onValue } from "../firebase";
+import { database, ref, onValue } from "../../firebase";
 import ReactECharts from "echarts-for-react";
 import { registerMap } from "echarts";
 

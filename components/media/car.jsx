@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import ModernControlPanel from './ModernControlPanel';
+import ModernControlPanel from '../interactive/ModernControlPanel';
 import { useControlPanel } from '@/contexts/ControlPanelContext';
 
 const vertexShader = `

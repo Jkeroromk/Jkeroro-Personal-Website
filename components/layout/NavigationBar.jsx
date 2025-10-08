@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/auth'
 import { useToast } from '@/hooks/use-toast'
-import ModernControlPanel from '@/components/ModernControlPanel'
+import ModernControlPanel from '@/components/interactive/ModernControlPanel'
 import { useControlPanel } from '@/contexts/ControlPanelContext'
 import { sseIterator } from '@/lib/ai/sse'
 

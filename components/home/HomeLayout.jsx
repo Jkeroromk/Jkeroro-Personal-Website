@@ -2,9 +2,9 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import MouseTrail from '@/components/mousetrail'
-import Interact from '@/components/interact'
-import NavigationBar from '@/components/NavigationBar'
+import MouseTrail from '@/components/effects/mousetrail'
+import Interact from '@/components/interactive/interact'
+import NavigationBar from '@/components/layout/NavigationBar'
 import { ControlPanelProvider } from '@/contexts/ControlPanelContext'
 
 const HomeLayout = ({ children }) => {

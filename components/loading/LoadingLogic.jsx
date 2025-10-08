@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import MouseTrail from '@/components/mousetrail'
+import MouseTrail from '@/components/effects/mousetrail'
 import LoadingProgress from './LoadingProgress'
 import AudioPermissionModal from './AudioPermissionModal'
 

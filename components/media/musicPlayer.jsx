@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Minus, Plus, Repeat, Shuffle } from 'lucide-react';
 import DataManager from '@/lib/data-manager';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { firestore } from '../firebase';
+import { firestore } from '../../firebase';
 
 const MusicPlayer = () => {
   const [isPlaying, setIsPlaying] = useState(false);

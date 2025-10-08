@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef } from "react";
-import '../app/globals.css'
+import '../../app/globals.css'
 
 const MouseTrail = () => {
   const animationRef = useRef(null);

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import FileUpload from '@/components/FileUpload'
+import FileUpload from '@/components/ui/FileUpload'
 
 const MusicEditModal = ({ 
   editingItem, 
