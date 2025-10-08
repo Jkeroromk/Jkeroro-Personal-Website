@@ -6,14 +6,23 @@ import { Edit, Trash2, Image } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
-const ImagesTab = ({ images, onEdit, onDelete }) => {
+const ImagesTab = ({ images, onEdit, onDelete, onAddNew }) => {
   return (
     <Card className="bg-gray-800 border-gray-600">
       <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <Image className="w-5 h-5 mr-2" />
-          Images ({images.length})
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-white flex items-center">
+            <Image className="w-5 h-5 mr-2" />
+            Images ({images.length})
+          </CardTitle>
+          <Button
+            onClick={() => onAddNew('image')}
+            className="bg-white text-black hover:bg-gray-200"
+          >
+            <Image className="w-4 h-4 mr-2" />
+            Add Image
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

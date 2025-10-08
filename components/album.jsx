@@ -4,7 +4,8 @@ import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import DataManager from "@/lib/data-manager";
+import { collection, getDocs } from "firebase/firestore";
+import { firestore } from "../firebase";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -12,18 +13,64 @@ const Album = () => {
   const albumRef = useRef(null);
   const imageRefs = useRef([]);
   const [images, setImages] = useState([]);
-  const [dataManager] = useState(() => DataManager.getInstance());
 
-  // 加载图片数据
+  // 从 Firestore 加载图片数据
+  const loadImages = async () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    
+    if (!firestore) {
+      setImages([]);
+      return;
+    }
+    
+    try {
+      const imagesSnapshot = await getDocs(collection(firestore, "images"));
+      const firebaseImages = imagesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // 如果 Firestore 中没有图片，不显示任何内容
+      if (firebaseImages.length === 0) {
+        setImages([]);
+      } else {
+        setImages(firebaseImages);
+      }
+    } catch (error) {
+      console.error('Album: Error loading images from Firestore:', error);
+      // 如果 Firestore 加载失败，不显示任何内容
+      setImages([]);
+    }
+  };
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setImages(dataManager.getImages());
-  }, [dataManager]);
+    loadImages();
+  }, []);
+
+  // 监听图片数据变化事件
+  useEffect(() => {
+    const handleImagesDataChange = () => {
+      loadImages();
+    };
+
+    window.addEventListener('imagesDataChanged', handleImagesDataChange);
+    
+    return () => {
+      window.removeEventListener('imagesDataChanged', handleImagesDataChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const imageElements = imageRefs.current;
+
+    // 检查是否有图片元素
+    if (!imageElements || imageElements.length === 0) {
+      return;
+    }
 
     gsap.set(imageElements, { opacity: 0 });
 
@@ -49,7 +96,7 @@ const Album = () => {
         }
       );
     });
-  }, []);
+  }, [images]); // 依赖 images 数组，当图片数据变化时重新运行动画
 
   const addToRefs = (el) => {
     if (el && !imageRefs.current.includes(el)) {
@@ -57,22 +104,30 @@ const Album = () => {
     }
   };
 
+  // 如果没有图片，不渲染任何内容
+  if (images.length === 0) {
+    return null;
+  }
+
   return (
     <div
       ref={albumRef}
-      className="flex flex-col items-center justify-center mt-10 overflow-x-hidden"
+      className="flex flex-col items-center justify-center mt-6 overflow-x-hidden"
     >
       {images.map((image, index) => (
-        <div key={image.id} ref={addToRefs} className="w-full max-w-[550px]">
-          <Image
-            src={image.src}
-            alt={image.alt}
-            width={image.width}
-            height={image.height}
-            priority={image.priority}
-            className="rounded-2xl scale-90 sm:scale-100 sm:mb-5 w-full h-auto object-cover"
-            style={{ width: '100%', height: 'auto' }}
-          />
+        <div key={image.id} ref={addToRefs} className="w-full sm:w-[550px] mb-4">
+          <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gray-800">
+            <Image
+              src={image.src}
+              alt={image.alt}
+              fill
+              priority={image.priority}
+              className="object-cover"
+              style={{ 
+                objectPosition: `${image.imageOffsetX || 50}% ${image.imageOffsetY || 50}%`
+              }}
+            />
+          </div>
         </div>
       ))}
     </div>
