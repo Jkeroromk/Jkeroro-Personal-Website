@@ -47,6 +47,20 @@ const Tabs = () => {
   const [emblaApi, setEmblaApi] = useState(null);
   const autoplayPlugin = useRef(Autoplay({ delay: 3000, stopOnInteraction: false }));
 
+  // 获取标签颜色的辅助函数
+  const getCategoryColor = (category) => {
+    switch (category) {
+      case 'personal':
+        return 'bg-purple-600/20 border-purple-500 text-purple-600';
+      case 'work':
+        return 'bg-green-600/20 border-green-500 text-green-600';
+      case 'school':
+        return 'bg-blue-600/20 border-blue-500 text-blue-600';
+      default:
+        return 'bg-gray-600/20 border-gray-500 text-gray-400';
+    }
+  };
+
   const fetchCarouselItems = async () => {
     try {
       const querySnapshot = await getDocs(collection(firestore, "carouselItems"));
@@ -153,22 +167,14 @@ const Tabs = () => {
         </Card3D>
       </div>
 
-      <h1 className="flex justify-center text-white font-extrabold text-2xl mt-6">
+      <h1 className="flex justify-center text-white font-extrabold text-2xl mt-20">
         Personal Project Collection
       </h1>
 
-      <div className="flex justify-center gap-x-3">
-        <ArrowLeft className="text-white mt-2 cursor-pointer hover:text-blue-300 transition-colors" onClick={resetAutoplay} />
-        <h2 className="flex justify-center text-white font-extrabold text-xl mt-1">
-          Swap me
-        </h2>
-        <ArrowRight className="text-white mt-2 cursor-pointer hover:text-blue-300 transition-colors" onClick={resetAutoplay} />
-      </div>
-
-      <div className="flex justify-center w-full py-20 ml-[20px]" style={{ overflow: 'visible' }}>
+      <div className="flex justify-center w-full py-8 ml-[20px]" style={{ overflow: 'visible' }}>
         <div className="w-full sm:w-[600px]" style={{ overflow: 'visible' }}>
           <Carousel
-            className="mt-3 w-full"
+            className="mt-1 w-full"
             opts={{ 
               loop: true,
               align: "center"
@@ -188,7 +194,7 @@ const Tabs = () => {
                     href={item.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block bg-white bg-opacity-80 border-2 border-black rounded-3xl overflow-hidden transition-all duration-300 h-[360px] sm:h-[400px] flex flex-col relative z-30 group-hover:shadow-[0_0_20px_white] my-4"
+                    className="bg-white bg-opacity-80 border-2 border-black rounded-3xl overflow-hidden transition-all duration-300 h-[360px] sm:h-[400px] flex flex-col relative z-30 group-hover:shadow-[0_0_20px_white] my-4"
                     onMouseEnter={pauseAutoplay}
                     onMouseLeave={resumeAutoplay}
                   >
@@ -196,11 +202,11 @@ const Tabs = () => {
                       <div 
                         className="relative h-72 sm:h-96 overflow-hidden"
                         style={{
-                          backgroundImage: item.image ? `url("${encodeURI(item.image)}")` : 'none',
+                          backgroundImage: (item.image && item.image.trim() !== '') ? `url("${encodeURI(item.image)}")` : 'none',
                           backgroundSize: 'cover',
-                          backgroundPosition: item.cropX !== undefined && item.cropY !== undefined ? `${item.cropX}% ${item.cropY}%` : (item.imagePosition || 'center'),
+                          backgroundPosition: item.cropX !== undefined && item.cropY !== undefined ? `${item.cropX}% ${item.cropY}%` : 'center',
                           backgroundRepeat: 'no-repeat',
-                          backgroundColor: item.image ? 'transparent' : '#1f2937'
+                          backgroundColor: (item.image && item.image.trim() !== '') ? 'transparent' : '#1f2937'
                         }}
                       >
                         {/* 渐变遮罩 */}
@@ -226,7 +232,7 @@ const Tabs = () => {
                               {item.title}
                             </h1>
                             {item.category && (
-                              <span className="px-2 py-0.5 bg-blue-600/20 border-l-2 border-blue-500 text-blue-600 text-xs font-light tracking-wide uppercase">
+                              <span className={`px-2 py-0.5 mt-1 border-l-2 text-xs font-light tracking-wide uppercase ${getCategoryColor(item.category)}`}>
                                 {item.category}
                               </span>
                             )}
@@ -252,26 +258,41 @@ const Tabs = () => {
           )}
         </CarouselContent>
         
-        {/* Dot指示器 - 在carousel内部 */}
-        {carouselItems.length > 1 && (
-          <div className="flex justify-center mt-4 gap-2 px-4">
-            {carouselItems.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  if (emblaApi) {
-                    emblaApi.scrollTo(index);
-                  }
-                }}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  index === currentSlide 
-                    ? 'bg-white/80 scale-125' 
-                    : 'bg-white/30 hover:bg-white/50'
-                }`}
-              />
-            ))}
+        {/* Swap me 和 Dot指示器 */}
+        <div className="flex flex-col items-center mt-4 gap-3">
+          {/* Swap me */}
+          <div className="flex justify-center items-center gap-x-3">
+            <ArrowLeft className="text-white/60 hover:text-white/80 transition-all duration-300 cursor-pointer hover:scale-110" onClick={resetAutoplay} />
+            
+            <h2 className="text-white/50 text-sm font-medium tracking-wide">
+              Swap me
+            </h2>
+            
+            <ArrowRight className="text-white/60 hover:text-white/80 transition-all duration-300 cursor-pointer hover:scale-110" onClick={resetAutoplay} />
           </div>
-        )}
+          
+          {/* Dot指示器 */}
+          {carouselItems.length > 1 && (
+            <div className="flex justify-center gap-2 px-4">
+              {carouselItems.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    if (emblaApi) {
+                      emblaApi.scrollTo(index);
+                      setCurrentSlide(index);
+                    }
+                  }}
+                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    index === currentSlide 
+                      ? 'bg-white/80 scale-125' 
+                      : 'bg-white/30 hover:bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
           </Carousel>
         </div>
       </div>
@@ -281,7 +302,7 @@ const Tabs = () => {
           href="https://www.xiaohongshu.com/user/profile/678e5f43000000000e0107ac?xsec_token=YBoDy4ooZI5wbVMGN9VSpV7OGN88SSTRIr5QQntEv1awY=&xsec_source=app_share&xhsshare=CopyLink&appuid=678e5f43000000000e0107ac&apptime=1738075633&share_id=d3e00f56b0ba47ecb739975076b7eb34"
           target="_blank"
           rel="noopener noreferrer"
-          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-8 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
+          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-4 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
         >
           <h1 className="text-xl font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
             Rednote

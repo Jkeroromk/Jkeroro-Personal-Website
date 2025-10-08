@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase, ref, update, increment, serverTimestamp, onValue, push, set, get } from "firebase/database";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import axios from "axios";
 
 // ✅ Firebase Configuration
@@ -16,13 +17,14 @@ const firebaseConfig = {
 };
 
 // ✅ Initialize Firebase (with error handling)
-let app, database, firestore, auth;
+let app, database, firestore, auth, storage;
 
 try {
   app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
   database = getDatabase(app);
   firestore = getFirestore(app);
   auth = getAuth(app);
+  storage = getStorage(app);
 } catch (error) {
   console.warn('Firebase initialization failed:', error.message);
   // 创建占位符对象以避免运行时错误
@@ -30,6 +32,7 @@ try {
   database = null;
   firestore = null;
   auth = null;
+  storage = null;
 }
 
 // ✅ Function to Increment Viewer Count (Realtime Database)
@@ -204,6 +207,7 @@ export {
   auth,
   database,
   firestore,
+  storage,
   ref,
   update,
   increment,

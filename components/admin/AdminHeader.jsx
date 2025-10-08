@@ -10,7 +10,7 @@ const AdminHeader = ({ onLogout }) => {
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mb-8"
+      className="mb-8 px-6 pt-6"
     >
       <div className="flex justify-between items-center">
         <div>
@@ -25,7 +25,7 @@ const AdminHeader = ({ onLogout }) => {
         <Button
           onClick={onLogout}
           variant="outline"
-          className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+          className="border-gray-600 text-red-600 hover:bg-gray-800 hover:text-white hover:border-gray-500"
         >
           <LogOut className="w-4 h-4 mr-2" />
           Logout

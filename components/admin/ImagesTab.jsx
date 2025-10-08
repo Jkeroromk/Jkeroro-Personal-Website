@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const ImagesTab = ({ images, onEdit, onDelete }) => {
   return (
-    <Card className="bg-gray-900 border-gray-700">
+    <Card className="bg-gray-800 border-gray-600">
       <CardHeader>
         <CardTitle className="text-white flex items-center">
           <Image className="w-5 h-5 mr-2" />
@@ -23,15 +23,21 @@ const ImagesTab = ({ images, onEdit, onDelete }) => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
-              className="group bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl overflow-hidden border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:shadow-lg hover:shadow-gray-900/50"
+              className="group bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl overflow-hidden border border-gray-600 hover:border-gray-500 transition-all duration-300 hover:shadow-lg hover:shadow-gray-800/50"
             >
               {/* 图片容器 */}
-              <div className="relative aspect-square bg-gray-700 overflow-hidden">
-                <img 
-                  src={image.src} 
-                  alt={image.alt}
-                  className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
-                />
+              <div className="relative aspect-square bg-gray-600 overflow-hidden">
+                {image.src && image.src.trim() !== '' ? (
+                  <img 
+                    src={image.src} 
+                    alt={image.alt}
+                    className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    No Image
+                  </div>
+                )}
                 {/* 悬停时的操作按钮 */}
                 <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
                   <Button

@@ -1,0 +1,21 @@
+{
+  "functions": {
+    "app/api/upload/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/file/[filename]/route.ts": {
+      "maxDuration": 10
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/file/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
+  ]
+}

@@ -78,11 +78,7 @@ class DataManager {
         { id: '4', src: '/coffee.jpg', alt: 'album', width: 550, height: 400 }
       ] as AlbumImage[],
       
-      tracks: [
-        { id: '1', title: 'ReawakeR (Solo Leveling)', subtitle: 'LiSA(feat. Felix of Stray Kids)', src: '/ReawakeR.mp3' },
-        { id: '2', title: 'Work (Hell Paradise)', subtitle: '椎名林檎 ● ꉈꀧ꒒꒒ꁄꍈꍈꀧ꒦ꉈ ꉣꅔꎡꅔꁕꁄ', src: '/Work.mp3' },
-        { id: '3', title: 'SPECIALZ (Jujutsu Kaisen)', subtitle: 'Anifi', src: '/SPECIALZ (Jujutsu Kaisen).mp3' }
-      ] as MusicTrack[],
+      tracks: [] as MusicTrack[], // 空数组，完全依赖用户上传
       
       projects: [
         { id: '1', title: 'Personal Website', description: 'My personal portfolio website built with Next.js and React', image: '/me.webp', link: 'https://jkeroro.com', category: 'web' },

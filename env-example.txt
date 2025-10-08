@@ -6,5 +6,10 @@ OPENAI_API_KEY=sk-your-openai-api-key-here
 MODEL_PROVIDER=openai
 MODEL_NAME=gpt-4o-mini
 
-# Firebase 配置（如果需要）
+# Firebase 配置（必需）
 NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key-here
+
+# 文件上传配置
+# 现在使用 Firebase Storage 进行文件存储
+# 如果 Firebase Storage 不可用，会回退到临时存储
+# NODE_ENV=production  # 自动设置，无需手动配置
