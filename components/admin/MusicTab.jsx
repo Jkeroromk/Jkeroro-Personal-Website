@@ -16,17 +16,36 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder }) => {
   const getFileSizeEstimate = (src) => {
     // 简单的文件大小估算，实际大小可能不同
     const fileName = src.split('/').pop() || '';
+    
+    // 检查常见的音乐文件大小模式
     if (fileName.includes('Everybody')) return '4.9MB';
     if (fileName.includes('Leessang')) return '5.4MB';
     if (fileName.includes('ReawakeR')) return '4.5MB';
     if (fileName.includes('SPECIALZ')) return '1.9MB';
     if (fileName.includes('Work')) return '4.8MB';
+    if (fileName.includes('2hollis')) return '3.2MB';
+    if (fileName.includes('ICEDMANE')) return '4.1MB';
+    if (fileName.includes('Instruments_of_Retribution')) return '5.8MB';
+    
+    // 根据文件扩展名估算
+    if (fileName.endsWith('.mp3')) {
+      // MP3 文件通常 3-6MB
+      return '~4MB';
+    } else if (fileName.endsWith('.wav')) {
+      // WAV 文件通常更大
+      return '~8MB';
+    } else if (fileName.endsWith('.flac')) {
+      // FLAC 文件通常 5-10MB
+      return '~6MB';
+    }
+    
     return '~3MB'; // 默认估算
   };
 
   const totalSizeEstimate = tracks.reduce((total, track) => {
     const size = getFileSizeEstimate(track.src);
-    const sizeNum = parseFloat(size.replace('MB', ''));
+    // 移除 ~ 符号和 MB 后缀，然后转换为数字
+    const sizeNum = parseFloat(size.replace(/[~MB]/g, ''));
     return total + sizeNum;
   }, 0);
 
@@ -152,7 +171,7 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder }) => {
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, index)}
-                className={`rounded-lg p-4 flex items-center justify-between transition-colors duration-150 cursor-move group ${
+                className={`rounded-lg p-3 sm:p-4 flex items-center justify-between transition-colors duration-150 cursor-move group ${
                   draggedIndex === index 
                     ? 'bg-gray-600 border-2 border-gray-400' 
                     : dragOverIndex === index 
@@ -160,44 +179,43 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder }) => {
                       : 'bg-gray-700 hover:bg-gray-600'
                 }`}
               >
-                <div className="flex items-center flex-1">
-                  <div className="w-10 h-10 bg-gray-600 rounded-lg flex items-center justify-center mr-3 relative">
+                <div className="flex items-center flex-1 min-w-0">
+                  <div className="w-10 h-10 bg-gray-600 rounded-lg flex items-center justify-center mr-3 relative flex-shrink-0">
                     <Music className="w-5 h-5 text-gray-400" />
                     <GripVertical className="absolute -left-6 w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold text-white truncate">{track.title}</h3>
-                      <span className="text-xs text-gray-500 bg-gray-700 px-1 py-0.5 rounded">
+                      <span className="text-xs text-gray-500 bg-gray-700 px-1 py-0.5 rounded flex-shrink-0">
                         #{index + 1}
                       </span>
                     </div>
                     <p className="text-sm text-gray-400 truncate">{track.subtitle}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <p className="text-xs text-gray-500 truncate">{track.src}</p>
-                      <span className="text-xs text-gray-600 bg-gray-700 px-1 py-0.5 rounded">
+                      <span className="text-xs text-gray-600 bg-gray-700 px-1 py-0.5 rounded flex-shrink-0">
                         {getFileSizeEstimate(track.src)}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                   <Button
                     size="sm"
                     variant="secondary"
                     onClick={() => onEdit(track, 'track')}
-                    className="hover:bg-gray-600"
+                    className="hover:bg-gray-600 h-8 px-2 sm:px-3"
                   >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
+                    <Edit className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Edit</span>
                   </Button>
                   <Button
                     size="sm"
                     variant="destructive"
                     onClick={() => onDelete(track.id, 'track')}
-                    className="hover:bg-red-600"
+                    className="hover:bg-red-600 h-8 px-2 sm:px-3"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
                 </div>
               </motion.div>

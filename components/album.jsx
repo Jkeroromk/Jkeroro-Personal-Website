@@ -112,11 +112,11 @@ const Album = () => {
   return (
     <div
       ref={albumRef}
-      className="flex flex-col items-center justify-center mt-6 overflow-x-hidden"
+      className="flex flex-col items-center justify-center mt-6 overflow-x-hidden px-4 sm:px-6"
     >
       {images.map((image, index) => (
         <div key={image.id} ref={addToRefs} className="w-full sm:w-[550px] mb-4">
-          <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-gray-800">
+          <div className="relative w-full aspect-[550/384] rounded-2xl overflow-hidden bg-gray-800">
             <Image
               src={image.src}
               alt={image.alt}

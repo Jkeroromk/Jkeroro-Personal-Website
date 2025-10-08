@@ -256,7 +256,10 @@ export const useAdminData = () => {
           loadData()
           
           // 触发图片数据变化事件，通知其他组件更新
-          window.dispatchEvent(new CustomEvent('imagesDataChanged'))
+          // 添加小延迟确保数据已保存到 Firestore
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('imagesDataChanged'))
+          }, 100)
         } else if (activeTab === 'music') {
           // 检查 Firebase 连接
           if (!firestore) {
@@ -331,7 +334,10 @@ export const useAdminData = () => {
           loadData()
           
           // 触发图片数据变化事件，通知其他组件更新
-          window.dispatchEvent(new CustomEvent('imagesDataChanged'))
+          // 添加小延迟确保数据已保存到 Firestore
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('imagesDataChanged'))
+          }, 100)
         } else if (editingItem && activeTab === 'music') {
           // 检查 Firebase 连接
           if (!firestore) {
@@ -369,27 +375,21 @@ export const useAdminData = () => {
             scale: formData.scale
           })
 
-          await updateDoc(doc(firestore, "carouselItems", editingItem), updateData)
+          await updateDoc(doc(firestore, "carouselItems", editingItem.id), updateData)
         }
       }
 
       // 重新加载数据
-      const imagesData = dataManager.getImages()
-      // 音乐数据现在从 Firebase 加载，这里不再需要
-      const projectsData = dataManager.getProjects()
-      
-      setImages(imagesData)
-      // 音乐数据现在从 Firebase 加载，这里不再需要
-      setProjects(projectsData)
-
-      // 重新加载 Firebase 项目数据
       if (firestore) {
-        const querySnapshot = await getDocs(collection(firestore, "carouselItems"))
-        const firebaseData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        setFirebaseProjects(firebaseData)
+        // 重新加载 Firebase 数据
+        await loadData()
+      } else {
+        // 降级到本地数据
+        const imagesData = dataManager.getImages()
+        const projectsData = dataManager.getProjects()
+        
+        setImages(imagesData)
+        setProjects(projectsData)
       }
 
       // 重置表单
@@ -543,7 +543,10 @@ export const useAdminData = () => {
           loadData()
           
           // 触发图片数据变化事件，通知其他组件更新
-          window.dispatchEvent(new CustomEvent('imagesDataChanged'))
+          // 添加小延迟确保数据已保存到 Firestore
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('imagesDataChanged'))
+          }, 100)
           break
         case 'track':
           // 检查 Firebase 连接

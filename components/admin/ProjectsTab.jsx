@@ -3,6 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Edit, Trash2, Settings } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -38,7 +39,8 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew }) => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* 桌面端：网格布局 */}
+        <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-6">
           {projects.map((project) => (
             <motion.div
               key={project.id}
@@ -50,10 +52,11 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew }) => {
               {/* 图片容器 */}
               <div className="relative aspect-square bg-gray-600 overflow-hidden">
                 {project.image && project.image.trim() !== '' ? (
-                  <img 
-                    src={project.image} 
+                  <Image
+                    src={project.image}
                     alt={project.title}
-                    className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
+                    fill
+                    className="object-contain transition-transform duration-300 group-hover:scale-105"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
@@ -106,6 +109,73 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew }) => {
                     🔗 View Project
                   </a>
                 )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* 移动端：列表布局 */}
+        <div className="md:hidden space-y-3">
+          {projects.map((project, index) => (
+            <motion.div
+              key={project.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="rounded-lg p-3 bg-gray-700 hover:bg-gray-600 transition-colors duration-150"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center flex-1 min-w-0">
+                  <div className="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center mr-3 relative flex-shrink-0">
+                    {project.image && project.image.trim() !== '' ? (
+                      <Image
+                        src={project.image}
+                        alt={project.title}
+                        fill
+                        className="object-contain rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <Settings className="w-5 h-5" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-white truncate">{project.title}</h3>
+                      <span className="text-xs text-gray-500 bg-gray-700 px-1 py-0.5 rounded flex-shrink-0">
+                        #{index + 1}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-400 truncate">{project.description}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-xs px-1 py-0.5 rounded border ${getCategoryColor(project.category)}`}>
+                        {project.category}
+                      </span>
+                      <span className="text-xs text-gray-600 bg-gray-700 px-1 py-0.5 rounded flex-shrink-0">
+                        {project.link ? '有链接' : '无链接'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => onEdit(project, 'project')}
+                    className="hover:bg-gray-600 h-8 px-2"
+                  >
+                    <Edit className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => onDelete(project.id, 'project')}
+                    className="hover:bg-red-600 h-8 px-2"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
             </motion.div>
           ))}
