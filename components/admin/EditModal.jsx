@@ -37,14 +37,10 @@ const EditModal = ({
   };
 
   const handleFileSelect = (file, filePath) => {
-    console.log('File selected:', file)
-    console.log('File path:', filePath)
     setUploadedFile(file)
     const imagePath = filePath || `/uploads/${file.name}`
-    console.log('Setting tempImageSrc to:', imagePath)
     // 确保路径正确编码
     const encodedPath = encodeURI(imagePath)
-    console.log('Encoded path:', encodedPath)
     setTempImageSrc(encodedPath)
     setShowCropper(true)
   }
