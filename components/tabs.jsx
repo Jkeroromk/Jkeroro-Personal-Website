@@ -91,7 +91,6 @@ const Tabs = () => {
         }));
         setCarouselItems(items);
         setFetchError(null);
-        console.log("Carousel data updated:", items.length, "items");
       },
       (error) => {
         console.error("Real-time listener error:", error.code, error.message);

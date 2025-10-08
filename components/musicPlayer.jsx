@@ -54,12 +54,10 @@ const MusicPlayer = () => {
     if (typeof window === 'undefined') return;
     try {
       const tracksData = dataManager.getTracks();
-      console.log('🎵 加载音乐数据:', tracksData);
       setTracks(tracksData);
       
       // 确保当前轨道索引在有效范围内
       if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
-        console.log('🎵 重置轨道索引到0');
         setCurrentTrackIndex(0);
       }
     } catch (error) {
@@ -75,7 +73,6 @@ const MusicPlayer = () => {
 
     const handleStorageChange = (e) => {
       if (e.key === 'jkeroro-website-data') {
-        console.log('🎵 检测到数据变化，重新加载音乐数据');
         try {
           const tracksData = dataManager.getTracks();
           setTracks(tracksData);
@@ -109,19 +106,14 @@ const MusicPlayer = () => {
     
     // 确保有音乐数据
     if (!tracks || tracks.length === 0) {
-      console.log('🎵 没有音乐数据，跳过自动播放检查');
       return;
     }
     
-    console.log('🎵 音乐播放器初始化，检查权限...')
-    console.log('🎵 当前音乐数据:', tracks);
     const audioPermission = localStorage.getItem('audioPermission');
-    console.log('🎵 当前音频权限:', audioPermission)
     
     if (audioPermission === 'allowed') {
       // 如果用户允许了音频，自动开始播放
       const audio = audioRef.current;
-      console.log('🎵 音频元素:', audio)
       if (audio) {
         audio.muted = false;
         // 确保事件监听器已添加
@@ -131,15 +123,9 @@ const MusicPlayer = () => {
         // 延迟一点时间确保音频元素完全准备好
         setTimeout(async () => {
           const success = await safePlay();
-          if (success) {
-            console.log('🎵 音频权限已允许，自动开始播放成功');
-          } else {
-            console.log('🎵 自动播放失败，需要用户交互');
-          }
+          // 自动播放成功或失败
         }, 100);
       }
-    } else {
-      console.log('🎵 音频权限未允许或未设置')
     }
   }, [tracks]); // 添加tracks作为依赖
 
@@ -150,17 +136,12 @@ const MusicPlayer = () => {
     
     const handleStorageChange = (e) => {
       if (e.key === 'audioPermission' && e.newValue === 'allowed') {
-        console.log('🎵 检测到localStorage变化，音频权限已允许')
         const audio = audioRef.current;
         if (audio) {
           audio.muted = false;
           setTimeout(async () => {
             const success = await safePlay();
-            if (success) {
-              console.log('🎵 通过localStorage变化自动开始播放');
-            } else {
-              console.log('🎵 通过localStorage变化自动播放失败');
-            }
+            // 自动播放结果
           }, 100);
         }
       }
@@ -178,11 +159,7 @@ const MusicPlayer = () => {
       setShowPermissionPrompt(false);
       // 自动播放音乐
       safePlay().then((success) => {
-        if (success) {
-          console.log('音频权限已允许，自动开始播放');
-        } else {
-          console.log('自动播放失败，需要用户交互');
-        }
+        // 自动播放结果
       });
     } else {
       setShowPermissionPrompt(false);
@@ -213,7 +190,6 @@ const MusicPlayer = () => {
   // Skip tracks
   const skipTrack = (direction) => {
     if (!tracks || tracks.length === 0) {
-      console.log('🎵 没有音乐轨道，无法切换');
       return;
     }
     
@@ -223,11 +199,9 @@ const MusicPlayer = () => {
       do {
         newIndex = Math.floor(Math.random() * tracks.length);
       } while (newIndex === currentTrackIndex && tracks.length > 1);
-      console.log('🎵 随机切换轨道:', { from: currentTrackIndex, to: newIndex });
     } else {
       // 正常顺序播放
       newIndex = (currentTrackIndex + direction + tracks.length) % tracks.length;
-      console.log('🎵 顺序切换轨道:', { from: currentTrackIndex, to: newIndex, direction });
     }
     
     setCurrentTrackIndex(newIndex);
@@ -281,13 +255,11 @@ const MusicPlayer = () => {
     if (audio) {
       audio.loop = !isLooping;
     }
-    console.log('🎵 循环模式:', !isLooping ? '开启' : '关闭');
   };
 
   // Toggle shuffle
   const toggleShuffle = () => {
     setIsShuffled(!isShuffled);
-    console.log('🎵 随机播放:', !isShuffled ? '开启' : '关闭');
   };
 
   // Setup audio listeners and initial volume
@@ -319,21 +291,35 @@ const MusicPlayer = () => {
   // Update audio source when track changes
   useEffect(() => {
     try {
-      const audio = audioRef.current;
-      if (!audio) {
-        console.warn('🎵 音频元素不存在');
+      // 只有在有音频源时才处理
+      if (!tracks[currentTrackIndex]?.src) {
         return;
       }
 
-      if (tracks[currentTrackIndex]?.src) {
-        console.log('🎵 设置音频源:', tracks[currentTrackIndex].src);
-        audio.src = tracks[currentTrackIndex].src;
-        audio.loop = isLooping;
+      const audio = audioRef.current;
+      if (!audio) {
+        // 音频元素可能还没有渲染，稍后重试
+        const timer = setTimeout(() => {
+          const retryAudio = audioRef.current;
+          if (retryAudio && tracks[currentTrackIndex]?.src) {
+            retryAudio.src = tracks[currentTrackIndex].src;
+            retryAudio.loop = isLooping;
+            
+            if (isPlaying) {
+              safePlay();
+            }
+          }
+        }, 100);
         
-        // 只有在用户已经交互过且当前正在播放时才自动播放
-        if (isPlaying) {
-          safePlay();
-        }
+        return () => clearTimeout(timer);
+      }
+
+      audio.src = tracks[currentTrackIndex].src;
+      audio.loop = isLooping;
+      
+      // 只有在用户已经交互过且当前正在播放时才自动播放
+      if (isPlaying) {
+        safePlay();
       }
 
       if ('mediaSession' in navigator) {
@@ -367,7 +353,6 @@ const MusicPlayer = () => {
 
   // 如果没有音乐数据，显示空状态
   if (!tracks || tracks.length === 0) {
-    console.log('🎵 没有音乐数据，显示空状态');
     return (
       <div className="flex flex-col items-center justify-center mt-10">
         <div className="text-center text-gray-400 max-w-md">
@@ -396,7 +381,6 @@ const MusicPlayer = () => {
 
   // 确保当前轨道索引有效
   if (currentTrackIndex >= tracks.length) {
-    console.log('🎵 当前轨道索引无效，重置为0');
     setCurrentTrackIndex(0);
     return null; // 或者返回加载状态
   }
@@ -416,8 +400,8 @@ const MusicPlayer = () => {
             muted={isMuted}
             preload="none" // 不预加载，节省带宽
             onEnded={() => skipTrack(1)}
-            onLoadStart={() => console.log('🎵 开始加载音频:', tracks[currentTrackIndex].title)}
-            onCanPlay={() => console.log('🎵 音频可以播放:', tracks[currentTrackIndex].title)}
+            onLoadStart={() => {}}
+            onCanPlay={() => {}}
             onError={(e) => console.error('🎵 音频加载错误:', e)}
           />
         )}

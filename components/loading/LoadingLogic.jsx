@@ -42,7 +42,6 @@ const LoadingLogic = () => {
 
   // 处理音频权限响应
   const handleAudioPermission = (allow) => {
-    console.log('🎵 处理音频权限:', allow)
     setShowAudioPermission(false)
     
     // 确保在客户端环境运行
@@ -62,9 +61,6 @@ const LoadingLogic = () => {
       // 移动端Safari额外保障：使用URL参数
       const timestamp = Date.now().toString()
       sessionStorage.setItem('loadingTimestamp', timestamp)
-      
-      console.log('✅ 设置Cookie、localStorage和sessionStorage完成')
-      console.log('✅ localStorage中的audioPermission:', localStorage.getItem('audioPermission'))
     } catch (error) {
       console.warn('⚠️ 设置存储时出错:', error)
     }
@@ -73,7 +69,6 @@ const LoadingLogic = () => {
     
     // 移动端Safari兼容性：使用更短的延迟和强制跳转
     setTimeout(() => {
-      console.log('🚀 开始跳转到home页面')
       try {
         // 尝试使用replace
         router.replace('/home')
@@ -81,7 +76,6 @@ const LoadingLogic = () => {
         // 移动端Safari备用方案：如果replace失败，使用push
         setTimeout(() => {
           if (window.location.pathname !== '/home') {
-            console.log('🔄 使用备用跳转方案')
             window.location.href = '/home'
           }
         }, 100)

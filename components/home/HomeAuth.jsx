@@ -42,7 +42,6 @@ const HomeAuth = ({ children }) => {
       }, 100)
     } else if (!permCookie) {
       // 如果没有Cookie（直接访问或刷新），跳转回根页面
-      console.log('🔄 没有有效权限，跳转到loading页面')
       router.replace('/')
     }
     

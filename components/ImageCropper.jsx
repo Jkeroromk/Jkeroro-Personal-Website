@@ -11,7 +11,6 @@ const ImageCropper = ({
   onCancel, 
   isVisible 
 }) => {
-  console.log('ImageCropper received imageSrc:', imageSrc)
   
   // 简化的状态管理
   const [isDragging, setIsDragging] = useState(false)
@@ -215,7 +214,6 @@ const ImageCropper = ({
                       e.target.style.display = 'none'
                     }}
                     onLoad={() => {
-                      console.log('Image loaded successfully:', imageSrc)
                       setImageLoaded(true)
                     }}
                     onMouseDown={handleImageDragStart}
