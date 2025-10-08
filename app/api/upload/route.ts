@@ -120,6 +120,13 @@ export async function POST(request: NextRequest) {
 
     // 在部署环境中，文件存储在 /tmp 目录，需要特殊处理
     if (isProduction) {
+      console.log('Production upload successful:', {
+        fileName,
+        filePath: `/api/file/${fileName}`,
+        uploadsDir,
+        fileSize: file.size,
+        fileType: file.type
+      })
       return NextResponse.json({ 
         success: true, 
         fileName: fileName,
@@ -128,6 +135,13 @@ export async function POST(request: NextRequest) {
         message: 'File uploaded successfully (temporary storage)'
       })
     } else {
+      console.log('Development upload successful:', {
+        fileName,
+        filePath: `/uploads/${fileName}`,
+        uploadsDir,
+        fileSize: file.size,
+        fileType: file.type
+      })
       return NextResponse.json({ 
         success: true, 
         fileName: fileName,

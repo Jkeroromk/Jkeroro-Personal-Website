@@ -16,6 +16,7 @@ import {
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
@@ -228,6 +229,9 @@ export default function LinkforBio() {
             <AlertDialogContent className="bg-black text-white border border-gray-400 shadow-lg scale-[0.9] sm:scale-[1]">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-base font-semibold">Audience Map</AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-300">
+                  View the geographic distribution of your audience across the world.
+                </AlertDialogDescription>
               </AlertDialogHeader>
               <WorldMapDialog />
               <AlertDialogFooter>
@@ -245,6 +249,9 @@ export default function LinkforBio() {
             <AlertDialogContent className="bg-black text-white border border-gray-400 shadow-lg scale-[0.85] sm:scale-[1.0]">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-lg font-semibold">Most Recent Comments</AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-300">
+                  View and submit comments. Your feedback helps improve the experience.
+                </AlertDialogDescription>
                 {commentsError ? (
                   <p className="text-red-500 text-sm">{commentsError}</p>
                 ) : (
