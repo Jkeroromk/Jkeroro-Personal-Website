@@ -14,7 +14,7 @@ import AdminHeader from '@/components/admin/AdminHeader'
 import ImagesTab from '@/components/admin/ImagesTab'
 import MusicTab from '@/components/admin/MusicTab'
 import ProjectsTab from '@/components/admin/ProjectsTab'
-import EditModal from '@/components/admin/EditModal'
+import EditModal from '@/components/admin/modals/EditModal'
 
 const AdminPageContent = () => {
   const { user, isAdmin, loading, logout } = useAuth()
