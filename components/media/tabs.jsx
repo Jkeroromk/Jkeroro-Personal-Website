@@ -11,8 +11,8 @@ import {
 import Autoplay from "embla-carousel-autoplay";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { collection, getDocs, onSnapshot } from "firebase/firestore";
-import { firestore } from "../firebase";
-import { useAuth } from "../auth";
+import { firestore } from "../../firebase";
+import { useAuth } from "../../auth";
 import { motion } from "framer-motion";
 
 // 简单卡片组件

@@ -18,7 +18,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import Image from "next/image";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 
 const PersonalStore = () => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);

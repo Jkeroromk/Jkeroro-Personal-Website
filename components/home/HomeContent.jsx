@@ -1,13 +1,13 @@
 'use client'
 
 import React from 'react'
-import LinkforBio from "@/components/linkforbio"
-import Tabs from "@/components/tabs"
-import Stack from "@/components/stack"
-import MusicPlayer from "@/components/musicPlayer"
-import Footer from "@/components/footer"
-import Album from "@/components/album"
-import PersonalStore from "@/components/personalStore"
+import LinkforBio from "@/components/interactive/linkforbio"
+import Tabs from "@/components/media/tabs"
+import Stack from "@/components/media/stack"
+import MusicPlayer from "@/components/media/musicPlayer"
+import Footer from "@/components/layout/footer"
+import Album from "@/components/media/album"
+import PersonalStore from "@/components/interactive/personalStore"
 import HomeSection from './HomeSection'
 
 const HomeContent = () => {

@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react"; // Added useRef
-import { useAuth } from "../auth";
-import { database, ref, set, onValue, incrementViewCount, trackVisitorLocation, addComment } from "../firebase";
-import { Button } from "./ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { useAuth } from "../../auth";
+import { database, ref, set, onValue, incrementViewCount, trackVisitorLocation, addComment } from "../../firebase";
+import { Button } from "../ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Eye, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
-import ClientTimeDisplay from "./ClientTimeDisplay";
+import ClientTimeDisplay from "../layout/ClientTimeDisplay";
 import { FaTiktok, FaInstagram, FaYoutube, FaTwitch, FaSpotify, FaSoundcloud } from "react-icons/fa";
 import {
   AlertDialog,
@@ -19,10 +19,10 @@ import {
   AlertDialogFooter,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import WorldMapDialog from "@/components/worldMap";
+import WorldMapDialog from "@/components/effects/worldMap";
 import dynamic from "next/dynamic";
 
-const Car = dynamic(() => import("../components/car"), { ssr: false, loading: () => <p>Loading...</p> });
+const Car = dynamic(() => import("../media/car"), { ssr: false, loading: () => <p>Loading...</p> });
 
 export default function LinkforBio() {
   const { user, isAdmin, isOnline, lastActivity, loading, loginWithEmail, logout } = useAuth();

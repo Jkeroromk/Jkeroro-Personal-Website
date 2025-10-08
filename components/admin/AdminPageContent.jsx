@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAdminData } from '../../hooks/useAdminData'
-import MouseTrail from '@/components/mousetrail'
+import MouseTrail from '@/components/effects/mousetrail'
 import { AdminToaster } from '@/components/ui/admin-toaster'
 
 // Import admin components
