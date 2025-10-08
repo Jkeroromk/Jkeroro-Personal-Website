@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Fredoka } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
-import { Toaster } from "@/components/ui/toaster";
+import { ConditionalToaster } from "@/components/ui/conditional-toaster";
 
 const fredoka = Fredoka({
   weight: ["400", "500", "600"],
@@ -54,7 +54,7 @@ export default function RootLayout({
       </head>
       <body className={`${fredoka.className} antialiased modern-scrollbar bg-black`}>
         {children}
-        <Toaster/>
+        <ConditionalToaster/>
       </body>
     </html>
   );

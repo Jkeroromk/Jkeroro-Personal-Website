@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Minus, Plus } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Minus, Plus, Repeat, Shuffle } from 'lucide-react';
 import DataManager from '@/lib/data-manager';
 
 const MusicPlayer = () => {
@@ -11,18 +11,96 @@ const MusicPlayer = () => {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(50);
   const [isMuted, setIsMuted] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
+  const [isShuffled, setIsShuffled] = useState(false);
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
   const [tracks, setTracks] = useState([]);
   const [dataManager] = useState(() => DataManager.getInstance());
   const audioRef = useRef(null);
+  const playPromiseRef = useRef(null);
+
+  // 安全的播放函数，避免 AbortError
+  const safePlay = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // 取消之前的播放请求
+    if (playPromiseRef.current) {
+      try {
+        await playPromiseRef.current;
+      } catch (error) {
+        // 忽略 AbortError
+      }
+    }
+
+    try {
+      playPromiseRef.current = audio.play();
+      await playPromiseRef.current;
+      setIsPlaying(true);
+      return true;
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('🎵 播放失败:', error);
+        setIsPlaying(false);
+      }
+      return false;
+    } finally {
+      playPromiseRef.current = null;
+    }
+  };
 
   // 加载音乐数据
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const tracksData = dataManager.getTracks();
-    console.log('🎵 加载音乐数据:', tracksData);
-    setTracks(tracksData);
-  }, [dataManager]);
+    try {
+      const tracksData = dataManager.getTracks();
+      console.log('🎵 加载音乐数据:', tracksData);
+      setTracks(tracksData);
+      
+      // 确保当前轨道索引在有效范围内
+      if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
+        console.log('🎵 重置轨道索引到0');
+        setCurrentTrackIndex(0);
+      }
+    } catch (error) {
+      console.error('🎵 加载音乐数据时出错:', error);
+      setTracks([]);
+      setCurrentTrackIndex(0);
+    }
+  }, [dataManager, currentTrackIndex]);
+
+  // 监听 localStorage 变化，当歌曲顺序改变时重新加载
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleStorageChange = (e) => {
+      if (e.key === 'jkeroro-website-data') {
+        console.log('🎵 检测到数据变化，重新加载音乐数据');
+        try {
+          const tracksData = dataManager.getTracks();
+          setTracks(tracksData);
+          
+          // 如果当前播放的歌曲索引超出范围，重置到0
+          if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
+            setCurrentTrackIndex(0);
+          }
+        } catch (error) {
+          console.error('🎵 重新加载音乐数据时出错:', error);
+        }
+      }
+    };
+
+    // 监听 storage 事件（跨标签页）
+    window.addEventListener('storage', handleStorageChange);
+    
+    // 监听自定义事件（同标签页内的变化）
+    window.addEventListener('musicDataChanged', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('musicDataChanged', handleStorageChange);
+    };
+  }, [dataManager, currentTrackIndex]);
 
   // 检查localStorage中的音频权限设置
   useEffect(() => {
@@ -51,13 +129,13 @@ const MusicPlayer = () => {
         audio.addEventListener('ended', () => skipTrack(1));
         
         // 延迟一点时间确保音频元素完全准备好
-        setTimeout(() => {
-          audio.play().then(() => {
-            setIsPlaying(true);
+        setTimeout(async () => {
+          const success = await safePlay();
+          if (success) {
             console.log('🎵 音频权限已允许，自动开始播放成功');
-          }).catch((error) => {
-            console.log('🎵 自动播放失败，需要用户交互:', error);
-          });
+          } else {
+            console.log('🎵 自动播放失败，需要用户交互');
+          }
         }, 100);
       }
     } else {
@@ -76,13 +154,13 @@ const MusicPlayer = () => {
         const audio = audioRef.current;
         if (audio) {
           audio.muted = false;
-          setTimeout(() => {
-            audio.play().then(() => {
-              setIsPlaying(true);
+          setTimeout(async () => {
+            const success = await safePlay();
+            if (success) {
               console.log('🎵 通过localStorage变化自动开始播放');
-            }).catch((error) => {
-              console.log('🎵 通过localStorage变化自动播放失败:', error);
-            });
+            } else {
+              console.log('🎵 通过localStorage变化自动播放失败');
+            }
           }, 100);
         }
       }
@@ -99,11 +177,12 @@ const MusicPlayer = () => {
       audio.muted = false;
       setShowPermissionPrompt(false);
       // 自动播放音乐
-      audio.play().then(() => {
-        setIsPlaying(true);
-        console.log('音频权限已允许，自动开始播放');
-      }).catch((error) => {
-        console.log('自动播放失败，需要用户交互:', error);
+      safePlay().then((success) => {
+        if (success) {
+          console.log('音频权限已允许，自动开始播放');
+        } else {
+          console.log('自动播放失败，需要用户交互');
+        }
       });
     } else {
       setShowPermissionPrompt(false);
@@ -116,17 +195,41 @@ const MusicPlayer = () => {
     if (audio) {
       if (isPlaying) {
         audio.pause();
+        setIsPlaying(false);
       } else {
-        audio.play().catch((error) => console.error('Error playing audio:', error));
+        // 直接播放，不重新设置音频源
+        audio.play().then(() => {
+          setIsPlaying(true);
+        }).catch((error) => {
+          if (error.name !== 'AbortError') {
+            console.error('🎵 播放失败:', error);
+            setIsPlaying(false);
+          }
+        });
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
   // Skip tracks
   const skipTrack = (direction) => {
-    if (!tracks || tracks.length === 0) return;
-    const newIndex = (currentTrackIndex + direction + tracks.length) % tracks.length;
+    if (!tracks || tracks.length === 0) {
+      console.log('🎵 没有音乐轨道，无法切换');
+      return;
+    }
+    
+    let newIndex;
+    if (isShuffled) {
+      // 随机播放模式
+      do {
+        newIndex = Math.floor(Math.random() * tracks.length);
+      } while (newIndex === currentTrackIndex && tracks.length > 1);
+      console.log('🎵 随机切换轨道:', { from: currentTrackIndex, to: newIndex });
+    } else {
+      // 正常顺序播放
+      newIndex = (currentTrackIndex + direction + tracks.length) % tracks.length;
+      console.log('🎵 顺序切换轨道:', { from: currentTrackIndex, to: newIndex, direction });
+    }
+    
     setCurrentTrackIndex(newIndex);
     // 只有在当前正在播放时才继续播放下一首
     if (isPlaying) {
@@ -171,67 +274,131 @@ const MusicPlayer = () => {
     setIsMuted(newVolume === 0);
   };
 
+  // Toggle loop
+  const toggleLoop = () => {
+    setIsLooping(!isLooping);
+    const audio = audioRef.current;
+    if (audio) {
+      audio.loop = !isLooping;
+    }
+    console.log('🎵 循环模式:', !isLooping ? '开启' : '关闭');
+  };
+
+  // Toggle shuffle
+  const toggleShuffle = () => {
+    setIsShuffled(!isShuffled);
+    console.log('🎵 随机播放:', !isShuffled ? '开启' : '关闭');
+  };
+
   // Setup audio listeners and initial volume
   useEffect(() => {
     const audio = audioRef.current;
     if (audio) {
       audio.volume = volume / 100;
+      audio.loop = isLooping;
       audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('ended', () => skipTrack(1));
+      audio.addEventListener('ended', () => {
+        if (!isLooping) {
+          skipTrack(1);
+        }
+      });
     }
 
     return () => {
       if (audio) {
         audio.removeEventListener('timeupdate', handleTimeUpdate);
-        audio.removeEventListener('ended', () => skipTrack(1));
+        audio.removeEventListener('ended', () => {
+          if (!isLooping) {
+            skipTrack(1);
+          }
+        });
       }
     };
-  }, [volume, currentTrackIndex]);
+  }, [volume, currentTrackIndex, isLooping]);
 
-  // Update audio source and media session
+  // Update audio source when track changes
+  useEffect(() => {
+    try {
+      const audio = audioRef.current;
+      if (!audio) {
+        console.warn('🎵 音频元素不存在');
+        return;
+      }
+
+      if (tracks[currentTrackIndex]?.src) {
+        console.log('🎵 设置音频源:', tracks[currentTrackIndex].src);
+        audio.src = tracks[currentTrackIndex].src;
+        audio.loop = isLooping;
+        
+        // 只有在用户已经交互过且当前正在播放时才自动播放
+        if (isPlaying) {
+          safePlay();
+        }
+      }
+
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: tracks[currentTrackIndex]?.title || 'Unknown Title',
+          artist: tracks[currentTrackIndex]?.subtitle || 'Unknown Artist',
+          album: 'Jkeroro Music',
+          artwork: [
+            { src: '/512.png', sizes: '512x512', type: 'image/png' },
+            { src: '/192.png', sizes: '192x192', type: 'image/png' },
+          ],
+        });
+
+        navigator.mediaSession.setActionHandler('play', togglePlayPause);
+        navigator.mediaSession.setActionHandler('pause', togglePlayPause);
+        navigator.mediaSession.setActionHandler('previoustrack', () => skipTrack(-1));
+        navigator.mediaSession.setActionHandler('nexttrack', () => skipTrack(1));
+      }
+    } catch (error) {
+      console.error('🎵 更新音频源时出错:', error);
+    }
+  }, [currentTrackIndex]); // 移除 isPlaying 依赖
+
+  // Update loop setting when isLooping changes
   useEffect(() => {
     const audio = audioRef.current;
-    if (tracks[currentTrackIndex]?.src) {
-      audio.src = tracks[currentTrackIndex].src;
+    if (audio) {
+      audio.loop = isLooping;
     }
-
-    // 只有在用户已经交互过且当前正在播放时才自动播放
-    if (isPlaying) {
-      audio.play().catch((error) => {
-        console.error('Error playing audio:', error);
-        // 如果播放失败，重置播放状态
-        setIsPlaying(false);
-      });
-    }
-
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: tracks[currentTrackIndex]?.title || 'Unknown Title',
-        artist: tracks[currentTrackIndex]?.subtitle || 'Unknown Artist',
-        album: 'Jkeroro Music',
-        artwork: [
-          { src: '/512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/192.png', sizes: '192x192', type: 'image/png' },
-        ],
-      });
-
-      navigator.mediaSession.setActionHandler('play', togglePlayPause);
-      navigator.mediaSession.setActionHandler('pause', togglePlayPause);
-      navigator.mediaSession.setActionHandler('previoustrack', () => skipTrack(-1));
-      navigator.mediaSession.setActionHandler('nexttrack', () => skipTrack(1));
-    }
-  }, [currentTrackIndex, isPlaying]);
+  }, [isLooping]);
 
   // 如果没有音乐数据，显示空状态
   if (!tracks || tracks.length === 0) {
+    console.log('🎵 没有音乐数据，显示空状态');
     return (
       <div className="flex flex-col items-center justify-center mt-10">
-        <div className="text-center text-gray-400">
-          <p>No music tracks available</p>
-          <p className="text-sm mt-2">Add tracks in the admin panel</p>
+        <div className="text-center text-gray-400 max-w-md">
+          <div className="mb-4">
+            <svg className="w-16 h-16 mx-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-white mb-2">No Music Available</h3>
+          <p className="text-sm text-gray-400 mb-4">
+            Your music library is empty. Upload your favorite tracks to get started!
+          </p>
+          <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <p className="text-xs text-gray-300 mb-2">How to add music:</p>
+            <ol className="text-xs text-gray-400 space-y-1 text-left">
+              <li>1. Go to Admin Panel</li>
+              <li>2. Click on "Music" tab</li>
+              <li>3. Upload your music files</li>
+              <li>4. Add title and artist info</li>
+            </ol>
+          </div>
         </div>
       </div>
     );
+  }
+
+  // 确保当前轨道索引有效
+  if (currentTrackIndex >= tracks.length) {
+    console.log('🎵 当前轨道索引无效，重置为0');
+    setCurrentTrackIndex(0);
+    return null; // 或者返回加载状态
   }
 
   return (
@@ -239,7 +406,7 @@ const MusicPlayer = () => {
 
       {/* Main player container with fixed height */}
       <div
-        className="flex flex-col items-center justify-center mt-10 w-full"
+        className="flex flex-col items-center justify-center mt-4 w-full"
         style={{ height: '400px' }} // Fixed height to prevent shifts
       >
         {tracks[currentTrackIndex]?.src && (
@@ -247,8 +414,11 @@ const MusicPlayer = () => {
             ref={audioRef}
             src={tracks[currentTrackIndex].src}
             muted={isMuted}
-            preload="metadata" // Preload metadata to avoid late duration updates
+            preload="none" // 不预加载，节省带宽
             onEnded={() => skipTrack(1)}
+            onLoadStart={() => console.log('🎵 开始加载音频:', tracks[currentTrackIndex].title)}
+            onCanPlay={() => console.log('🎵 音频可以播放:', tracks[currentTrackIndex].title)}
+            onError={(e) => console.error('🎵 音频加载错误:', e)}
           />
         )}
 
@@ -318,7 +488,18 @@ const MusicPlayer = () => {
           </div>
 
           {/* Volume controls with reserved space */}
-          <div className="items-center justify-center gap-3 mt-5 flex" style={{ height: '40px' }}>
+          <div className="items-center justify-center gap-5 mt-5 flex" style={{ height: '40px' }}>
+            <div className="relative">
+              <Shuffle
+                className={`cursor-pointer text-xl transition duration-300 ${
+                  isShuffled 
+                    ? 'text-blue-400 hover:text-blue-300' 
+                    : 'text-white hover:text-gray-300'
+                }`}
+                onPointerDown={toggleShuffle}
+                title={isShuffled ? 'Disable Shuffle' : 'Enable Shuffle'}
+              />
+            </div>
             <Minus
               className="cursor-pointer text-white text-xl hover:scale-[1.5] transition duration-300"
               onPointerDown={() => changeVolume(-5)}
@@ -338,6 +519,18 @@ const MusicPlayer = () => {
                 onPointerDown={() => changeVolume(5)}
                 title="Increase Volume"
               />
+            </div>
+            <div className="relative">
+              <Repeat
+                className="cursor-pointer text-white text-xl hover:text-gray-300 "
+                onPointerDown={toggleLoop}
+                title={isLooping ? 'Disable Loop' : 'Enable Loop'}
+              />
+              {isLooping && (
+                <span className="absolute -top-1 -right-1 text-xs font-bold text-white-400 transition-all duration-300">
+                  1
+                </span>
+              )}
             </div>
           </div>
         </div>

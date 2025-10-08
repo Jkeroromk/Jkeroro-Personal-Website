@@ -314,18 +314,47 @@ export default function NavigationBar() {
 
   return (
     <>
-      {/* 可折叠导航栏容器 - 右下角 */}
-      <div className="fixed bottom-4 right-4 z-50" style={{ position: 'fixed', bottom: '16px', right: '16px' }}>
+      {/* 可折叠导航栏容器 - 右上角 */}
+      <div className="fixed top-4 right-4 z-50" style={{ position: 'fixed', top: '16px', right: '16px' }}>
         {/* 导航栏背景 */}
         <div className={`absolute -inset-2 bg-white/5 rounded-xl transition-all duration-300 ${
           isExpanded ? 'opacity-100' : 'opacity-0'
         }`} style={{ backdropFilter: 'blur(20px)' }}></div>
         
-        {/* 功能按钮容器 */}
-        <div className={`flex flex-col gap-4 transition-all duration-300 ${
+        {/* 主切换按钮 */}
+        <div className="relative group/button">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className={`flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              isExpanded 
+                ? 'bg-white/20 border-white/40' 
+                : 'bg-white/5 border-white/20 hover:bg-white/10'
+            }`}
+            style={{ backdropFilter: 'blur(20px)' }}
+          >
+            <svg 
+              className={`w-4 h-4 sm:w-5 sm:h-5 relative z-10 text-white transition-all duration-300 ${
+                isExpanded ? 'rotate-90' : 'rotate-0'
+              }`} 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
+          </button>
+          {/* 工具提示 */}
+          <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
+            {isExpanded ? '收起菜单' : '展开菜单'}
+          </div>
+        </div>
+
+        {/* 功能按钮容器 - 放在主按钮下方 */}
+        <div className={`flex flex-col gap-3 sm:gap-4 mt-3 sm:mt-4 transition-all duration-300 ${
           isExpanded 
             ? 'opacity-100 translate-y-0 scale-100' 
-            : 'opacity-0 translate-y-2 scale-95 pointer-events-none'
+            : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
         }`}>
           {/* AI助手按钮 */}
           <div className="relative group/button">
@@ -338,18 +367,18 @@ export default function NavigationBar() {
                 setShowAssistant(!showAssistant)
                 setIsExpanded(false)
               }}
-              className={`flex items-center justify-center w-9 h-9 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showAssistant 
                   ? 'bg-white/20 border-white/40' 
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-xs font-bold text-white relative z-10 animate-pulse">J</span>
+              <span className="text-xs sm:text-sm font-bold text-white relative z-10 animate-pulse">J</span>
               <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
             </button>
             {/* 工具提示 */}
-            <div className="absolute right-12 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
               AI助手
             </div>
           </div>
@@ -365,18 +394,18 @@ export default function NavigationBar() {
                 setShowLogin(!showLogin)
                 setIsExpanded(false)
               }}
-              className={`flex items-center justify-center w-9 h-9 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showLogin 
                   ? 'bg-white/20 border-white/40' 
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-xs font-bold text-white relative z-10 animate-pulse">L</span>
+              <span className="text-xs sm:text-sm font-bold text-white relative z-10 animate-pulse">L</span>
               <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-white/10 animate-pulse opacity-50"></div>
             </button>
             {/* 工具提示 */}
-            <div className="absolute right-12 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
               {isAdmin ? '管理面板' : '登录'}
             </div>
           </div>
@@ -388,55 +417,25 @@ export default function NavigationBar() {
                 setShowControlPanel(!showControlPanel)
                 setIsExpanded(false)
               }}
-              className={`flex items-center justify-center w-9 h-9 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showControlPanel 
                   ? 'bg-white/20 border-white/40' 
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <svg className="w-3.5 h-3.5 relative z-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 relative z-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
               </svg>
               <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
             </button>
             {/* 工具提示 */}
-            <div className="absolute right-12 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
               控制面板
             </div>
           </div>
         </div>
 
-        {/* 主切换按钮 - 增加与功能按钮的间距 */}
-        <div className="mt-4">
-        <div className="relative group/button">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className={`flex items-center justify-center w-9 h-9 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
-              isExpanded 
-                ? 'bg-white/20 border-white/40' 
-                : 'bg-white/5 border-white/20 hover:bg-white/10'
-            }`}
-            style={{ backdropFilter: 'blur(20px)' }}
-          >
-            <svg 
-              className={`w-3.5 h-3.5 relative z-10 text-white transition-transform duration-300 ${
-                isExpanded ? 'rotate-90' : 'rotate-0'
-              }`} 
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
-          </button>
-          {/* 工具提示 */}
-          <div className="absolute right-12 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
-            {isExpanded ? '收起菜单' : '展开菜单'}
-          </div>
-        </div>
-        </div>
       </div>
 
       {/* AI助手对话框 - 居中显示 */}

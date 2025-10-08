@@ -72,7 +72,7 @@ const Stack = () => {
   }, []);
 
   return (
-    <div className="flex flex-col items-center mt-12" style={{ minHeight: '100px' }}>
+    <div className="flex flex-col items-center mt-6" style={{ minHeight: '100px' }}>
       <h1 className="text-white font-extrabold text-2xl">Tech Stack</h1>
       <div className="grid grid-cols-5 gap-6 mt-6 text-white max-w-[600px] mx-4 sm:mx-0">
         {techStack.map(({ Icon, name }, index) => (
