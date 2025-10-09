@@ -75,6 +75,7 @@ export default function LoginButton() {
       {/* 登录按钮 */}
       <button
         onClick={() => setShowLogin(!showLogin)}
+        aria-label={showLogin ? '关闭登录' : '打开登录'}
         className="flex items-center justify-center w-10 h-10 bg-white/5 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border border-white/20"
         style={{ backdropFilter: 'blur(20px)' }}
       >
@@ -146,6 +147,7 @@ export default function LoginButton() {
                     placeholder="Email"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
+                    aria-label="邮箱地址"
                     required
                   />
                 </div>
@@ -156,6 +158,7 @@ export default function LoginButton() {
                     placeholder="Password"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
+                    aria-label="密码"
                     required
                   />
                 </div>

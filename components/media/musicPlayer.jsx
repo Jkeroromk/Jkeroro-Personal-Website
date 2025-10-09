@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Minus, Plus, Repeat, Shuffle } from 'lucide-react';
 import DataManager from '@/lib/data-manager';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { firestore } from '../../firebase';
 
-const MusicPlayer = () => {
+const MusicPlayer = memo(() => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -408,7 +408,7 @@ const MusicPlayer = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
             </svg>
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">No Music Available</h3>
+          <h2 className="text-lg font-semibold text-white mb-2">No Music Available</h2>
           <p className="text-sm text-gray-400 mb-4">
             Your music library is empty. Upload your favorite tracks to get started!
           </p>
@@ -459,12 +459,12 @@ const MusicPlayer = () => {
           style={{ height: '300px' }} // Fixed height for stability
         >
           {/* Track info with fixed heights */}
-          <h3
+          <h2
             className="mb-2 text-xl font-bold truncate w-full text-center"
             style={{ height: '28px' }} // Fixed height for title
           >
             {tracks[currentTrackIndex]?.title || 'No Track'}
-          </h3>
+          </h2>
           {tracks[currentTrackIndex]?.subtitle && (
             <p
               className="text-sm text-gray-300 mb-5 truncate w-full text-center"
@@ -502,6 +502,7 @@ const MusicPlayer = () => {
               onChange={(e) => {
                 audioRef.current.currentTime = e.target.value;
               }}
+              aria-label="音乐播放进度条"
               className="w-full mb-2 h-2"
               style={{
                 appearance: 'none',
@@ -568,6 +569,6 @@ const MusicPlayer = () => {
       </div>
     </>
   );
-};
+});
 
 export default MusicPlayer;

@@ -325,6 +325,7 @@ export default function NavigationBar() {
         <div className="relative group/button">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
+            aria-label={isExpanded ? '收起菜单' : '展开菜单'}
             className={`flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
               isExpanded 
                 ? 'bg-white/20 border-white/40' 
@@ -367,6 +368,7 @@ export default function NavigationBar() {
                 setShowAssistant(!showAssistant)
                 setIsExpanded(false)
               }}
+              aria-label={showAssistant ? '关闭AI助手' : '打开AI助手'}
               className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showAssistant 
                   ? 'bg-white/20 border-white/40' 
@@ -394,6 +396,7 @@ export default function NavigationBar() {
                 setShowLogin(!showLogin)
                 setIsExpanded(false)
               }}
+              aria-label={isAdmin ? (showLogin ? '关闭管理面板' : '打开管理面板') : (showLogin ? '关闭登录' : '打开登录')}
               className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showLogin 
                   ? 'bg-white/20 border-white/40' 
@@ -417,6 +420,7 @@ export default function NavigationBar() {
                 setShowControlPanel(!showControlPanel)
                 setIsExpanded(false)
               }}
+              aria-label={showControlPanel ? '关闭控制面板' : '打开控制面板'}
               className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showControlPanel 
                   ? 'bg-white/20 border-white/40' 
@@ -506,6 +510,7 @@ export default function NavigationBar() {
                   value={assistantInput || ""}
                   onChange={(e) => setAssistantInput(e.target.value)}
                   onKeyPress={handleAssistantKeyPress}
+                  aria-label="AI助手消息输入"
                   className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 text-xs focus:outline-none focus:border-white/40"
                 />
                 <button 
@@ -595,6 +600,7 @@ export default function NavigationBar() {
                       placeholder="Email"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
+                      aria-label="邮箱地址"
                       className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white placeholder-white/50 text-sm focus:outline-none focus:border-white/40"
                       required
                     />
@@ -605,6 +611,7 @@ export default function NavigationBar() {
                       placeholder="Password"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
+                      aria-label="密码"
                       className="w-full bg-white/10 border border-white/20 rounded px-3 py-2 text-white placeholder-white/50 text-sm focus:outline-none focus:border-white/40"
                       required
                     />

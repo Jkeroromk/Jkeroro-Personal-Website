@@ -1,19 +1,10 @@
 'use client';
 
 import React, { useRef, useEffect } from 'react';
-import { gsap } from 'gsap';
-import {
-  SiHtml5,
-  SiCss3,
-  SiJavascript,
-  SiReact,
-  SiTailwindcss,
-  SiNextdotjs,
-  SiTypescript,
-  SiNodedotjs,
-  SiVite,
-  SiFigma,
-} from 'react-icons/si';
+// 只导入需要的 GSAP 功能
+import { gsap } from 'gsap/dist/gsap';
+// 使用更精确的导入来减少包大小
+import { SiHtml5, SiCss3, SiJavascript, SiReact, SiTailwindcss, SiNextdotjs, SiTypescript, SiNodedotjs, SiVite, SiFigma } from 'react-icons/si';
 
 const techStack = [
   { Icon: SiHtml5, name: 'HTML5' },

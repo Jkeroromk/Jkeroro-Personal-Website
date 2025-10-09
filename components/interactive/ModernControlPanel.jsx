@@ -22,10 +22,10 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
       clearTimeout(timeoutRef.current)
     }
     
-    // Set new timeout for actual parameter update
+    // Set new timeout for actual parameter update - 减少频率
     timeoutRef.current = setTimeout(() => {
       onParamChange(param, value)
-    }, 16) // ~60fps
+    }, 33) // 从 16ms (~60fps) 减少到 33ms (~30fps)
   }
   
   const translations = {
@@ -85,6 +85,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
     return (
       <button
         onClick={onToggle}
+        aria-label={isOpen ? '关闭控制面板' : '打开控制面板'}
         className="fixed top-4 right-4 z-50 bg-white/5 text-white w-10 h-10 rounded-full hover:bg-white/10 transition-all duration-300 hover:scale-105 active:scale-95 border border-white/20 flex items-center justify-center"
         style={{ backdropFilter: 'blur(20px)' }}
       >

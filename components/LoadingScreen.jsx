@@ -32,6 +32,8 @@ const LoadingScreen = () => {
       { en: 'Taking out the trash...', zh: '倒垃圾...' },
       { en: 'Vacuuming the data...', zh: '吸尘数据...' },
       { en: 'Doing the dishes...', zh: '洗碗...' },
+      { en: 'Loading 3D effects...', zh: '加载3D效果...' },
+      { en: 'Preparing animations...', zh: '准备动画...' },
       { en: 'Almost there, I promise...', zh: '快好了，我保证...' }
     ]
 
@@ -41,24 +43,24 @@ const LoadingScreen = () => {
         if (prev === '...') return ''
         return prev + '.'
       })
-    }, 500)
+    }, 800) // 从 500ms 增加到 800ms
 
-    // 更新加载描述
+    // 更新加载描述 - 减少频率
     const descriptionInterval = setInterval(() => {
       const randomDesc = descriptions[Math.floor(Math.random() * descriptions.length)]
       setLoadingDescription(randomDesc)
-    }, 1500)
+    }, 3000) // 从 1500ms 增加到 3000ms
 
-    // 模拟加载进度 - 放慢速度
+    // 模拟加载进度 - 减少频率
     const progressInterval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 100) {
           clearInterval(progressInterval)
           return 100
         }
-        return prev + Math.random() * 8 + 2 // 减少增量，放慢速度
+        return prev + Math.random() * 12 + 4 // 增加步长，减少更新次数
       })
-    }, 400) // 增加间隔时间
+    }, 1000) // 从 400ms 增加到 1000ms
 
     // 检查关键资源是否加载完成
     const checkResources = () => {

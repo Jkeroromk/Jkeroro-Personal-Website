@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+// 只导入需要的 GSAP 功能
+import { gsap } from "gsap/dist/gsap";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { collection, getDocs } from "firebase/firestore";
 import { firestore } from "../../firebase";
 
