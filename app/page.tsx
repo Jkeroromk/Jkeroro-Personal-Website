@@ -7,7 +7,24 @@ export default function Home() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/loading')
+    // 检查是否已经完成过loading流程
+    if (typeof window !== 'undefined') {
+      const hasCompletedLoading = sessionStorage.getItem('loadingCompleted')
+      const permCookie = document.cookie.includes('perm=')
+      
+      // 清除旧的loading标记，确保每次都是新的流程
+      sessionStorage.removeItem('loadingCompleted')
+      sessionStorage.removeItem('fromLoading')
+      sessionStorage.removeItem('loadingTimestamp')
+      
+      if (hasCompletedLoading && permCookie) {
+        // 如果已经完成过loading且有权限cookie，直接跳转到home
+        router.replace('/home')
+      } else {
+        // 否则跳转到loading页面
+        router.replace('/loading')
+      }
+    }
   }, [router])
 
   return (

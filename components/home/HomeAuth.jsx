@@ -20,80 +20,57 @@ const HomeAuth = ({ children }) => {
     // 确保在客户端环境运行
     if (typeof window === 'undefined') return
     
-    // 使用ref来避免重复执行
-    const hasInitialized = sessionStorage.getItem('homeAuthInitialized')
-    if (hasInitialized) {
-      // 如果已经初始化过，只确保滚动到顶部
-      window.scrollTo(0, 0)
-      return
-    }
-    
-    // 标记为已初始化
-    sessionStorage.setItem('homeAuthInitialized', 'true')
-    
-    // 确保页面滚动到顶部
-    window.scrollTo(0, 0)
+    // 延迟滚动，等待固定元素渲染完成
+    setTimeout(() => {
+      try {
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+      } catch (error) {
+        // 备用方案
+        document.documentElement.scrollTop = 0
+        document.body.scrollTop = 0
+      }
+    }, 100)
     
     // 检查是否是从loading页面正常跳转过来的
     const fromLoading = sessionStorage.getItem('fromLoading')
     const loadingTimestamp = sessionStorage.getItem('loadingTimestamp')
     const permCookie = getCookie('perm')
     
-    // 移动端Safari兼容性：检查时间戳确保是最近的跳转
+    // 检查时间戳确保是最近的跳转（30秒内有效）
     const isValidJump = fromLoading && loadingTimestamp && 
-      (Date.now() - parseInt(loadingTimestamp)) < 30000 // 30秒内有效
+      (Date.now() - parseInt(loadingTimestamp)) < 30000
     
     if (isValidJump) {
       // 如果是从loading页面跳转过来的，清除标记并正常显示
       sessionStorage.removeItem('fromLoading')
       sessionStorage.removeItem('loadingTimestamp')
-      // 再次确保滚动到顶部
-      setTimeout(() => {
-        window.scrollTo(0, 0)
-      }, 100)
     } else if (!permCookie) {
       // 如果没有Cookie（直接访问或刷新），跳转回根页面
       router.replace('/')
     }
     
-    // 移动端Safari兼容性：使用pagehide事件替代beforeunload
+    // 清理函数：页面卸载时清除状态
     const handlePageHide = () => {
       document.cookie = "perm=; Path=/; Max-Age=0; SameSite=Lax"
       localStorage.removeItem('audioPermission')
-      sessionStorage.removeItem('hasCheckedAuth')
-      sessionStorage.removeItem('homeAuthInitialized')
+      sessionStorage.removeItem('fromLoading')
+      sessionStorage.removeItem('loadingTimestamp')
     }
     
     const handleBeforeUnload = () => {
       document.cookie = "perm=; Path=/; Max-Age=0; SameSite=Lax"
       localStorage.removeItem('audioPermission')
-      sessionStorage.removeItem('hasCheckedAuth')
-      sessionStorage.removeItem('homeAuthInitialized')
+      sessionStorage.removeItem('fromLoading')
+      sessionStorage.removeItem('loadingTimestamp')
     }
     
-    // 同时监听两个事件以确保兼容性
+    // 监听页面卸载事件
     window.addEventListener('pagehide', handlePageHide)
     window.addEventListener('beforeunload', handleBeforeUnload)
-    
-    // 移动端Safari特殊处理：检测页面可见性变化
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        // 页面变为隐藏状态时清除状态
-        setTimeout(() => {
-          document.cookie = "perm=; Path=/; Max-Age=0; SameSite=Lax"
-          localStorage.removeItem('audioPermission')
-          sessionStorage.removeItem('hasCheckedAuth')
-          sessionStorage.removeItem('homeAuthInitialized')
-        }, 100)
-      }
-    }
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange)
     
     return () => {
       window.removeEventListener('pagehide', handlePageHide)
       window.removeEventListener('beforeunload', handleBeforeUnload)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [router])
 

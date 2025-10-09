@@ -11,8 +11,8 @@ const LoadingLogic = () => {
   const [isFadingOut, setIsFadingOut] = useState(false)
   const [showAudioPermission, setShowAudioPermission] = useState(false)
   const [loadingDescription, setLoadingDescription] = useState({
-    en: 'Brewing digital coffee...',
-    zh: '冲泡数字咖啡...'
+    en: 'Initializing system...',
+    zh: '初始化系统...'
   })
   const [language, setLanguage] = useState('en') // 默认英文
   const router = useRouter()
@@ -42,12 +42,16 @@ const LoadingLogic = () => {
 
   // 处理音频权限响应
   const handleAudioPermission = (allow) => {
-    setShowAudioPermission(false)
-    
     // 确保在客户端环境运行
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined') {
+      return
+    }
     
-    // 移动端Safari兼容性：使用多种方式设置状态
+    // 如果已经在跳转过程中，直接返回
+    if (isFadingOut) {
+      return
+    }
+    
     try {
       // 设置Cookie，24小时过期
       const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toUTCString()
@@ -56,53 +60,47 @@ const LoadingLogic = () => {
       // 设置localStorage，供音乐播放器使用
       localStorage.setItem('audioPermission', allow ? 'allowed' : 'declined')
       
-      // 设置一个标记，表示这是正常跳转
+      // 设置跳转标记
       sessionStorage.setItem('fromLoading', 'true')
-      
-      // 移动端Safari额外保障：使用URL参数
-      const timestamp = Date.now().toString()
-      sessionStorage.setItem('loadingTimestamp', timestamp)
+      sessionStorage.setItem('loadingTimestamp', Date.now().toString())
+      sessionStorage.setItem('loadingCompleted', 'true')
     } catch (error) {
       console.warn('⚠️ 设置存储时出错:', error)
     }
     
+    // 先隐藏模态框
+    setShowAudioPermission(false)
     setIsFadingOut(true)
     
-    // 移动端Safari兼容性：使用更短的延迟和强制跳转
+    // 延迟跳转，确保动画完成
     setTimeout(() => {
-      try {
-        // 尝试使用replace
-        router.replace('/home')
-        
-        // 移动端Safari备用方案：如果replace失败，使用push
-        setTimeout(() => {
-          if (window.location.pathname !== '/home') {
-            window.location.href = '/home'
-          }
-        }, 100)
-      } catch (error) {
-        console.warn('⚠️ 路由跳转失败，使用window.location:', error)
-        window.location.href = '/home'
-      }
-    }, 600) // 减少延迟时间
+      router.replace('/home')
+      
+      // 备用方案：如果路由跳转失败，使用 window.location
+      setTimeout(() => {
+        if (window.location.pathname !== '/home') {
+          window.location.href = '/home'
+        }
+      }, 200)
+    }, 500)
   }
 
   useEffect(() => {
-    // 生活类加载描述
+    // 科技感加载描述
     const descriptions = [
-      { en: 'Brewing digital coffee...', zh: '冲泡数字咖啡...' },
-      { en: 'Polishing the pixels...', zh: '抛光像素...' },
-      { en: 'Making the bed...', zh: '整理床铺...' },
-      { en: 'Watering the plants...', zh: '给植物浇水...' },
-      { en: 'Folding the laundry...', zh: '叠衣服...' },
-      { en: 'Cooking some bytes...', zh: '烹饪一些字节...' },
-      { en: 'Cleaning the cache...', zh: '清理缓存...' },
-      { en: 'Organizing the files...', zh: '整理文件...' },
-      { en: 'Setting the table...', zh: '摆桌子...' },
-      { en: 'Taking out the trash...', zh: '倒垃圾...' },
-      { en: 'Vacuuming the data...', zh: '吸尘数据...' },
-      { en: 'Doing the dishes...', zh: '洗碗...' },
-      { en: 'Almost there, I promise...', zh: '快好了，我保证...' }
+      { en: 'Initializing neural networks...', zh: '初始化神经网络...' },
+      { en: 'Loading quantum particles...', zh: '加载量子粒子...' },
+      { en: 'Compiling digital dreams...', zh: '编译数字梦想...' },
+      { en: 'Rendering the matrix...', zh: '渲染矩阵...' },
+      { en: 'Syncing with the cloud...', zh: '与云端同步...' },
+      { en: 'Optimizing algorithms...', zh: '优化算法...' },
+      { en: 'Decrypting memories...', zh: '解密记忆...' },
+      { en: 'Building virtual worlds...', zh: '构建虚拟世界...' },
+      { en: 'Calibrating sensors...', zh: '校准传感器...' },
+      { en: 'Establishing connections...', zh: '建立连接...' },
+      { en: 'Processing creativity...', zh: '处理创意...' },
+      { en: 'Generating possibilities...', zh: '生成可能性...' },
+      { en: 'Almost ready to launch...', zh: '即将准备就绪...' }
     ]
 
     // 更新加载描述
@@ -111,24 +109,113 @@ const LoadingLogic = () => {
       setLoadingDescription(randomDesc)
     }, 1500)
 
-    // 模拟加载进度
+    // 模拟加载进度（只到 70%，为真实资源预加载留出空间）
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 100) {
+        if (prev >= 70) {
           clearInterval(progressInterval)
-          return 100
+          return 70
         }
         return prev + Math.random() * 8 + 2
       })
     }, 400)
 
-    // 3秒后强制显示音频权限选择
-    setTimeout(() => {
-      setProgress(100)
-      setTimeout(() => {
-        setShowAudioPermission(true)
-      }, 500)
-    }, 3000)
+    // 预加载 home 页面的关键资源
+    const preloadHomeResources = () => {
+      const homeResources = [
+        // 关键图片
+        '/pfp.webp',
+        '/me.webp', 
+        '/static/car.png',
+        '/static/car.webp',
+        '/static/glow.png',
+        '/header.webp',
+        // 背景视频
+        '/background.mp4',
+        // 音乐文件（从 Firebase 获取）
+      ]
+      
+      let loadedCount = 0
+      const totalResources = homeResources.length
+      
+      const checkComplete = () => {
+        loadedCount++
+        // 基于模拟进度条（70%）的基础上，继续到 90%
+        const resourceProgress = (loadedCount / totalResources) * 20 // 20% 的额外进度
+        const totalProgress = Math.min(90, 70 + resourceProgress)
+        setProgress(totalProgress)
+        
+        if (loadedCount >= totalResources) {
+          // 所有资源预加载完成，再等待 2 秒确保所有效果准备好
+          setTimeout(() => {
+            setProgress(100)
+            setTimeout(() => {
+              setShowAudioPermission(true)
+            }, 500)
+          }, 2000)
+        }
+      }
+      
+      // 预加载图片
+      homeResources.forEach(src => {
+        if (src.endsWith('.webp') || src.endsWith('.png') || src.endsWith('.jpg')) {
+          const img = new Image()
+          img.onload = checkComplete
+          img.onerror = checkComplete
+          img.src = src
+        } else if (src.endsWith('.mp4')) {
+          const video = document.createElement('video')
+          video.oncanplay = checkComplete
+          video.onerror = checkComplete
+          video.src = src
+          video.preload = 'metadata'
+        }
+      })
+      
+      // 预加载音乐文件（从 Firebase）
+      const preloadMusic = async () => {
+        try {
+          // 动态导入 Firebase 相关模块
+          const { firestore } = await import('../../firebase')
+          const { collection, getDocs, query, orderBy } = await import('firebase/firestore')
+          
+          if (firestore) {
+            // 获取音乐文件列表
+            const tracksRef = collection(firestore, 'tracks')
+            const q = query(tracksRef, orderBy('order', 'asc'))
+            const tracksSnapshot = await getDocs(q)
+            const tracks = tracksSnapshot.docs.map(doc => doc.data())
+            
+            // 预加载前几首音乐（避免预加载太多）
+            const tracksToPreload = tracks.slice(0, 3)
+            
+            tracksToPreload.forEach(track => {
+              if (track.src) {
+                const audio = new Audio()
+                audio.oncanplaythrough = checkComplete
+                audio.onerror = checkComplete
+                audio.src = track.src
+                audio.preload = 'metadata'
+              }
+            })
+            
+            // 如果没有音乐文件，也要调用 checkComplete
+            if (tracksToPreload.length === 0) {
+              checkComplete()
+            }
+          } else {
+            checkComplete() // 如果 Firebase 不可用，继续
+          }
+        } catch (error) {
+          checkComplete() // 如果音乐预加载失败，继续
+        }
+      }
+      
+      preloadMusic()
+    }
+    
+    // 延迟开始预加载，给页面一些初始化时间
+    setTimeout(preloadHomeResources, 1000)
 
     // 确保MouseTrail在loading页面正确初始化
     const initMouseTrail = setTimeout(() => {

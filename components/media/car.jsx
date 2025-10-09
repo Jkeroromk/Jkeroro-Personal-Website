@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import ModernControlPanel from '../interactive/ModernControlPanel';
 import { useControlPanel } from '@/contexts/ControlPanelContext';
 
@@ -89,16 +88,40 @@ export default function Car() {
     guiParamsRef.current = guiParams;
   }, [guiParams]);
 
-  useEffect(() => {
+  // 使用全局 Three.js 实例
+  const initThreeJS = useCallback(async () => {
     if (!shaders.vertexShader || !shaders.fragmentShader) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Use global THREE
-    const THREE = window.THREE;
-    if (!THREE) {
-      return;
+    // 等待全局 Three.js 可用
+    const waitForThree = () => {
+      return new Promise((resolve) => {
+        const checkThree = () => {
+          if (window.THREE) {
+            resolve(window.THREE);
+          } else {
+            setTimeout(checkThree, 100);
+          }
+        };
+        checkThree();
+      });
+    };
+
+    try {
+      const THREE = await waitForThree();
+      
+      // 使用全局 Three.js 实例，避免重复导入
+      // OrbitControls 需要从全局 THREE 中获取
+      const OrbitControls = THREE.OrbitControls || (await import('three/addons/controls/OrbitControls.js')).OrbitControls;
+      
+      initScene(THREE, OrbitControls, canvas);
+    } catch (error) {
+      console.error('Failed to load Three.js:', error);
     }
+  }, [shaders]);
+
+  const initScene = useCallback((THREE, OrbitControls, canvas) => {
 
     const scene = new THREE.Scene();
 
@@ -331,7 +354,12 @@ export default function Car() {
       }
       renderer.dispose();
     };
-  }, [shaders]);
+  }, []);
+
+  // 启动 Three.js 初始化的 useEffect
+  useEffect(() => {
+    initThreeJS();
+  }, [initThreeJS]);
 
   // 单独处理参数更新，只更新材质uniforms，不重新创建场景
   useEffect(() => {

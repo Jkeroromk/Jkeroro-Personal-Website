@@ -145,7 +145,7 @@
 }
 
 body, html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto; /* 改为 auto 减少警告 */
   cursor: none;
 }
 
