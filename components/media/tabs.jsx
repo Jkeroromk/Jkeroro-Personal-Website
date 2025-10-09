@@ -51,13 +51,13 @@ const Tabs = () => {
   const getCategoryColor = (category) => {
     switch (category) {
       case 'personal':
-        return 'bg-purple-600/20 border-purple-500 text-purple-600';
+        return 'bg-purple-700/30 border-purple-600 text-purple-800';
       case 'work':
-        return 'bg-green-600/20 border-green-500 text-green-600';
+        return 'bg-green-700/30 border-green-600 text-green-800';
       case 'school':
-        return 'bg-blue-600/20 border-blue-500 text-blue-600';
+        return 'bg-blue-700/30 border-blue-600 text-blue-800';
       default:
-        return 'bg-gray-600/20 border-gray-500 text-gray-400';
+        return 'bg-gray-700/30 border-gray-600 text-gray-800';
     }
   };
 
@@ -214,7 +214,7 @@ const Tabs = () => {
                         
                         {/* 悬停指示器 */}
                         <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <div className="flex items-center gap-2 px-3 py-2 bg-white/20 backdrop-blur-sm rounded-full">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/30">
                             <span className="text-white text-sm font-medium">View Project</span>
                             <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -272,7 +272,7 @@ const Tabs = () => {
           
           {/* Dot指示器 */}
           {carouselItems.length > 1 && (
-            <div className="flex justify-center gap-2 px-4">
+            <div className="flex justify-center gap-3 px-4">
               {carouselItems.map((_, index) => (
                 <button
                   key={index}
@@ -282,12 +282,15 @@ const Tabs = () => {
                       setCurrentSlide(index);
                     }
                   }}
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  aria-label={`跳转到第${index + 1}张图片`}
+                  className="p-2 rounded-full transition-all duration-300 flex items-center justify-center hover:bg-white/10"
+                >
+                  <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
                     index === currentSlide 
-                      ? 'bg-white/80 scale-125' 
-                      : 'bg-white/30 hover:bg-white/50'
-                  }`}
-                />
+                      ? 'bg-white scale-125' 
+                      : 'bg-white/50 hover:bg-white/70'
+                  }`} />
+                </button>
               ))}
             </div>
           )}

@@ -12,13 +12,13 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew }) => {
   const getCategoryColor = (category) => {
     switch (category) {
       case 'personal':
-        return 'bg-purple-600/20 border-purple-500 text-purple-600';
+        return 'bg-purple-700/30 border-purple-600 text-purple-800';
       case 'work':
-        return 'bg-green-600/20 border-green-500 text-green-600';
+        return 'bg-green-700/30 border-green-600 text-green-800';
       case 'school':
-        return 'bg-blue-600/20 border-blue-500 text-blue-600';
+        return 'bg-blue-700/30 border-blue-600 text-blue-800';
       default:
-        return 'bg-gray-600/20 border-gray-500 text-gray-400';
+        return 'bg-gray-700/30 border-gray-600 text-gray-800';
     }
   };
 

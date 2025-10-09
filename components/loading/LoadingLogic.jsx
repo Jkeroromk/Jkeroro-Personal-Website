@@ -103,22 +103,13 @@ const LoadingLogic = () => {
       { en: 'Almost ready to launch...', zh: '即将准备就绪...' }
     ]
 
-    // 更新加载描述
+    // 更新加载描述 - 减少频率
     const descriptionInterval = setInterval(() => {
       const randomDesc = descriptions[Math.floor(Math.random() * descriptions.length)]
       setLoadingDescription(randomDesc)
-    }, 1500)
+    }, 3000) // 从 1500ms 增加到 3000ms
 
-    // 模拟加载进度（只到 70%，为真实资源预加载留出空间）
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 70) {
-          clearInterval(progressInterval)
-          return 70
-        }
-        return prev + Math.random() * 8 + 2
-      })
-    }, 400)
+    // 移除模拟进度条，只使用真实资源加载进度
 
     // 预加载 home 页面的关键资源
     const preloadHomeResources = () => {
@@ -136,37 +127,67 @@ const LoadingLogic = () => {
       
       let loadedCount = 0
       let musicLoadedCount = 0
+      let scriptsLoaded = false
       const totalResources = homeResources.length
       const maxMusicTracks = 3 // 最多预加载3首音乐
       const totalExpectedResources = totalResources + maxMusicTracks
       
-      // 超时保护：如果15秒内没有完成，强制继续
+      // 超时保护：如果20秒内没有完成，强制继续
       const timeoutId = setTimeout(() => {
         console.log('Loading timeout reached, forcing completion')
+        // 即使脚本没有加载完成，也强制继续
+        scriptsLoaded = true
         setProgress(100)
         setTimeout(() => {
           setShowAudioPermission(true)
         }, 500)
-      }, 15000)
+      }, 20000) // 增加超时时间到20秒
       
+      // 检查脚本是否加载完成
+      const checkScriptsLoaded = () => {
+        if (typeof window !== 'undefined' && 
+            window.THREE && 
+            window.VANTA && 
+            window.VANTA.BIRDS && 
+            window.THREE.PerspectiveCamera) {
+          console.log('All scripts loaded successfully')
+          scriptsLoaded = true
+          // 脚本加载完成，直接检查是否可以完成
+          checkComplete('script')
+        } else {
+          console.log('Scripts not ready yet, retrying...')
+          // 继续检查，不设置超时
+          setTimeout(checkScriptsLoaded, 500) // 减少间隔时间，更频繁检查
+        }
+      }
+
       const checkComplete = (source = 'resource') => {
         if (source === 'resource') {
           loadedCount++
         } else if (source === 'music') {
           musicLoadedCount++
+        } else if (source === 'script') {
+          // 脚本加载完成，不增加计数，但标记为完成
         }
+        
+        // 资源加载进度更新
         
         const totalLoaded = loadedCount + musicLoadedCount
         const totalExpected = totalResources + Math.min(musicLoadedCount, maxMusicTracks)
         
-        // 基于模拟进度条（70%）的基础上，继续到 90%
-        const resourceProgress = (totalLoaded / totalExpected) * 20 // 20% 的额外进度
-        const totalProgress = Math.min(90, 70 + resourceProgress)
-        setProgress(totalProgress)
+        // 基于真实资源加载进度，从 0% 到 95%
+        const resourceProgress = (totalLoaded / totalExpected) * 95 // 95% 的进度空间
+        const totalProgress = Math.min(95, resourceProgress)
         
-        console.log(`Loading progress: ${totalLoaded}/${totalExpected} (${totalProgress.toFixed(1)}%)`)
+        // 确保进度只增不减
+        setProgress(prev => {
+          const newProgress = Math.max(prev, totalProgress)
+          return newProgress
+        })
         
-        if (totalLoaded >= totalExpected) {
+        console.log(`Loading progress: ${totalLoaded}/${totalExpected} (${totalProgress.toFixed(1)}%) - Scripts loaded: ${scriptsLoaded}`)
+        
+        if (totalLoaded >= totalExpected && scriptsLoaded) {
           clearTimeout(timeoutId)
           // 所有资源预加载完成，再等待 2 秒确保所有效果准备好
           setTimeout(() => {
@@ -278,6 +299,11 @@ const LoadingLogic = () => {
             checkComplete('music')
           }
         }
+        
+        // 开始检查脚本加载状态
+        setTimeout(() => {
+          checkScriptsLoaded()
+        }, 1000)
       }
       
       preloadMusic()
@@ -303,7 +329,6 @@ const LoadingLogic = () => {
     }, 200);
 
     return () => {
-      clearInterval(progressInterval)
       clearInterval(descriptionInterval)
       clearTimeout(initMouseTrail)
     }

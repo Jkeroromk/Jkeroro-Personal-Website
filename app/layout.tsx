@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Fredoka } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
-import { ConditionalToaster } from "@/components/ui/conditional-toaster";
+import { Toaster } from "@/components/ui/toaster";
+import ClientAssistantWidget from "@/components/interactive/ClientAssistantWidget";
+import ClientScripts from "@/components/ClientScripts";
 
 const fredoka = Fredoka({
   weight: ["400", "500", "600"],
@@ -11,7 +12,7 @@ const fredoka = Fredoka({
 
 export const metadata: Metadata = {
   title: "Jkeroro",
-  description: "Welcome to my Cozy Place",
+  description: "Jkeroro - Unlock your productivity with AI, 3D creativity, and personal brand projects.",
 };
 
 export default function RootLayout({
@@ -20,41 +21,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="en">
       <head>
-        <Script
-          src="https://kit.fontawesome.com/7db96a5cb9.js"
-          crossOrigin="anonymous"
-          strategy="lazyOnload"
-        />
-        <Script
-          src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"
-          strategy="beforeInteractive"
-        />
-        <Script
-          src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.birds.min.js"
-          strategy="afterInteractive"
-        />
-        {/* 关键资源预加载 - 只预加载loading页面立即需要的资源 */}
-        {/* 移除字体预加载，因为可能导致警告 */}
-        
-        {/* 延迟预加载 - 这些资源在home页面中才会使用 */}
-        <link rel="prefetch" as="image" href="/pfp.webp" type="image/webp" />
-        <link rel="prefetch" as="image" href="/me.webp" type="image/webp" />
-        <link rel="prefetch" as="image" href="/static/car.png" type="image/png" />
-        <link rel="prefetch" as="image" href="/static/glow.png" type="image/png" />
-        <link rel="prefetch" as="video" href="/background.mp4" type="video/mp4" />
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/192.png" />
+        {/* 关键资源预加载 */}
+        <link rel="preload" as="image" href="/pfp.webp" type="image/webp" />
+        <link rel="preload" as="font" href="/_next/static/media/X7n64b87HvSqjb_WIi2yDCRwoQ_k7367_DWu89XgHPyh-s.p.87515403.woff2" type="font/woff2" crossOrigin="anonymous" />
         
         {/* DNS 预解析 */}
-        <link rel="dns-prefetch" href="//kit.fontawesome.com" />
         <link rel="dns-prefetch" href="//cdnjs.cloudflare.com" />
         <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
+        
+        {/* 客户端脚本组件 */}
+        <ClientScripts />
+        
+        {/* 元数据 */}
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/192.png" />
       </head>
-      <body className={`${fredoka.className} antialiased modern-scrollbar bg-black`}>
+      <body className={`${fredoka.className} antialiased`} style={{ backgroundColor: "#000000" }}>
         {children}
-        <ConditionalToaster/>
+        <Toaster/>
+        <ClientAssistantWidget />
       </body>
     </html>
   );

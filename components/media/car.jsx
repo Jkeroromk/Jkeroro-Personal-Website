@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback, memo } from "react";
 import ModernControlPanel from '../interactive/ModernControlPanel';
 import { useControlPanel } from '@/contexts/ControlPanelContext';
 
@@ -73,13 +73,15 @@ void main()
 }
 `;
 
-export default function Car() {
+const Car = memo(function Car() {
   const canvasRef = useRef(null);
   const { guiParams } = useControlPanel();
-  const [shaders, setShaders] = useState({
+  
+  // 使用 useMemo 缓存 shaders，避免重复创建
+  const shaders = useMemo(() => ({
     vertexShader,
     fragmentShader,
-  });
+  }), []);
 
   const guiParamsRef = useRef(guiParams);
 
@@ -125,11 +127,15 @@ export default function Car() {
 
     const scene = new THREE.Scene();
 
-    const getSizes = () => ({
-      width: canvas.parentElement.offsetWidth,
-      height: canvas.parentElement.offsetWidth / 2,
-      pixelRatio: Math.min(window.devicePixelRatio, 2),
-    });
+    const getSizes = () => {
+      // 使用 requestAnimationFrame 来避免强制重排
+      const rect = canvas.parentElement.getBoundingClientRect();
+      return {
+        width: rect.width,
+        height: rect.width / 2,
+        pixelRatio: Math.min(window.devicePixelRatio, 2),
+      };
+    };
 
     let sizes = getSizes();
 
@@ -182,10 +188,17 @@ export default function Car() {
     displacement.canvasCursor = new THREE.Vector2(9999, 9999);
     displacement.canvasCursorPrevious = new THREE.Vector2(9999, 9999);
 
+    // 使用 requestAnimationFrame 来批处理鼠标移动更新
+    let rafId;
     const handlePointerMove = (event) => {
-      const rect = canvas.getBoundingClientRect();
-      displacement.screenCursor.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      displacement.screenCursor.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      if (rafId) return; // 如果已经有待处理的更新，跳过
+      
+      rafId = requestAnimationFrame(() => {
+        const rect = canvas.getBoundingClientRect();
+        displacement.screenCursor.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        displacement.screenCursor.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        rafId = null;
+      });
     };
     window.addEventListener("pointermove", handlePointerMove);
 
@@ -316,38 +329,47 @@ export default function Car() {
 
     tick();
 
+    // 防抖函数来避免频繁的重新计算
+    let resizeTimeout;
     const handleResize = () => {
-      sizes = getSizes();
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        sizes = getSizes();
 
-      camera.aspect = sizes.width / sizes.height;
-      camera.updateProjectionMatrix();
+        camera.aspect = sizes.width / sizes.height;
+        camera.updateProjectionMatrix();
 
-      renderer.setSize(sizes.width, sizes.height);
-      renderer.setPixelRatio(sizes.pixelRatio);
+        renderer.setSize(sizes.width, sizes.height);
+        renderer.setPixelRatio(sizes.pixelRatio);
 
-      if (particlesMaterial) {
-        particlesMaterial.uniforms.uResolution.value.set(
-          sizes.width * sizes.pixelRatio,
-          sizes.height * sizes.pixelRatio
-        );
-      }
+        if (particlesMaterial) {
+          particlesMaterial.uniforms.uResolution.value.set(
+            sizes.width * sizes.pixelRatio,
+            sizes.height * sizes.pixelRatio
+          );
+        }
 
-      // Recreate particles on significant resize to avoid artifacts
-      if (particles) {
-        const isMobile = window.innerWidth <= 768;
-        const newSubdivisions = isMobile ? 256 : 128;
-        const aspectRatio = image.width / image.height;
-        scene.remove(particles);
-        particles.geometry.dispose();
-        particles.material.dispose();
-        createParticles(aspectRatio, particlesMaterial.uniforms.uPictureTexture.value);
-      }
+        // Recreate particles on significant resize to avoid artifacts
+        if (particles) {
+          const isMobile = window.innerWidth <= 768;
+          const newSubdivisions = isMobile ? 256 : 128;
+          const aspectRatio = image.width / image.height;
+          scene.remove(particles);
+          particles.geometry.dispose();
+          particles.material.dispose();
+          createParticles(aspectRatio, particlesMaterial.uniforms.uPictureTexture.value);
+        }
+      }, 16); // 约60fps的更新频率
     };
     window.addEventListener("resize", handleResize);
 
     return () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("resize", handleResize);
+      clearTimeout(resizeTimeout);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
       if (particles) {
         particles.geometry.dispose();
         particles.material.dispose();
@@ -399,4 +421,6 @@ export default function Car() {
     </div>
     </>
   );
-}
+});
+
+export default Car;

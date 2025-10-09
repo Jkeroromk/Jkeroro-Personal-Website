@@ -9,7 +9,9 @@ import { Eye, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import ClientTimeDisplay from "../layout/ClientTimeDisplay";
-import { FaTiktok, FaInstagram, FaYoutube, FaTwitch, FaSpotify, FaSoundcloud } from "react-icons/fa";
+// 使用更精确的导入来减少包大小
+import { FaTiktok } from "react-icons/fa6";
+import { FaInstagram, FaYoutube, FaTwitch, FaSpotify, FaSoundcloud } from "react-icons/fa";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -299,7 +301,7 @@ export default function LinkforBio() {
 
         <div className="absolute bottom-[-45px] flex flex-col gap-y-1 items-center">
           <Avatar className="size-20 border">
-            <AvatarImage src="/pfp.webp" />
+            <AvatarImage src="/pfp.webp" alt="个人头像" />
             <AvatarFallback>CN</AvatarFallback>
           </Avatar>
           <div className="flex items-center gap-2 mt-1 mr-2">
@@ -416,6 +418,7 @@ export default function LinkforBio() {
                     placeholder="Email"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
+                    aria-label="邮箱地址"
                   />
                   <input
                     className="p-2 text-white rounded bg-transparent border border-white"
@@ -423,6 +426,7 @@ export default function LinkforBio() {
                     placeholder="Password"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
+                    aria-label="密码"
                   />
                   {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
                   <button className="bg-blue-600 hover:bg-blue-700 py-2 text-white rounded" type="submit">
