@@ -11,7 +11,16 @@ const HomeLayout = ({ children }) => {
   // 确保页面滚动到顶部
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.scrollTo(0, 0)
+      // 延迟滚动，等待固定元素渲染完成
+      setTimeout(() => {
+        try {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+        } catch (error) {
+          // 备用方案
+          document.documentElement.scrollTop = 0
+          document.body.scrollTop = 0
+        }
+      }, 100)
     }
   }, [])
 

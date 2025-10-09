@@ -33,7 +33,7 @@ export default function RootLayout({
         />
         <Script
           src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.birds.min.js"
-          strategy="lazyOnload"
+          strategy="afterInteractive"
         />
         {/* 关键资源预加载 - 只预加载loading页面立即需要的资源 */}
         {/* 移除字体预加载，因为可能导致警告 */}
