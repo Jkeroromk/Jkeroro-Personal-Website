@@ -119,7 +119,7 @@ const Car = memo(function Car() {
       
       initScene(THREE, OrbitControls, canvas);
     } catch (error) {
-      console.error('Failed to load Three.js:', error);
+      // Three.js 加载失败，静默处理
     }
   }, [shaders]);
 

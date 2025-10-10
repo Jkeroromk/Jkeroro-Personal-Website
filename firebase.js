@@ -26,7 +26,6 @@ try {
   auth = getAuth(app);
   storage = getStorage(app);
 } catch (error) {
-  console.warn('Firebase initialization failed:', error.message);
   // 创建占位符对象以避免运行时错误
   app = null;
   database = null;
@@ -38,7 +37,6 @@ try {
 // ✅ Function to Increment Viewer Count (Realtime Database)
 const incrementViewCount = async () => {
   if (!database) {
-    console.warn('Firebase database not initialized');
     return;
   }
   try {
@@ -84,7 +82,6 @@ const normalizeCountry = (countryCode, countryName) => {
 // ✅ Function to Track Visitor Location (Realtime Database)
 const trackVisitorLocation = async () => {
   if (!database) {
-    console.warn('Firebase database not initialized');
     return;
   }
   try {
@@ -114,7 +111,6 @@ const trackVisitorLocation = async () => {
 const addComment = async (comment) => {
   if (!comment.trim()) return;
   if (!database) {
-    console.warn('Firebase database not initialized');
     return;
   }
 
@@ -133,7 +129,6 @@ const addComment = async (comment) => {
 // ✅ Function to Cleanup Duplicate Countries (Merging Codes into Full Names)
 const cleanupDuplicateCountries = async () => {
   if (!database) {
-    console.warn('Firebase database not initialized');
     return;
   }
   try {
