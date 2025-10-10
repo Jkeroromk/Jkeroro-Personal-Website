@@ -19,9 +19,10 @@ export function usePerformanceMonitor(): PerformanceMetrics {
 
   useEffect(() => {
     // 检测设备性能
+    const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
     const isLowEnd = 
       navigator.hardwareConcurrency <= 4 || 
-      navigator.deviceMemory <= 4 ||
+      (deviceMemory && deviceMemory <= 4) ||
       /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
     // 监控 FPS
@@ -52,14 +53,16 @@ export function usePerformanceMonitor(): PerformanceMetrics {
     // 监控内存使用
     const measureMemory = () => {
       if ('memory' in performance) {
-        const memory = (performance as any).memory;
-        const memoryUsage = memory.usedJSHeapSize / memory.jsHeapSizeLimit;
-        
-        setMetrics(prev => ({
-          ...prev,
-          memoryUsage,
-          shouldReduceQuality: prev.shouldReduceQuality || memoryUsage > 0.8,
-        }));
+        const memory = (performance as { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+        if (memory) {
+          const memoryUsage = memory.usedJSHeapSize / memory.jsHeapSizeLimit;
+          
+          setMetrics(prev => ({
+            ...prev,
+            memoryUsage,
+            shouldReduceQuality: prev.shouldReduceQuality || memoryUsage > 0.8,
+          }));
+        }
       }
     };
 
