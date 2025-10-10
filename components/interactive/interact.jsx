@@ -4,17 +4,18 @@ import dynamic from "next/dynamic";
 import React from "react";
 
 const Interact = () => {
-  // Dynamically import VantaBackground
-  const VantaBackground = dynamic(
-    () => import("@/components/effects/vantaBackground"),
+  // Dynamically import BackgroundVideo
+  const BackgroundVideo = dynamic(
+    () => import("@/components/effects/backgroundVideo"),
     { ssr: false }
   );
 
   return (
     <div>
-      <VantaBackground />
+      <BackgroundVideo />
     </div>
   );
 };
 
 export default Interact;
+
