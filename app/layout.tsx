@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Fredoka } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import ClientAssistantWidget from "@/components/interactive/ClientAssistantWidget";
 import ClientScripts from "@/components/ClientScripts";
 
 const fredoka = Fredoka({
@@ -41,7 +40,6 @@ export default function RootLayout({
       <body className={`${fredoka.className} antialiased`} style={{ backgroundColor: "#000000" }}>
         {children}
         <Toaster/>
-        <ClientAssistantWidget />
       </body>
     </html>
   );
