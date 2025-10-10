@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react';
 
 export default function ClientScripts() {
   const [threeLoaded, setThreeLoaded] = useState(false);
-  const [vantaLoaded, setVantaLoaded] = useState(false);
 
   useEffect(() => {
     // 检查 Three.js 是否已经加载
@@ -16,7 +15,7 @@ export default function ClientScripts() {
 
   return (
     <>
-      {/* 关键脚本按顺序加载 */}
+      {/* 只加载 Three.js，移除 Vanta 相关脚本 */}
       <Script
         src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"
         strategy="beforeInteractive"
@@ -31,18 +30,6 @@ export default function ClientScripts() {
           }
         }}
       />
-      {threeLoaded && (
-        <Script
-          src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.birds.min.js"
-          strategy="afterInteractive"
-          onLoad={() => {
-            console.log('Vanta.js loaded');
-            setVantaLoaded(true);
-            console.log('VANTA object available:', !!window.VANTA);
-            console.log('BIRDS available:', !!window.VANTA?.BIRDS);
-          }}
-        />
-      )}
     </>
   );
 }

@@ -65,17 +65,15 @@ const LoadingScreen = () => {
     // 检查关键资源是否加载完成
     const checkResources = () => {
       let resourcesLoaded = 0
-      const totalResources = 3
+      const totalResources = 2
       
       const checkInterval = setInterval(() => {
         const threeLoaded = typeof window !== 'undefined' && window.THREE
-        const vantaLoaded = typeof window !== 'undefined' && window.VANTA
         const imagesLoaded = document.images && Array.from(document.images).every(img => img.complete)
         
         // 计算已加载的资源数量
         if (threeLoaded) resourcesLoaded = Math.max(resourcesLoaded, 1)
-        if (vantaLoaded) resourcesLoaded = Math.max(resourcesLoaded, 2)
-        if (imagesLoaded) resourcesLoaded = Math.max(resourcesLoaded, 3)
+        if (imagesLoaded) resourcesLoaded = Math.max(resourcesLoaded, 2)
         
         // 如果所有资源都加载完成且进度达到80%
         if (resourcesLoaded >= totalResources && progress >= 80) {
