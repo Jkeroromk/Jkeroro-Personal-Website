@@ -134,7 +134,6 @@ const LoadingLogic = () => {
       
       // 超时保护：如果20秒内没有完成，强制继续
       const timeoutId = setTimeout(() => {
-        console.log('Loading timeout reached, forcing completion')
         // 即使脚本没有加载完成，也强制继续
         scriptsLoaded = true
         setProgress(100)
@@ -148,12 +147,10 @@ const LoadingLogic = () => {
         if (typeof window !== 'undefined' && 
             window.THREE && 
             window.THREE.PerspectiveCamera) {
-          console.log('Three.js loaded successfully')
           scriptsLoaded = true
           // 脚本加载完成，直接检查是否可以完成
           checkComplete('script')
         } else {
-          console.log('Scripts not ready yet, retrying...')
           // 继续检查，不设置超时
           setTimeout(checkScriptsLoaded, 500) // 减少间隔时间，更频繁检查
         }
@@ -183,8 +180,6 @@ const LoadingLogic = () => {
           return newProgress
         })
         
-        console.log(`Loading progress: ${totalLoaded}/${totalExpected} (${totalProgress.toFixed(1)}%) - Scripts loaded: ${scriptsLoaded}`)
-        
         if (totalLoaded >= totalExpected && scriptsLoaded) {
           clearTimeout(timeoutId)
           // 所有资源预加载完成，再等待 2 秒确保所有效果准备好
@@ -200,7 +195,6 @@ const LoadingLogic = () => {
       // 预加载静态资源
       homeResources.forEach((src, index) => {
         const timeout = setTimeout(() => {
-          console.log(`Resource timeout: ${src}`)
           checkComplete('resource')
         }, 5000) // 每个资源5秒超时
         
@@ -208,12 +202,10 @@ const LoadingLogic = () => {
           const img = new Image()
           img.onload = () => {
             clearTimeout(timeout)
-            console.log(`Image loaded: ${src}`)
             checkComplete('resource')
           }
           img.onerror = () => {
             clearTimeout(timeout)
-            console.log(`Image failed: ${src}`)
             checkComplete('resource')
           }
           img.src = src
@@ -221,12 +213,10 @@ const LoadingLogic = () => {
           const video = document.createElement('video')
           video.oncanplay = () => {
             clearTimeout(timeout)
-            console.log(`Video loaded: ${src}`)
             checkComplete('resource')
           }
           video.onerror = () => {
             clearTimeout(timeout)
-            console.log(`Video failed: ${src}`)
             checkComplete('resource')
           }
           video.src = src
@@ -252,7 +242,6 @@ const LoadingLogic = () => {
             const tracksToPreload = tracks.slice(0, maxMusicTracks)
             
             if (tracksToPreload.length === 0) {
-              console.log('No music tracks found')
               // 如果没有音乐文件，也要调用 checkComplete
               for (let i = 0; i < maxMusicTracks; i++) {
                 checkComplete('music')
@@ -261,19 +250,16 @@ const LoadingLogic = () => {
               tracksToPreload.forEach((track, index) => {
                 if (track.src) {
                   const timeout = setTimeout(() => {
-                    console.log(`Music timeout: ${track.src}`)
                     checkComplete('music')
                   }, 8000) // 音乐文件8秒超时
                   
                   const audio = new Audio()
                   audio.oncanplaythrough = () => {
                     clearTimeout(timeout)
-                    console.log(`Music loaded: ${track.src}`)
                     checkComplete('music')
                   }
                   audio.onerror = () => {
                     clearTimeout(timeout)
-                    console.log(`Music failed: ${track.src}`)
                     checkComplete('music')
                   }
                   audio.src = track.src
@@ -284,14 +270,12 @@ const LoadingLogic = () => {
               })
             }
           } else {
-            console.log('Firebase not available')
             // 如果 Firebase 不可用，继续
             for (let i = 0; i < maxMusicTracks; i++) {
               checkComplete('music')
             }
           }
         } catch (error) {
-          console.log('Music preload error:', error)
           // 如果音乐预加载失败，继续
           for (let i = 0; i < maxMusicTracks; i++) {
             checkComplete('music')

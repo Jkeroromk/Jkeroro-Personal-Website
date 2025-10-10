@@ -20,13 +20,10 @@ export default function ClientScripts() {
         src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"
         strategy="beforeInteractive"
         onLoad={() => {
-          console.log('Three.js loaded');
           setThreeLoaded(true);
           // 确保 THREE 对象在全局可用
           if (typeof window !== 'undefined') {
             window.THREE = window.THREE || window.THREE;
-            console.log('THREE object available:', !!window.THREE);
-            console.log('PerspectiveCamera available:', !!window.THREE?.PerspectiveCamera);
           }
         }}
       />
