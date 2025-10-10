@@ -147,10 +147,8 @@ const LoadingLogic = () => {
       const checkScriptsLoaded = () => {
         if (typeof window !== 'undefined' && 
             window.THREE && 
-            window.VANTA && 
-            window.VANTA.BIRDS && 
             window.THREE.PerspectiveCamera) {
-          console.log('All scripts loaded successfully')
+          console.log('Three.js loaded successfully')
           scriptsLoaded = true
           // 脚本加载完成，直接检查是否可以完成
           checkComplete('script')

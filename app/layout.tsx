@@ -24,7 +24,6 @@ export default function RootLayout({
       <head>
         {/* 关键资源预加载 */}
         <link rel="preload" as="image" href="/pfp.webp" type="image/webp" />
-        <link rel="preload" as="font" href="/_next/static/media/X7n64b87HvSqjb_WIi2yDCRwoQ_k7367_DWu89XgHPyh-s.p.87515403.woff2" type="font/woff2" crossOrigin="anonymous" />
         
         {/* DNS 预解析 */}
         <link rel="dns-prefetch" href="//cdnjs.cloudflare.com" />
