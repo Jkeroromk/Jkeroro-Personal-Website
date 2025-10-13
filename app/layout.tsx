@@ -36,7 +36,7 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/192.png" />
       </head>
-      <body className={`${fredoka.className} antialiased`} style={{ backgroundColor: "#000000" }}>
+      <body className={`${fredoka.className} antialiased bg-black`}>
         {children}
         <Toaster/>
       </body>

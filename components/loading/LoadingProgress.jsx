@@ -75,23 +75,64 @@ const LoadingProgress = ({ progress, isFadingOut, loadingDescription }) => {
           animate={{ opacity: isFadingOut ? 0 : 1 }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
         >
-          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden relative">
+            {/* 背景渐变 */}
+            <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 rounded-full" />
+            
+            {/* 进度条主体 */}
             <motion.div 
-              className="h-full bg-white/40 rounded-full"
+              className="h-full bg-gradient-to-r from-white via-gray-200 to-white rounded-full relative overflow-hidden"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-            />
+              transition={{ duration: 1.2, ease: "easeOut" }}
+            >
+              {/* 动态光效 */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                animate={{
+                  x: ['-100%', '100%']
+                }}
+                transition={{
+                  duration: 3.5,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+              
+              {/* 脉冲效果 */}
+              <motion.div
+                className="absolute inset-0 bg-white/20"
+                animate={{
+                  opacity: [0.3, 0.8, 0.3]
+                }}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+            </motion.div>
+            
+            {/* 边框高光 */}
+            <div className="absolute inset-0 border border-gray-600/50 rounded-full" />
+            <div className="absolute inset-0 border border-white/20 rounded-full" />
           </div>
         </motion.div>
         
         <motion.div 
-          className="text-white/60 text-sm"
+          className="text-white/80 text-sm font-mono"
           initial={{ opacity: 1 }}
           animate={{ opacity: isFadingOut ? 0 : 1 }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
         >
-          {Math.round(progress)}%
+          <motion.span
+            key={Math.round(progress)}
+            initial={{ scale: 1.2, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            {Math.round(progress)}%
+          </motion.span>
         </motion.div>
       </motion.div>
     </motion.div>

@@ -26,6 +26,10 @@ try {
   auth = getAuth(app);
   storage = getStorage(app);
 } catch (error) {
+  // 在开发环境中显示错误信息
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('Firebase initialization failed:', error.message);
+  }
   // 创建占位符对象以避免运行时错误
   app = null;
   database = null;
@@ -34,9 +38,29 @@ try {
   storage = null;
 }
 
+// ✅ Firebase Connection Status Check
+const checkFirebaseConnection = () => {
+  const status = {
+    app: !!app,
+    database: !!database,
+    firestore: !!firestore,
+    auth: !!auth,
+    storage: !!storage
+  };
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Firebase connection status:', status);
+  }
+  
+  return status;
+};
+
 // ✅ Function to Increment Viewer Count (Realtime Database)
 const incrementViewCount = async () => {
   if (!database) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase database not initialized');
+    }
     return;
   }
   try {
@@ -82,6 +106,9 @@ const normalizeCountry = (countryCode, countryName) => {
 // ✅ Function to Track Visitor Location (Realtime Database)
 const trackVisitorLocation = async () => {
   if (!database) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase database not initialized for location tracking');
+    }
     return;
   }
   try {
@@ -103,7 +130,9 @@ const trackVisitorLocation = async () => {
       lastUpdated: serverTimestamp(),
     });
   } catch (error) {
-    // 静默处理错误
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error tracking visitor location:', error.message);
+    }
   }
 };
 
@@ -111,6 +140,9 @@ const trackVisitorLocation = async () => {
 const addComment = async (comment) => {
   if (!comment.trim()) return;
   if (!database) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase database not initialized for adding comment');
+    }
     return;
   }
 
@@ -129,6 +161,9 @@ const addComment = async (comment) => {
 // ✅ Function to Cleanup Duplicate Countries (Merging Codes into Full Names)
 const cleanupDuplicateCountries = async () => {
   if (!database) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase database not initialized for cleanup');
+    }
     return;
   }
   try {
@@ -192,7 +227,9 @@ const cleanupDuplicateCountries = async () => {
       }
     }
   } catch (error) {
-    // 静默处理错误
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error cleaning up duplicate countries:', error.message);
+    }
   }
 };
 
@@ -215,4 +252,5 @@ export {
   set,
   get,
   cleanupDuplicateCountries,
+  checkFirebaseConnection,
 };

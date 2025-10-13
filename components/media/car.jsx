@@ -114,8 +114,17 @@ const Car = memo(function Car() {
       const THREE = await waitForThree();
       
       // 使用全局 Three.js 实例，避免重复导入
-      // OrbitControls 需要从全局 THREE 中获取
-      const OrbitControls = THREE.OrbitControls || (await import('three/addons/controls/OrbitControls.js')).OrbitControls;
+      // 检查 OrbitControls 是否已经在全局 THREE 中
+      let OrbitControls;
+      if (THREE.OrbitControls) {
+        OrbitControls = THREE.OrbitControls;
+      } else {
+        // 如果全局 THREE 中没有 OrbitControls，则动态导入
+        const { OrbitControls: ImportedOrbitControls } = await import('three/addons/controls/OrbitControls.js');
+        OrbitControls = ImportedOrbitControls;
+        // 将 OrbitControls 添加到全局 THREE 中，避免重复导入
+        THREE.OrbitControls = OrbitControls;
+      }
       
       initScene(THREE, OrbitControls, canvas);
     } catch (error) {
@@ -158,11 +167,19 @@ const Car = memo(function Car() {
       canvas,
       antialias: true,
       alpha: true,
+      powerPreference: "high-performance",
+      failIfMajorPerformanceCaveat: false,
     });
     renderer.setClearColor(0x000000, 0);
     renderer.setSize(sizes.width, sizes.height);
     renderer.setPixelRatio(sizes.pixelRatio);
     renderer.setViewport(0, 0, sizes.width, sizes.height);
+    
+    // 设置 WebGL 上下文属性，减少警告
+    const gl = renderer.getContext();
+    if (gl) {
+      gl.getExtension('WEBGL_lose_context');
+    }
 
     // 保存three.js对象引用到canvas上，供参数更新使用
     canvas.__renderer = renderer;
@@ -374,7 +391,18 @@ const Car = memo(function Car() {
         particles.geometry.dispose();
         particles.material.dispose();
       }
-      renderer.dispose();
+      
+      // 正确清理 WebGL 上下文
+      if (renderer) {
+        renderer.dispose();
+        const gl = renderer.getContext();
+        if (gl && gl.getExtension) {
+          const loseContext = gl.getExtension('WEBGL_lose_context');
+          if (loseContext) {
+            loseContext.loseContext();
+          }
+        }
+      }
     };
   }, []);
 

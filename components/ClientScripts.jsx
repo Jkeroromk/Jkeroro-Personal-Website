@@ -21,9 +21,14 @@ export default function ClientScripts() {
         strategy="beforeInteractive"
         onLoad={() => {
           setThreeLoaded(true);
-          // 确保 THREE 对象在全局可用
-          if (typeof window !== 'undefined') {
-            window.THREE = window.THREE || window.THREE;
+          // 确保 THREE 对象在全局可用，并添加 OrbitControls
+          if (typeof window !== 'undefined' && window.THREE) {
+            // 预加载 OrbitControls 到全局 THREE 中
+            import('three/addons/controls/OrbitControls.js').then(({ OrbitControls }) => {
+              window.THREE.OrbitControls = OrbitControls;
+            }).catch(() => {
+              // 静默处理导入失败
+            });
           }
         }}
       />

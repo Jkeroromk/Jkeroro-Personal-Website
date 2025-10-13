@@ -107,192 +107,121 @@ const LoadingLogic = () => {
     const descriptionInterval = setInterval(() => {
       const randomDesc = descriptions[Math.floor(Math.random() * descriptions.length)]
       setLoadingDescription(randomDesc)
-    }, 3000) // 从 1500ms 增加到 3000ms
+    }, 3000)
 
-    // 移除模拟进度条，只使用真实资源加载进度
+    // 简化的进度系统
+    let isCompleted = false
+    let resourceProgress = 0
+    let scriptProgress = 0
+    
+    // 平滑进度更新函数
+    const updateProgress = () => {
+      if (isCompleted) return
+      
+      const totalProgress = Math.min(95, resourceProgress + scriptProgress)
+      setProgress(prev => {
+        // 确保进度只增不减，并且平滑增长
+        if (totalProgress > prev) {
+          return Math.min(totalProgress, prev + 2) // 每次最多增加2%
+        }
+        return prev
+      })
+      
+      // 检查是否完成
+      if (totalProgress >= 95 && !isCompleted) {
+        isCompleted = true
+        setTimeout(() => {
+          setProgress(100)
+          setTimeout(() => {
+            setShowAudioPermission(true)
+          }, 800)
+        }, 1000)
+      }
+    }
 
     // 预加载 home 页面的关键资源
     const preloadHomeResources = () => {
       const homeResources = [
-        // 关键图片
         '/pfp.webp',
         '/me.webp', 
         '/static/car.png',
         '/static/car.webp',
         '/static/glow.png',
         '/header.webp',
-        // 背景视频
         '/background.mp4',
       ]
       
       let loadedCount = 0
-      let musicLoadedCount = 0
-      let scriptsLoaded = false
       const totalResources = homeResources.length
-      const maxMusicTracks = 3 // 最多预加载3首音乐
-      const totalExpectedResources = totalResources + maxMusicTracks
       
-      // 超时保护：如果20秒内没有完成，强制继续
+      // 超时保护：如果15秒内没有完成，强制继续
       const timeoutId = setTimeout(() => {
-        // 即使脚本没有加载完成，也强制继续
-        scriptsLoaded = true
-        setProgress(100)
-        setTimeout(() => {
-          setShowAudioPermission(true)
-        }, 500)
-      }, 20000) // 增加超时时间到20秒
+        resourceProgress = 70
+        scriptProgress = 25
+        updateProgress()
+      }, 15000)
       
       // 检查脚本是否加载完成
       const checkScriptsLoaded = () => {
         if (typeof window !== 'undefined' && 
             window.THREE && 
             window.THREE.PerspectiveCamera) {
-          scriptsLoaded = true
-          // 脚本加载完成，直接检查是否可以完成
-          checkComplete('script')
+          scriptProgress = 25
+          updateProgress()
         } else {
-          // 继续检查，不设置超时
-          setTimeout(checkScriptsLoaded, 500) // 减少间隔时间，更频繁检查
+          setTimeout(checkScriptsLoaded, 200)
         }
       }
 
-      const checkComplete = (source = 'resource') => {
-        if (source === 'resource') {
-          loadedCount++
-        } else if (source === 'music') {
-          musicLoadedCount++
-        } else if (source === 'script') {
-          // 脚本加载完成，不增加计数，但标记为完成
-        }
-        
-        // 资源加载进度更新
-        
-        const totalLoaded = loadedCount + musicLoadedCount
-        const totalExpected = totalResources + Math.min(musicLoadedCount, maxMusicTracks)
-        
-        // 基于真实资源加载进度，从 0% 到 95%
-        const resourceProgress = (totalLoaded / totalExpected) * 95 // 95% 的进度空间
-        const totalProgress = Math.min(95, resourceProgress)
-        
-        // 确保进度只增不减
-        setProgress(prev => {
-          const newProgress = Math.max(prev, totalProgress)
-          return newProgress
-        })
-        
-        if (totalLoaded >= totalExpected && scriptsLoaded) {
-          clearTimeout(timeoutId)
-          // 所有资源预加载完成，再等待 2 秒确保所有效果准备好
-          setTimeout(() => {
-            setProgress(100)
-            setTimeout(() => {
-              setShowAudioPermission(true)
-            }, 500)
-          }, 2000)
-        }
+      const onResourceLoaded = () => {
+        loadedCount++
+        resourceProgress = (loadedCount / totalResources) * 70 // 资源占70%
+        updateProgress()
       }
       
       // 预加载静态资源
       homeResources.forEach((src, index) => {
         const timeout = setTimeout(() => {
-          checkComplete('resource')
+          onResourceLoaded()
         }, 5000) // 每个资源5秒超时
         
         if (src.endsWith('.webp') || src.endsWith('.png') || src.endsWith('.jpg')) {
           const img = new Image()
           img.onload = () => {
             clearTimeout(timeout)
-            checkComplete('resource')
+            onResourceLoaded()
           }
           img.onerror = () => {
             clearTimeout(timeout)
-            checkComplete('resource')
+            onResourceLoaded()
           }
           img.src = src
         } else if (src.endsWith('.mp4')) {
           const video = document.createElement('video')
           video.oncanplay = () => {
             clearTimeout(timeout)
-            checkComplete('resource')
+            onResourceLoaded()
           }
           video.onerror = () => {
             clearTimeout(timeout)
-            checkComplete('resource')
+            onResourceLoaded()
           }
           video.src = src
           video.preload = 'metadata'
         }
       })
       
-      // 预加载音乐文件（从 Firebase）
-      const preloadMusic = async () => {
-        try {
-          // 动态导入 Firebase 相关模块
-          const { firestore } = await import('../../firebase')
-          const { collection, getDocs, query, orderBy } = await import('firebase/firestore')
-          
-          if (firestore) {
-            // 获取音乐文件列表
-            const tracksRef = collection(firestore, 'tracks')
-            const q = query(tracksRef, orderBy('order', 'asc'))
-            const tracksSnapshot = await getDocs(q)
-            const tracks = tracksSnapshot.docs.map(doc => doc.data())
-            
-            // 预加载前几首音乐（避免预加载太多）
-            const tracksToPreload = tracks.slice(0, maxMusicTracks)
-            
-            if (tracksToPreload.length === 0) {
-              // 如果没有音乐文件，也要调用 checkComplete
-              for (let i = 0; i < maxMusicTracks; i++) {
-                checkComplete('music')
-              }
-            } else {
-              tracksToPreload.forEach((track, index) => {
-                if (track.src) {
-                  const timeout = setTimeout(() => {
-                    checkComplete('music')
-                  }, 8000) // 音乐文件8秒超时
-                  
-                  const audio = new Audio()
-                  audio.oncanplaythrough = () => {
-                    clearTimeout(timeout)
-                    checkComplete('music')
-                  }
-                  audio.onerror = () => {
-                    clearTimeout(timeout)
-                    checkComplete('music')
-                  }
-                  audio.src = track.src
-                  audio.preload = 'metadata'
-                } else {
-                  checkComplete('music')
-                }
-              })
-            }
-          } else {
-            // 如果 Firebase 不可用，继续
-            for (let i = 0; i < maxMusicTracks; i++) {
-              checkComplete('music')
-            }
-          }
-        } catch (error) {
-          // 如果音乐预加载失败，继续
-          for (let i = 0; i < maxMusicTracks; i++) {
-            checkComplete('music')
-          }
-        }
-        
-        // 开始检查脚本加载状态
-        setTimeout(() => {
-          checkScriptsLoaded()
-        }, 1000)
-      }
-      
-      preloadMusic()
+      // 开始检查脚本加载状态
+      setTimeout(() => {
+        checkScriptsLoaded()
+      }, 1000)
     }
     
     // 延迟开始预加载，给页面一些初始化时间
     setTimeout(preloadHomeResources, 1000)
+    
+    // 确保进度从0开始
+    setProgress(0)
 
     // 确保MouseTrail在loading页面正确初始化
     const initMouseTrail = setTimeout(() => {

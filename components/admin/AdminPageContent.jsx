@@ -14,6 +14,7 @@ import AdminHeader from '@/components/admin/AdminHeader'
 import ImagesTab from '@/components/admin/ImagesTab'
 import MusicTab from '@/components/admin/MusicTab'
 import ProjectsTab from '@/components/admin/ProjectsTab'
+import FirebaseDebugTab from '@/components/admin/FirebaseDebugTab'
 import EditModal from '@/components/admin/modals/EditModal'
 
 const AdminPageContent = () => {
@@ -73,7 +74,7 @@ const AdminPageContent = () => {
             className="max-w-6xl mx-auto"
           >
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 bg-gray-800 border-gray-600">
+              <TabsList className="grid w-full grid-cols-4 bg-gray-800 border-gray-600">
                 <TabsTrigger 
                   value="images" 
                   className="data-[state=active]:bg-white data-[state=active]:text-black text-gray-300 hover:text-white"
@@ -91,6 +92,12 @@ const AdminPageContent = () => {
                   className="data-[state=active]:bg-white data-[state=active]:text-black text-gray-300 hover:text-white"
                 >
                   Projects
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="firebase" 
+                  className="data-[state=active]:bg-white data-[state=active]:text-black text-gray-300 hover:text-white"
+                >
+                  Firebase
                 </TabsTrigger>
               </TabsList>
 
@@ -121,6 +128,10 @@ const AdminPageContent = () => {
                   onDelete={handleDelete}
                   onAddNew={handleAddNew}
                 />
+              </TabsContent>
+
+              <TabsContent value="firebase" className="mt-6">
+                <FirebaseDebugTab />
               </TabsContent>
             </Tabs>
 
