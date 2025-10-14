@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getDatabase, ref, update, increment, serverTimestamp, onValue, push, set, get } from "firebase/database";
+import { getDatabase, ref, update, increment, serverTimestamp, onValue, push, set, get, remove } from "firebase/database";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -156,14 +156,16 @@ const addComment = async (comment) => {
       likes: 0,
       fires: 0,
       hearts: 0,
+      laughs: 0,
+      wows: 0,
     });
   } catch (error) {
     throw error;
   }
 };
 
-// ✅ Function to Add Comment Reaction (Like/Fire/Heart)
-const addCommentReaction = async (commentId, reactionType) => {
+// ✅ Function to Add Comment Reaction (Like/Fire/Heart/Laugh/Wow)
+const addCommentReaction = async (commentId, reactionType, userId) => {
   if (!database) {
     if (process.env.NODE_ENV === 'development') {
       console.warn('Firebase database not initialized for comment reaction');
@@ -183,16 +185,98 @@ const addCommentReaction = async (commentId, reactionType) => {
       const actualCommentId = typeof commentId === 'number' ? commentKeys[commentId] : commentId;
       
       if (actualCommentId && comments[actualCommentId]) {
-        const reactionRef = ref(database, `comments/${actualCommentId}/${reactionType}`);
-        await update(reactionRef, {
-          [reactionType]: increment(1),
-        });
+        // Check if user already reacted with this specific reaction type
+        const userReactionRef = ref(database, `comments/${actualCommentId}/userReactions/${userId}/${reactionType}`);
+        const userReactionSnapshot = await get(userReactionRef);
+        
+        if (userReactionSnapshot.exists()) {
+          // User is removing this specific reaction
+          await remove(userReactionRef);
+          // Decrease the count
+          const reactionRef = ref(database, `comments/${actualCommentId}/${reactionType}`);
+          await update(reactionRef, {
+            [reactionType]: increment(-1),
+          });
+        } else {
+          // User is adding this reaction (can have multiple reactions)
+          await set(userReactionRef, {
+            timestamp: serverTimestamp(),
+          });
+          
+          // Increase the count
+          const reactionRef = ref(database, `comments/${actualCommentId}/${reactionType}`);
+          await update(reactionRef, {
+            [reactionType]: increment(1),
+          });
+        }
       }
     }
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.warn('Error adding comment reaction:', error.message);
     }
+    throw error;
+  }
+};
+
+// ✅ Function to Get All Comments (for admin)
+const getAllComments = async () => {
+  if (!database) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase database not initialized for getting comments');
+    }
+    return [];
+  }
+  
+  try {
+    const commentsRef = ref(database, "comments");
+    const snapshot = await get(commentsRef);
+    
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      return Object.entries(data)
+        .map(([id, comment]) => ({ ...comment, id }))
+        .sort((a, b) => b.timestamp - a.timestamp);
+    }
+    return [];
+  } catch (error) {
+    console.error('Error getting comments:', error);
+    throw error;
+  }
+};
+
+// ✅ Function to Delete Comment (admin only)
+const deleteComment = async (commentId) => {
+  if (!database) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase database not initialized for deleting comment');
+    }
+    return;
+  }
+  
+  try {
+    const commentRef = ref(database, `comments/${commentId}`);
+    await remove(commentRef);
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    throw error;
+  }
+};
+
+// ✅ Function to Update Comment (admin only)
+const updateComment = async (commentId, newText) => {
+  if (!database) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase database not initialized for updating comment');
+    }
+    return;
+  }
+  
+  try {
+    const commentRef = ref(database, `comments/${commentId}/text`);
+    await set(commentRef, newText);
+  } catch (error) {
+    console.error('Error updating comment:', error);
     throw error;
   }
 };
@@ -286,11 +370,15 @@ export {
   serverTimestamp,
   addComment,
   addCommentReaction,
+  getAllComments,
+  deleteComment,
+  updateComment,
   incrementViewCount,
   trackVisitorLocation,
   onAuthStateChanged,
   set,
   get,
+  remove,
   cleanupDuplicateCountries,
   checkFirebaseConnection,
 };
