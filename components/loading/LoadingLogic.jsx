@@ -15,6 +15,7 @@ const LoadingLogic = () => {
     zh: '初始化系统...'
   })
   const [language, setLanguage] = useState('en') // 默认英文
+  const [isInitialized, setIsInitialized] = useState(false) // 防止重复初始化
   const router = useRouter()
 
   // 语言切换函数
@@ -74,18 +75,16 @@ const LoadingLogic = () => {
     
     // 延迟跳转，确保动画完成
     setTimeout(() => {
+      // 使用单一跳转方式，避免双重跳转
       router.replace('/home')
-      
-      // 备用方案：如果路由跳转失败，使用 window.location
-      setTimeout(() => {
-        if (window.location.pathname !== '/home') {
-          window.location.href = '/home'
-        }
-      }, 200)
     }, 500)
   }
 
   useEffect(() => {
+    // 防止重复初始化
+    if (isInitialized) return
+    setIsInitialized(true)
+    
     // 科技感加载描述
     const descriptions = [
       { en: 'Initializing neural networks...', zh: '初始化神经网络...' },
@@ -243,7 +242,7 @@ const LoadingLogic = () => {
       clearInterval(descriptionInterval)
       clearTimeout(initMouseTrail)
     }
-  }, [router])
+  }, [isInitialized]) // 添加isInitialized依赖
 
   return (
     <>

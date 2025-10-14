@@ -1,31 +1,28 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function Home() {
   const router = useRouter()
+  const [hasRedirected, setHasRedirected] = useState(false)
 
   useEffect(() => {
-    // 检查是否已经完成过loading流程
+    // 防止重复跳转
+    if (hasRedirected) return
+    
+    // 每次访问都显示loading画面，确保用户体验一致
     if (typeof window !== 'undefined') {
-      const hasCompletedLoading = sessionStorage.getItem('loadingCompleted')
-      const permCookie = document.cookie.includes('perm=')
-      
-      // 清除旧的loading标记，确保每次都是新的流程
+      // 清除之前的loading标记，确保每次都是新的流程
       sessionStorage.removeItem('loadingCompleted')
       sessionStorage.removeItem('fromLoading')
       sessionStorage.removeItem('loadingTimestamp')
       
-      if (hasCompletedLoading && permCookie) {
-        // 如果已经完成过loading且有权限cookie，直接跳转到home
-        router.replace('/home')
-      } else {
-        // 否则跳转到loading页面
-        router.replace('/loading')
-      }
+      // 始终跳转到loading页面
+      setHasRedirected(true)
+      router.replace('/loading')
     }
-  }, [router])
+  }, [router, hasRedirected])
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center">

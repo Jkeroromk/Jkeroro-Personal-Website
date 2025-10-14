@@ -157,9 +157,10 @@ const MusicPlayer = memo(() => {
     }
     
     const audioPermission = localStorage.getItem('audioPermission');
+    const fromLoading = sessionStorage.getItem('fromLoading');
     
     if (audioPermission === 'allowed') {
-      // 如果用户允许了音频，自动开始播放
+      // 如果用户允许了音频，准备播放
       const audio = audioRef.current;
       if (audio) {
         audio.muted = false;
@@ -167,11 +168,19 @@ const MusicPlayer = memo(() => {
         audio.addEventListener('timeupdate', handleTimeUpdate);
         audio.addEventListener('ended', () => skipTrack(1));
         
-        // 延迟一点时间确保音频元素完全准备好
-        setTimeout(async () => {
-          const success = await safePlay();
-          // 自动播放成功或失败
-        }, 100);
+        // 如果是从loading页面跳转过来的，自动播放
+        if (fromLoading) {
+          setTimeout(async () => {
+            const success = await safePlay();
+            if (success) {
+              console.log('🎵 从loading跳转，自动播放音乐');
+            } else {
+              console.log('🎵 自动播放失败，等待用户交互');
+            }
+          }, 500); // 延迟500ms确保页面完全加载
+        } else {
+          console.log('🎵 音频已准备就绪，等待用户交互后播放');
+        }
       }
     }
   }, [tracks]); // 添加tracks作为依赖
@@ -186,10 +195,8 @@ const MusicPlayer = memo(() => {
         const audio = audioRef.current;
         if (audio) {
           audio.muted = false;
-          setTimeout(async () => {
-            const success = await safePlay();
-            // 自动播放结果
-          }, 100);
+          // 不自动播放，等待用户交互
+          console.log('🎵 音频权限已更新，等待用户交互后播放');
         }
       }
     };
@@ -204,10 +211,8 @@ const MusicPlayer = memo(() => {
       const audio = audioRef.current;
       audio.muted = false;
       setShowPermissionPrompt(false);
-      // 自动播放音乐
-      safePlay().then((success) => {
-        // 自动播放结果
-      });
+      // 不自动播放，等待用户点击播放按钮
+      console.log('🎵 音频权限已允许，等待用户点击播放按钮');
     } else {
       setShowPermissionPrompt(false);
     }
