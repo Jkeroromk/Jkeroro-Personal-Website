@@ -42,7 +42,6 @@ const MusicPlayer = memo(() => {
       return true;
     } catch (error) {
       if (error.name !== 'AbortError') {
-        console.error('🎵 播放失败:', error);
         setIsPlaying(false);
       }
       return false;
@@ -58,7 +57,6 @@ const MusicPlayer = memo(() => {
     const loadTracksFromFirebase = async () => {
       try {
         if (!firestore) {
-          console.warn('🎵 Firebase 未初始化，使用本地数据');
           const localTracks = dataManager.getTracks();
           setTracks(localTracks);
           return;
@@ -79,13 +77,11 @@ const MusicPlayer = memo(() => {
           setCurrentTrackIndex(0);
         }
       } catch (error) {
-        console.error('🎵 从 Firebase 加载音乐数据失败:', error);
         // 降级到本地数据
         try {
           const localTracks = dataManager.getTracks();
           setTracks(localTracks);
         } catch (localError) {
-          console.error('🎵 本地音乐数据也加载失败:', localError);
           setTracks([]);
         }
         setCurrentTrackIndex(0);
@@ -124,7 +120,7 @@ const MusicPlayer = memo(() => {
           setCurrentTrackIndex(0);
         }
       } catch (error) {
-        console.error('🎵 重新加载音乐数据时出错:', error);
+        // 静默处理重新加载错误
       }
     };
 
@@ -171,15 +167,8 @@ const MusicPlayer = memo(() => {
         // 如果是从loading页面跳转过来的，自动播放
         if (fromLoading) {
           setTimeout(async () => {
-            const success = await safePlay();
-            if (success) {
-              console.log('🎵 从loading跳转，自动播放音乐');
-            } else {
-              console.log('🎵 自动播放失败，等待用户交互');
-            }
+            await safePlay();
           }, 500); // 延迟500ms确保页面完全加载
-        } else {
-          console.log('🎵 音频已准备就绪，等待用户交互后播放');
         }
       }
     }
@@ -195,8 +184,6 @@ const MusicPlayer = memo(() => {
         const audio = audioRef.current;
         if (audio) {
           audio.muted = false;
-          // 不自动播放，等待用户交互
-          console.log('🎵 音频权限已更新，等待用户交互后播放');
         }
       }
     };
@@ -211,8 +198,6 @@ const MusicPlayer = memo(() => {
       const audio = audioRef.current;
       audio.muted = false;
       setShowPermissionPrompt(false);
-      // 不自动播放，等待用户点击播放按钮
-      console.log('🎵 音频权限已允许，等待用户点击播放按钮');
     } else {
       setShowPermissionPrompt(false);
     }
@@ -231,7 +216,6 @@ const MusicPlayer = memo(() => {
           setIsPlaying(true);
         }).catch((error) => {
           if (error.name !== 'AbortError') {
-            console.error('🎵 播放失败:', error);
             setIsPlaying(false);
           }
         });
@@ -391,7 +375,7 @@ const MusicPlayer = memo(() => {
         navigator.mediaSession.setActionHandler('nexttrack', () => skipTrack(1));
       }
     } catch (error) {
-      console.error('🎵 更新音频源时出错:', error);
+      // 静默处理音频源更新错误
     }
   }, [currentTrackIndex]); // 移除 isPlaying 依赖
 
@@ -454,7 +438,7 @@ const MusicPlayer = memo(() => {
             onEnded={() => skipTrack(1)}
             onLoadStart={() => {}}
             onCanPlay={() => {}}
-            onError={(e) => console.error('🎵 音频加载错误:', e)}
+            onError={() => {}}
           />
         )}
 

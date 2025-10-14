@@ -153,6 +153,15 @@ body, html {
   cursor: none !important; /* Override pointer cursor */
 }
 
+/* 恢复鼠标指针的类 */
+.show-cursor {
+  cursor: auto !important;
+}
+
+.show-cursor * {
+  cursor: auto !important;
+}
+
 
 /* 现代化滚动条样式 */
 .modern-scrollbar {

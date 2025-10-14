@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"; // Added useRef
 import { useAuth } from "../../auth";
-import { database, ref, set, onValue, incrementViewCount, trackVisitorLocation, addComment } from "../../firebase";
+import { database, ref, set, onValue, incrementViewCount, trackVisitorLocation, addComment, addCommentReaction } from "../../firebase";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Eye, MessageSquare } from "lucide-react";
@@ -37,6 +37,8 @@ export default function LinkforBio() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [commentError, setCommentError] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreComments, setHasMoreComments] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -124,7 +126,8 @@ export default function LinkforBio() {
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.val();
-          const sortedComments = Object.values(data)
+          const sortedComments = Object.entries(data)
+            .map(([id, comment]) => ({ ...comment, id }))
             .sort((a, b) => b.timestamp - a.timestamp)
             .slice(0, 5);
           setComments(sortedComments);
@@ -142,6 +145,36 @@ export default function LinkforBio() {
 
     return () => unsubscribe();
   }, []);
+
+  // Handle comment reaction (like/fire/heart)
+  const handleCommentReaction = async (commentId, reactionType) => {
+    try {
+      await addCommentReaction(commentId, reactionType);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add reaction",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Load more comments
+  const loadMoreComments = async () => {
+    if (loadingMore || !hasMoreComments) return;
+    
+    setLoadingMore(true);
+    try {
+      // For now, we'll just simulate loading more comments
+      // In a real implementation, you'd fetch more comments from Firebase
+      setTimeout(() => {
+        setLoadingMore(false);
+        setHasMoreComments(false); // No more comments for demo
+      }, 1000);
+    } catch (error) {
+      setLoadingMore(false);
+    }
+  };
 
   // Comment submission
   const handleCommentSubmit = async () => {
@@ -248,50 +281,131 @@ export default function LinkforBio() {
                 <MessageSquare /> Comment
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-black text-white border border-gray-400 shadow-lg scale-[0.85] sm:scale-[1.0]">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-lg font-semibold">Most Recent Comments</AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-300">
+            <AlertDialogContent className="bg-black text-white border border-gray-400 shadow-2xl scale-[0.85] sm:scale-[1.0]">
+              <AlertDialogHeader className="space-y-3">
+                <AlertDialogTitle className="text-xl font-bold text-white">
+                  Most Recent Comments
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-300 text-sm leading-relaxed">
                   View and submit comments. Your feedback helps improve the experience.
                 </AlertDialogDescription>
                 {commentsError ? (
-                  <p className="text-red-500 text-sm">{commentsError}</p>
+                  <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-600/50 rounded-lg p-3">
+                    <p className="text-red-400 text-sm">
+                      {commentsError}
+                    </p>
+                  </div>
                 ) : (
-                  <div className="max-h-50 overflow-y-auto modern-scrollbar mb-4">
+                  <div 
+                    className="max-h-60 overflow-y-auto modern-scrollbar mb-4 space-y-3"
+                    onScroll={(e) => {
+                      const { scrollTop, scrollHeight, clientHeight } = e.target;
+                      if (scrollHeight - scrollTop === clientHeight && hasMoreComments && !loadingMore) {
+                        loadMoreComments();
+                      }
+                    }}
+                  >
                     {comments.length > 0 ? (
                       comments.map((c, index) => (
-                        <div key={index} className="text-white text-sm border-b border-gray-600 pb-2 mb-2">
-                          <p>{c.text}</p>
-                          <p className="text-gray-400 text-xs">
-                            <ClientTimeDisplay timestamp={c.timestamp} fallback="Just now" />
-                          </p>
+                        <div key={index} className="group relative">
+                          <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-600/50 rounded-lg p-3 hover:bg-gray-700/50 transition-all duration-200">
+                            <p className="text-white text-sm leading-relaxed">{c.text}</p>
+                            <div className="flex items-center justify-between mt-3">
+                              <p className="text-gray-400 text-xs">
+                                <ClientTimeDisplay timestamp={c.timestamp} fallback="Just now" />
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleCommentReaction(c.id, 'likes')}
+                                  className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors text-xs"
+                                >
+                                  <span>👍</span>
+                                  <span>{typeof c.likes === 'object' ? 0 : (c.likes || 0)}</span>
+                                </button>
+                                <button
+                                  onClick={() => handleCommentReaction(c.id, 'fires')}
+                                  className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors text-xs"
+                                >
+                                  <span>🔥</span>
+                                  <span>{typeof c.fires === 'object' ? 0 : (c.fires || 0)}</span>
+                                </button>
+                                <button
+                                  onClick={() => handleCommentReaction(c.id, 'hearts')}
+                                  className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors text-xs"
+                                >
+                                  <span>❤️</span>
+                                  <span>{typeof c.hearts === 'object' ? 0 : (c.hearts || 0)}</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ))
                     ) : (
-                      <p className="text-gray-400 text-sm">No comments yet.</p>
+                      <div className="text-center py-6">
+                        <div className="w-12 h-12 mx-auto mb-3 bg-gray-800/50 rounded-full flex items-center justify-center">
+                          <div className="w-6 h-6 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                        <p className="text-gray-400 text-sm">No comments yet.</p>
+                      </div>
+                    )}
+                    
+                    {/* Load more indicator */}
+                    {loadingMore && (
+                      <div className="text-center py-4">
+                        <div className="w-8 h-8 mx-auto mb-2 bg-gray-800/50 rounded-full flex items-center justify-center">
+                          <div className="w-4 h-4 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
+                        </div>
+                        <p className="text-gray-400 text-xs">Loading more comments...</p>
+                      </div>
+                    )}
+                    
+                    {!hasMoreComments && comments.length > 0 && (
+                      <div className="text-center py-2">
+                        <p className="text-gray-500 text-xs">No more comments</p>
+                      </div>
                     )}
                   </div>
                 )}
               </AlertDialogHeader>
-              <div className="flex items-center justify-center sm:justify-start">
-                <h1 className="text-lg font-semibold">I want to hear from you</h1>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-center sm:justify-start">
+                  <h1 className="text-lg font-semibold text-white">
+                    I want to hear from you
+                  </h1>
+                </div>
+                <div className="relative">
+                  <textarea
+                    className={`w-full p-3 bg-gray-900 text-white border ${
+                      commentError ? "border-red-500" : "border-gray-600"
+                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-all duration-200 resize-none placeholder-gray-400`}
+                    placeholder="Type your comment..."
+                    rows={4}
+                    value={comment}
+                    onChange={(e) => {
+                      setComment(e.target.value);
+                      setCommentError(false);
+                    }}
+                  />
+                </div>
+                {commentError && (
+                  <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-600/50 rounded-lg p-2">
+                    <p className="text-red-400 text-sm">
+                      Comment cannot be empty!
+                    </p>
+                  </div>
+                )}
               </div>
-              <textarea
-                className={`w-full p-2 bg-black text-white border ${
-                  commentError ? "border-red-500" : "border-gray-600"
-                } rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500`}
-                placeholder="Type your comment..."
-                rows={4}
-                value={comment}
-                onChange={(e) => {
-                  setComment(e.target.value);
-                  setCommentError(false);
-                }}
-              />
-              {commentError && <p className="text-red-500 text-sm mt-1">Comment cannot be empty!</p>}
-              <AlertDialogFooter>
-                <AlertDialogCancel className="bg-black text-white hover:bg-red-400">Cancel</AlertDialogCancel>
-                <Button className="bg-black text-white hover:bg-blue-500" onClick={handleCommentSubmit}>
+              
+              <AlertDialogFooter className="flex gap-3 pt-4">
+                <AlertDialogCancel className="bg-gray-800/50 backdrop-blur-sm text-white hover:bg-gray-700/50 border-gray-600/50 transition-all duration-200">
+                  Cancel
+                </AlertDialogCancel>
+                <Button 
+                  className="bg-white/90 backdrop-blur-sm text-black hover:bg-white transition-all duration-200" 
+                  onClick={handleCommentSubmit}
+                >
                   Submit
                 </Button>
               </AlertDialogFooter>

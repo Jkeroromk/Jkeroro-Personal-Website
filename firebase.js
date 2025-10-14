@@ -128,6 +128,7 @@ const trackVisitorLocation = async () => {
     await update(countryRef, {
       count: increment(1),
       lastUpdated: serverTimestamp(),
+      lastVisit: new Date().toISOString(),
     });
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
@@ -152,8 +153,46 @@ const addComment = async (comment) => {
     await set(newCommentRef, {
       text: comment,
       timestamp: serverTimestamp(),
+      likes: 0,
+      fires: 0,
+      hearts: 0,
     });
   } catch (error) {
+    throw error;
+  }
+};
+
+// ✅ Function to Add Comment Reaction (Like/Fire/Heart)
+const addCommentReaction = async (commentId, reactionType) => {
+  if (!database) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Firebase database not initialized for comment reaction');
+    }
+    return;
+  }
+  try {
+    // Get all comments to find the correct comment by index
+    const commentsRef = ref(database, 'comments');
+    const snapshot = await get(commentsRef);
+    
+    if (snapshot.exists()) {
+      const comments = snapshot.val();
+      const commentKeys = Object.keys(comments);
+      
+      // If commentId is a number (index), use it to get the actual comment key
+      const actualCommentId = typeof commentId === 'number' ? commentKeys[commentId] : commentId;
+      
+      if (actualCommentId && comments[actualCommentId]) {
+        const reactionRef = ref(database, `comments/${actualCommentId}/${reactionType}`);
+        await update(reactionRef, {
+          [reactionType]: increment(1),
+        });
+      }
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error adding comment reaction:', error.message);
+    }
     throw error;
   }
 };
@@ -246,6 +285,7 @@ export {
   onValue,
   serverTimestamp,
   addComment,
+  addCommentReaction,
   incrementViewCount,
   trackVisitorLocation,
   onAuthStateChanged,

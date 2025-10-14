@@ -50,10 +50,66 @@ const MouseTrail = () => {
       // 立即设置光标位置
       cursor.style.top = initialPos.x;
       cursor.style.left = initialPos.y;
+      
+      // 初始化时确保body没有show-cursor类
+      document.body.classList.remove('show-cursor');
+
+      // 检查鼠标是否在任何对话框或地图区域
+      const isOverDialogOrMap = (x, y) => {
+        // 检查任何Radix UI对话框是否打开
+        const dialogs = document.querySelectorAll('[data-radix-dialog-content]');
+        for (const dialog of dialogs) {
+          const rect = dialog.getBoundingClientRect();
+          if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            return true;
+          }
+        }
+        
+        // 检查是否在地图容器上（即使对话框没打开）
+        const mapContainer = document.querySelector('[data-map-container]');
+        if (mapContainer) {
+          const rect = mapContainer.getBoundingClientRect();
+          if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+            return true;
+          }
+        }
+        
+        return false;
+      };
 
       // Update mouse position coordinates
       const handleMouseMove = (e) => {
         if (!isActiveRef.current) return;
+        
+        // 检查是否在对话框或地图区域，如果是则禁用鼠标轨迹
+        if (isOverDialogOrMap(e.clientX, e.clientY)) {
+          // 隐藏鼠标轨迹并显示鼠标指针
+          const currentCircles = document.querySelectorAll(".circle");
+          const currentCursor = document.querySelector(".cursor");
+          if (currentCircles.length && currentCursor) {
+            currentCircles.forEach(circle => {
+              circle.style.opacity = '0';
+            });
+            currentCursor.style.opacity = '0';
+          }
+          
+          // 添加show-cursor类到body
+          document.body.classList.add('show-cursor');
+        } else {
+          // 显示鼠标轨迹并隐藏鼠标指针
+          const currentCircles = document.querySelectorAll(".circle");
+          const currentCursor = document.querySelector(".cursor");
+          if (currentCircles.length && currentCursor) {
+            currentCircles.forEach(circle => {
+              circle.style.opacity = '1';
+            });
+            currentCursor.style.opacity = '1';
+          }
+          
+          // 移除show-cursor类
+          document.body.classList.remove('show-cursor');
+        }
+        
         coordsRef.current.x = e.clientX;
         coordsRef.current.y = e.clientY;
         // 记录全局鼠标位置，供路由切换时使用
@@ -71,6 +127,12 @@ const MouseTrail = () => {
         const currentCursor = document.querySelector(".cursor");
         
         if (!currentCircles.length || !currentCursor) {
+          animationRef.current = requestAnimationFrame(animateCircles);
+          return;
+        }
+
+        // 检查是否在对话框或地图区域，如果是则跳过动画
+        if (isOverDialogOrMap(coordsRef.current.x, coordsRef.current.y)) {
           animationRef.current = requestAnimationFrame(animateCircles);
           return;
         }
@@ -105,6 +167,8 @@ const MouseTrail = () => {
         if (animationRef.current) {
           cancelAnimationFrame(animationRef.current);
         }
+        // 清理时移除show-cursor类
+        document.body.classList.remove('show-cursor');
       };
     };
 
@@ -117,6 +181,8 @@ const MouseTrail = () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      // 清理时移除show-cursor类
+      document.body.classList.remove('show-cursor');
     };
   }, []);
 

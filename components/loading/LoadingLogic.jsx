@@ -66,7 +66,7 @@ const LoadingLogic = () => {
       sessionStorage.setItem('loadingTimestamp', Date.now().toString())
       sessionStorage.setItem('loadingCompleted', 'true')
     } catch (error) {
-      console.warn('⚠️ 设置存储时出错:', error)
+      // 静默处理存储错误
     }
     
     // 先隐藏模态框
@@ -99,6 +99,8 @@ const LoadingLogic = () => {
       { en: 'Establishing connections...', zh: '建立连接...' },
       { en: 'Processing creativity...', zh: '处理创意...' },
       { en: 'Generating possibilities...', zh: '生成可能性...' },
+      { en: 'Loading music library...', zh: '加载音乐库...' },
+      { en: 'Preparing audio engine...', zh: '准备音频引擎...' },
       { en: 'Almost ready to launch...', zh: '即将准备就绪...' }
     ]
 
@@ -112,12 +114,13 @@ const LoadingLogic = () => {
     let isCompleted = false
     let resourceProgress = 0
     let scriptProgress = 0
+    let musicProgress = 0
     
     // 平滑进度更新函数
     const updateProgress = () => {
       if (isCompleted) return
       
-      const totalProgress = Math.min(95, resourceProgress + scriptProgress)
+      const totalProgress = Math.min(95, resourceProgress + scriptProgress + musicProgress)
       setProgress(prev => {
         // 确保进度只增不减，并且平滑增长
         if (totalProgress > prev) {
@@ -126,7 +129,7 @@ const LoadingLogic = () => {
         return prev
       })
       
-      // 检查是否完成
+      // 检查是否完成 - 需要所有资源都加载完成
       if (totalProgress >= 95 && !isCompleted) {
         isCompleted = true
         setTimeout(() => {
@@ -152,13 +155,74 @@ const LoadingLogic = () => {
       
       let loadedCount = 0
       const totalResources = homeResources.length
+      let musicDataLoaded = false
+      let firebaseConnected = false
       
-      // 超时保护：如果15秒内没有完成，强制继续
+      // 超时保护：如果20秒内没有完成，强制继续
       const timeoutId = setTimeout(() => {
         resourceProgress = 70
         scriptProgress = 25
+        musicProgress = 25 // 强制设置音乐进度
         updateProgress()
-      }, 15000)
+      }, 20000)
+      
+      // 检查Firebase连接和音乐数据
+      const checkMusicResources = async () => {
+        try {
+          // 检查Firebase连接
+          const { firestore } = await import('../../firebase')
+          if (firestore) {
+            firebaseConnected = true
+            
+            // 尝试加载音乐数据
+            try {
+              const { collection, getDocs, query, orderBy } = await import('firebase/firestore')
+              const tracksRef = collection(firestore, 'tracks')
+              const q = query(tracksRef, orderBy('order', 'asc'))
+              const querySnapshot = await getDocs(q)
+              
+              if (querySnapshot.docs.length > 0) {
+                musicDataLoaded = true
+              } else {
+                // 如果没有Firebase数据，检查本地数据
+                const DataManager = (await import('@/lib/data-manager')).default
+                const dataManager = DataManager.getInstance()
+                const localTracks = dataManager.getTracks()
+                if (localTracks && localTracks.length > 0) {
+                  musicDataLoaded = true
+                }
+              }
+            } catch (musicError) {
+              // 降级到本地数据
+              const DataManager = (await import('@/lib/data-manager')).default
+              const dataManager = DataManager.getInstance()
+              const localTracks = dataManager.getTracks()
+              if (localTracks && localTracks.length > 0) {
+                musicDataLoaded = true
+              }
+            }
+          }
+        } catch (error) {
+          // 降级到本地数据
+          try {
+            const DataManager = (await import('@/lib/data-manager')).default
+            const dataManager = DataManager.getInstance()
+            const localTracks = dataManager.getTracks()
+            if (localTracks && localTracks.length > 0) {
+              musicDataLoaded = true
+              firebaseConnected = true // 标记为已连接（使用本地数据）
+            }
+          } catch (localError) {
+            // 静默处理本地数据加载失败
+          }
+        }
+        
+        // 更新进度
+        if (firebaseConnected && musicDataLoaded) {
+          musicProgress = 25
+          updateProgress()
+        }
+      }
       
       // 检查脚本是否加载完成
       const checkScriptsLoaded = () => {
@@ -214,6 +278,11 @@ const LoadingLogic = () => {
       setTimeout(() => {
         checkScriptsLoaded()
       }, 1000)
+      
+      // 开始检查音乐资源
+      setTimeout(() => {
+        checkMusicResources()
+      }, 1500)
     }
     
     // 延迟开始预加载，给页面一些初始化时间
