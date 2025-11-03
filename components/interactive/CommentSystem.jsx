@@ -292,18 +292,18 @@ const CommentSystem = () => {
               {comments.length > 0 ? (
                 comments.map((c, index) => (
                   <div key={index} className="group relative">
-                    <div className="bg-white/90 backdrop-blur-sm border border-gray-300/50 rounded-lg p-3 hover:bg-white/95 transition-all duration-200">
-                      <p className="text-black text-sm leading-relaxed font-semibold">{c.text}</p>
-                      <div className="flex items-center justify-between mt-3">
-                        <p className="text-gray-600 text-xs">
+                    <div className="bg-white/90 backdrop-blur-sm border border-gray-300/50 rounded-lg p-3 hover:bg-white/95 transition-all duration-200 w-full max-w-full overflow-hidden">
+                      <p className="text-black text-sm leading-relaxed font-semibold break-words overflow-wrap-anywhere">{c.text}</p>
+                      <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
+                        <p className="text-gray-600 text-xs flex-shrink-0">
                           <ClientTimeDisplay timestamp={c.timestamp} fallback="Just now" />
                         </p>
                         
                         {/* 表情反应区域 */}
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-shrink-0 relative">
                           {/* 如果有表情反应，显示有数量的表情 */}
                           {getReactionsWithCount(c).length > 0 && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-0.5 flex-wrap">
                               {getReactionsWithCount(c).map((reaction) => {
                                 // Check if user reacted with this type (support both array and single reaction formats)
                                 const userReactionsForComment = userReactions[c.id];
@@ -320,11 +320,11 @@ const CommentSystem = () => {
                                   <button
                                     key={reaction.type}
                                     onClick={() => handleCommentReaction(c.id, reaction.type)}
-                                    className={`flex items-center gap-1 ${isUserReacted ? 'text-yellow-400 bg-yellow-400/20' : 'text-gray-400'} ${reaction.color} transition-colors text-xs px-3 py-2 rounded-full hover:bg-gray-700/50 active:bg-gray-700/70 touch-manipulation`}
+                                    className={`flex items-center gap-0.5 ${isUserReacted ? 'text-yellow-400 bg-yellow-400/20' : 'text-gray-400'} ${reaction.color} transition-colors text-xs px-1.5 py-1 rounded-full hover:bg-gray-700/50 active:bg-gray-700/70 touch-manipulation flex-shrink-0`}
                                     title={reaction.type}
                                   >
-                                    <span>{reaction.emoji}</span>
-                                    <span className="text-black font-bold">{displayCount}</span>
+                                    <span className="text-sm">{reaction.emoji}</span>
+                                    <span className="text-black font-bold text-xs">{displayCount}</span>
                                   </button>
                                 );
                               })}
@@ -334,21 +334,21 @@ const CommentSystem = () => {
                           {/* 表情开关按钮 - 始终显示 */}
                           <button
                             onClick={() => toggleReactions(c.id)}
-                            className="text-gray-400 hover:text-yellow-400 active:text-yellow-400 transition-colors text-sm px-3 py-2 rounded-full hover:bg-gray-700/50 active:bg-gray-700/70 border-2 border-gray-500/70 hover:border-yellow-400/70 active:border-yellow-400/70 touch-manipulation"
+                            className="text-gray-400 hover:text-yellow-400 active:text-yellow-400 transition-colors text-xs px-1.5 py-1 rounded-full hover:bg-gray-700/50 active:bg-gray-700/70 border border-gray-500/70 hover:border-yellow-400/70 active:border-yellow-400/70 touch-manipulation flex-shrink-0"
                             title={showReactions[c.id] ? "Close Reactions" : "Add Reaction"}
                           >
-                            {showReactions[c.id] ? <X size={18} /> : <Smile size={18} />}
+                            {showReactions[c.id] ? <X size={14} /> : <Smile size={14} />}
                           </button>
                           
-                          {/* 表情选择器 */}
+                          {/* 表情选择器 - 迷你化设计，绝对定位 */}
                           {showReactions[c.id] && (
-                            <div className="flex items-center gap-1 bg-gray-800/80 backdrop-blur-sm border border-gray-600/50 rounded-full px-2 py-1 touch-manipulation">
+                            <div className="absolute right-0 bottom-full mb-1.5 z-50 flex items-center gap-0.5 bg-gray-900/95 backdrop-blur-sm border border-gray-600/70 rounded-lg px-1.5 py-1 shadow-xl touch-manipulation">
                               <button
                                 onClick={() => {
                                   handleCommentReaction(c.id, 'likes');
                                   setShowReactions(prev => ({ ...prev, [c.id]: false }));
                                 }}
-                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('likes') : userReactions[c.id] === 'likes') ? 'text-blue-400 bg-blue-400/20' : 'text-gray-400 hover:text-blue-400 active:text-blue-400'} transition-all duration-200 text-lg px-2 py-1 hover:scale-150 active:scale-125 touch-manipulation`}
+                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('likes') : userReactions[c.id] === 'likes') ? 'bg-blue-400/20' : 'hover:bg-gray-700/50'} transition-all duration-200 text-base px-1.5 py-1 rounded hover:scale-110 active:scale-95 touch-manipulation`}
                                 title="点赞"
                               >
                                 👍
@@ -358,7 +358,7 @@ const CommentSystem = () => {
                                   handleCommentReaction(c.id, 'fires');
                                   setShowReactions(prev => ({ ...prev, [c.id]: false }));
                                 }}
-                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('fires') : userReactions[c.id] === 'fires') ? 'text-orange-400 bg-orange-400/20' : 'text-gray-400 hover:text-orange-400 active:text-orange-400'} transition-all duration-200 text-lg px-2 py-1 hover:scale-150 active:scale-125 touch-manipulation`}
+                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('fires') : userReactions[c.id] === 'fires') ? 'bg-orange-400/20' : 'hover:bg-gray-700/50'} transition-all duration-200 text-base px-1.5 py-1 rounded hover:scale-110 active:scale-95 touch-manipulation`}
                                 title="Fire"
                               >
                                 🔥
@@ -368,7 +368,7 @@ const CommentSystem = () => {
                                   handleCommentReaction(c.id, 'hearts');
                                   setShowReactions(prev => ({ ...prev, [c.id]: false }));
                                 }}
-                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('hearts') : userReactions[c.id] === 'hearts') ? 'text-red-400 bg-red-400/20' : 'text-gray-400 hover:text-red-400 active:text-red-400'} transition-all duration-200 text-lg px-2 py-1 hover:scale-150 active:scale-125 touch-manipulation`}
+                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('hearts') : userReactions[c.id] === 'hearts') ? 'bg-red-400/20' : 'hover:bg-gray-700/50'} transition-all duration-200 text-base px-1.5 py-1 rounded hover:scale-110 active:scale-95 touch-manipulation`}
                                 title="爱心"
                               >
                                 ❤️
@@ -378,7 +378,7 @@ const CommentSystem = () => {
                                   handleCommentReaction(c.id, 'laughs');
                                   setShowReactions(prev => ({ ...prev, [c.id]: false }));
                                 }}
-                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('laughs') : userReactions[c.id] === 'laughs') ? 'text-yellow-400 bg-yellow-400/20' : 'text-gray-400 hover:text-yellow-400 active:text-yellow-400'} transition-all duration-200 text-lg px-2 py-1 hover:scale-150 active:scale-125 touch-manipulation`}
+                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('laughs') : userReactions[c.id] === 'laughs') ? 'bg-yellow-400/20' : 'hover:bg-gray-700/50'} transition-all duration-200 text-base px-1.5 py-1 rounded hover:scale-110 active:scale-95 touch-manipulation`}
                                 title="大笑"
                               >
                                 😂
@@ -388,7 +388,7 @@ const CommentSystem = () => {
                                   handleCommentReaction(c.id, 'wows');
                                   setShowReactions(prev => ({ ...prev, [c.id]: false }));
                                 }}
-                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('wows') : userReactions[c.id] === 'wows') ? 'text-purple-400 bg-purple-400/20' : 'text-gray-400 hover:text-purple-400 active:text-purple-400'} transition-all duration-200 text-lg px-2 py-1 hover:scale-150 active:scale-125 touch-manipulation`}
+                                className={`${(Array.isArray(userReactions[c.id]) ? userReactions[c.id].includes('wows') : userReactions[c.id] === 'wows') ? 'bg-purple-400/20' : 'hover:bg-gray-700/50'} transition-all duration-200 text-base px-1.5 py-1 rounded hover:scale-110 active:scale-95 touch-manipulation`}
                                 title="惊讶"
                               >
                                 😮
