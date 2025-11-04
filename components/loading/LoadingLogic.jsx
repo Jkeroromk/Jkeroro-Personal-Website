@@ -156,7 +156,6 @@ const LoadingLogic = () => {
       let loadedCount = 0
       const totalResources = homeResources.length
       let musicDataLoaded = false
-      let firebaseConnected = false
       
       // 超时保护：如果20秒内没有完成，强制继续
       const timeoutId = setTimeout(() => {
@@ -166,59 +165,40 @@ const LoadingLogic = () => {
         updateProgress()
       }, 20000)
       
-      // 检查Firebase连接和音乐数据
+      // 检查音乐数据（从 API 或本地数据）
       const checkMusicResources = async () => {
         try {
-          // 检查Firebase连接
-          const { firestore } = await import('../../firebase')
-          if (firestore) {
-            firebaseConnected = true
-            
-            // 尝试加载音乐数据
-            try {
-              const { collection, getDocs, query, orderBy } = await import('firebase/firestore')
-              const tracksRef = collection(firestore, 'tracks')
-              const q = query(tracksRef, orderBy('order', 'asc'))
-              const querySnapshot = await getDocs(q)
-              
-              if (querySnapshot.docs.length > 0) {
+          // 尝试从 API 加载音乐数据
+          try {
+            const response = await fetch('/api/media/tracks')
+            if (response.ok) {
+              const tracks = await response.json()
+              if (tracks && tracks.length > 0) {
                 musicDataLoaded = true
-              } else {
-                // 如果没有Firebase数据，检查本地数据
-                const DataManager = (await import('@/lib/data-manager')).default
-                const dataManager = DataManager.getInstance()
-                const localTracks = dataManager.getTracks()
-                if (localTracks && localTracks.length > 0) {
-                  musicDataLoaded = true
-                }
-              }
-            } catch (musicError) {
-              // 降级到本地数据
-              const DataManager = (await import('@/lib/data-manager')).default
-              const dataManager = DataManager.getInstance()
-              const localTracks = dataManager.getTracks()
-              if (localTracks && localTracks.length > 0) {
-                musicDataLoaded = true
+                musicProgress = 25
+                updateProgress()
+                return
               }
             }
+          } catch (apiError) {
+            // API 失败，降级到本地数据
+          }
+          
+          // 降级到本地数据
+          const DataManager = (await import('@/lib/data-manager')).default
+          const dataManager = DataManager.getInstance()
+          const localTracks = dataManager.getTracks()
+          if (localTracks && localTracks.length > 0) {
+            musicDataLoaded = true
+          }
+          
+          // 更新进度
+          if (musicDataLoaded) {
+            musicProgress = 25
+            updateProgress()
           }
         } catch (error) {
-          // 降级到本地数据
-          try {
-            const DataManager = (await import('@/lib/data-manager')).default
-            const dataManager = DataManager.getInstance()
-            const localTracks = dataManager.getTracks()
-            if (localTracks && localTracks.length > 0) {
-              musicDataLoaded = true
-              firebaseConnected = true // 标记为已连接（使用本地数据）
-            }
-          } catch (localError) {
-            // 静默处理本地数据加载失败
-          }
-        }
-        
-        // 更新进度
-        if (firebaseConnected && musicDataLoaded) {
+          // 静默处理错误，使用默认进度
           musicProgress = 25
           updateProgress()
         }

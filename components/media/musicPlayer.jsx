@@ -3,8 +3,7 @@
 import React, { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Minus, Plus, Repeat, Shuffle } from 'lucide-react';
 import DataManager from '@/lib/data-manager';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { firestore } from '../../firebase';
+// No longer using Firebase - using API instead
 
 const MusicPlayer = memo(() => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -50,26 +49,16 @@ const MusicPlayer = memo(() => {
     }
   };
 
-  // 从 Firebase 加载音乐数据
+  // 从 API 加载音乐数据
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
-    const loadTracksFromFirebase = async () => {
+    const loadTracks = async () => {
       try {
-        if (!firestore) {
-          const localTracks = dataManager.getTracks();
-          setTracks(localTracks);
-          return;
-        }
-
-        const tracksRef = collection(firestore, 'tracks');
-        const q = query(tracksRef, orderBy('order', 'asc'));
-        const querySnapshot = await getDocs(q);
+        const response = await fetch('/api/media/tracks');
+        if (!response.ok) throw new Error('Failed to fetch tracks');
         
-        const tracksData = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const tracksData = await response.json();
         setTracks(tracksData);
         
         // 确保当前轨道索引在有效范围内
@@ -77,6 +66,7 @@ const MusicPlayer = memo(() => {
           setCurrentTrackIndex(0);
         }
       } catch (error) {
+        console.error('Error loading tracks:', error);
         // 降级到本地数据
         try {
           const localTracks = dataManager.getTracks();
@@ -88,39 +78,37 @@ const MusicPlayer = memo(() => {
       }
     };
 
-    loadTracksFromFirebase();
+    loadTracks();
+    
+    // Poll for updates every 5 seconds
+    const interval = setInterval(loadTracks, 5000);
+    return () => clearInterval(interval);
   }, [dataManager, currentTrackIndex]);
 
-  // 监听音乐数据变化（Firebase 和 localStorage）
+  // 监听音乐数据变化事件
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const reloadTracks = async () => {
       try {
-        if (firestore) {
-          // 优先从 Firebase 重新加载
-          const tracksRef = collection(firestore, 'tracks');
-          const q = query(tracksRef, orderBy('order', 'asc'));
-          const querySnapshot = await getDocs(q);
-          
-          const tracksData = querySnapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          
+        // 从 API 重新加载
+        const response = await fetch('/api/media/tracks');
+        if (response.ok) {
+          const tracksData = await response.json();
           setTracks(tracksData);
+          
+          // 如果当前播放的歌曲索引超出范围，重置到0
+          if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
+            setCurrentTrackIndex(0);
+          }
         } else {
           // 降级到本地数据
           const tracksData = dataManager.getTracks();
           setTracks(tracksData);
         }
-        
-        // 如果当前播放的歌曲索引超出范围，重置到0
-        if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
-          setCurrentTrackIndex(0);
-        }
       } catch (error) {
         // 静默处理重新加载错误
+        console.error('Error reloading tracks:', error);
       }
     };
 

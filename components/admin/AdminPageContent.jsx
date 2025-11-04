@@ -15,7 +15,7 @@ import ImagesTab from '@/components/admin/ImagesTab'
 import MusicTab from '@/components/admin/MusicTab'
 import ProjectsTab from '@/components/admin/ProjectsTab'
 import CommentsTab from '@/components/admin/CommentsTab'
-import FirebaseDebugTab from '@/components/admin/FirebaseDebugTab'
+import SupabaseDebugTab from '@/components/admin/SupabaseDebugTab'
 import EditModal from '@/components/admin/modals/EditModal'
 
 const AdminPageContent = () => {
@@ -29,7 +29,7 @@ const AdminPageContent = () => {
     images,
     tracks,
     projects,
-    firebaseProjects,
+    apiProjects,
     editingItem,
     setEditingItem,
     uploadedFile,
@@ -101,10 +101,10 @@ const AdminPageContent = () => {
                   Comments
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="firebase" 
+                  value="supabase" 
                   className="data-[state=active]:bg-white data-[state=active]:text-black text-gray-300 hover:text-white"
                 >
-                  Firebase
+                  Supabase
                 </TabsTrigger>
               </TabsList>
 
@@ -130,7 +130,7 @@ const AdminPageContent = () => {
 
               <TabsContent value="projects" className="mt-6">
                 <ProjectsTab 
-                  projects={firebaseProjects}
+                  projects={apiProjects}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onAddNew={handleAddNew}
@@ -141,8 +141,8 @@ const AdminPageContent = () => {
                 <CommentsTab />
               </TabsContent>
 
-              <TabsContent value="firebase" className="mt-6">
-                <FirebaseDebugTab />
+              <TabsContent value="supabase" className="mt-6">
+                <SupabaseDebugTab />
               </TabsContent>
             </Tabs>
 

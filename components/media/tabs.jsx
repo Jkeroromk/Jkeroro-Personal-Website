@@ -10,8 +10,7 @@ import {
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { collection, getDocs, onSnapshot } from "firebase/firestore";
-import { firestore } from "../../firebase";
+// No longer using Firebase - using API instead
 import { useAuth } from "../../auth";
 import { motion } from "framer-motion";
 
@@ -63,47 +62,28 @@ const Tabs = () => {
 
   const fetchCarouselItems = async () => {
     try {
-      const querySnapshot = await getDocs(collection(firestore, "carouselItems"));
-      const items = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const response = await fetch('/api/media/projects');
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      
+      const items = await response.json();
       setCarouselItems(items);
       setFetchError(null);
     } catch (error) {
-      console.error("Detailed error fetching carousel items:", error.code, error.message);
-      if (error.code === "permission-denied") {
-        setFetchError("You don't have permission to view projects.");
-      } else {
-        setFetchError("Failed to load projects: " + error.message);
-      }
+      console.error("Error fetching carousel items:", error);
+      setFetchError("Failed to load projects: " + (error.message || 'Unknown error'));
     }
   };
 
-  // 实时监听数据变化
+  // 使用 API 轮询获取数据变化
   useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(firestore, "carouselItems"),
-      (querySnapshot) => {
-        const items = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setCarouselItems(items);
-        setFetchError(null);
-      },
-      (error) => {
-        console.error("Real-time listener error:", error.code, error.message);
-        if (error.code === "permission-denied") {
-          setFetchError("You don't have permission to view projects.");
-        } else {
-          setFetchError("Failed to load projects: " + error.message);
-        }
-      }
-    );
-
-    // 清理监听器
-    return () => unsubscribe();
+    fetchCarouselItems();
+    
+    // 每 5 秒轮询一次更新
+    const interval = setInterval(fetchCarouselItems, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

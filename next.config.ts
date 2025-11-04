@@ -115,7 +115,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' data: blob: https:",
-              "connect-src 'self' https://api.firebase.com https://*.firebase.com https://*.googleapis.com https://ipapi.co wss:",
+              "connect-src 'self' https://api.firebase.com https://*.firebase.com https://*.googleapis.com https://*.supabase.co https://*.supabase.in https://ipapi.co wss:",
               "frame-src 'self'",
               "object-src 'none'",
               "base-uri 'self'",

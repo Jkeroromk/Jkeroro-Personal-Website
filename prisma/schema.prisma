@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户模型（Supabase Auth 会自动创建，这里用于关联）
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// 图片模型
+model Image {
+  id           String   @id @default(uuid()) @db.Uuid
+  src          String
+  alt          String
+  width        Int      @default(550)
+  height       Int      @default(384)
+  order        Int      @default(0)
+  priority     Boolean  @default(false)
+  imageOffsetX Float    @default(50)
+  imageOffsetY Float    @default(50)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([order])
+  @@map("images")
+}
+
+// 音乐轨道模型
+model Track {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String
+  subtitle  String
+  src       String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([order])
+  @@map("tracks")
+}
+
+// 项目模型（轮播项目）
+model Project {
+  id           String   @id @default(uuid()) @db.Uuid
+  title        String
+  description  String
+  image        String?
+  link         String?
+  category     String   @default("personal")
+  cropX        Float?   @default(50)
+  cropY        Float?   @default(50)
+  cropSize     Float?   @default(100)
+  imageOffsetX Float?   @default(0)
+  imageOffsetY Float?   @default(0)
+  scale        Float?   @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("projects")
+}
+
+// 评论模型
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  text      String
+  likes     Int      @default(0)
+  fires     Int      @default(0)
+  hearts    Int      @default(0)
+  laughs    Int      @default(0)
+  wows      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // 用户反应关联
+  reactions CommentReaction[]
+
+  @@index([createdAt])
+  @@map("comments")
+}
+
+// 评论反应模型（记录用户的反应）
+model CommentReaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  commentId String   @db.Uuid
+  userId    String
+  type      String   // 'like', 'fire', 'heart', 'laugh', 'wow'
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId, type])
+  @@index([commentId])
+  @@map("comment_reactions")
+}
+
+// 访问统计模型
+model ViewCount {
+  id          String   @id @default("main")
+  count       Int      @default(0)
+  lastUpdated DateTime @default(now()) @updatedAt
+
+  @@map("view_count")
+}
+
+// 国家访问统计模型
+model CountryVisit {
+  id          String   @id @default(uuid()) @db.Uuid
+  country     String
+  count       Int      @default(0)
+  lastUpdated DateTime @default(now()) @updatedAt
+  lastVisit   DateTime @default(now())
+
+  @@unique([country])
+  @@index([country])
+  @@map("country_visits")
+}
+
+// 管理员状态模型
+model AdminStatus {
+  id         String   @id @default("admin")
+  lastActive DateTime @default(now()) @updatedAt
+
+  @@map("admin_status")
+}

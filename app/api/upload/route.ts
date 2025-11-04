@@ -2,31 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
-import { tmpdir } from 'os'
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app'
-import { getStorage, ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage'
-
-// Firebase 配置
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: "jkeroro-website.firebaseapp.com",
-  projectId: "jkeroro-website",
-  storageBucket: "jkeroro-website.appspot.com",
-  messagingSenderId: "518841981397",
-  appId: "1:518841981397:web:ac6b8202d7c29dc45ec55c",
-  databaseURL: "https://jkeroro-website-default-rtdb.firebaseio.com/"
-};
-
-// 初始化 Firebase
-let app: FirebaseApp | null, storage: FirebaseStorage | null;
-try {
-  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  storage = getStorage(app);
-} catch (error) {
-  console.error('Firebase initialization failed:', error);
-  app = null;
-  storage = null;
-}
+import { createServerClient } from '@/supabase'
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 检查文件类型
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'audio/mpeg', 'audio/wav', 'audio/ogg']
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp3']
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json({ 
         success: false, 
@@ -55,106 +31,105 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // 优先使用 Firebase Storage
-    if (storage) {
+    // 优先使用 Supabase Storage
+    try {
+      const supabase = createServerClient()
+      
+      // 生成唯一文件名
+      const timestamp = Date.now()
+      const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+      const fileName = `${timestamp}-${cleanFileName}`
+      
+      // 确定存储桶（根据文件类型）
+      const bucket = file.type.startsWith('image/') ? 'images' : 'audio'
+      
+      // 将文件转换为 ArrayBuffer
+      const bytes = await file.arrayBuffer()
+      const buffer = Buffer.from(bytes)
+      
+      // 上传到 Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, buffer, {
+          contentType: file.type,
+          upsert: false, // 不覆盖已存在的文件
+        })
+      
+      if (uploadError) {
+        throw uploadError
+      }
+      
+      // 获取公开 URL
+      const { data: urlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName)
+      
+      return NextResponse.json({ 
+        success: true, 
+        fileName: fileName,
+        filePath: urlData.publicUrl,
+        isSupabase: true,
+        message: 'File uploaded to Supabase Storage successfully'
+      })
+      
+    } catch (supabaseError) {
+      console.error('Supabase Storage upload failed:', supabaseError)
+      
+      // 如果 Supabase 上传失败，回退到本地存储
+      const isProduction = process.env.NODE_ENV === 'production'
+      
+      if (isProduction) {
+        // 生产环境不允许本地存储，返回错误
+        return NextResponse.json({ 
+          success: false, 
+          error: 'File upload failed. Please try again later.',
+          details: supabaseError instanceof Error ? supabaseError.message : 'Unknown error'
+        }, { status: 500 })
+      }
+      
+      // 开发环境：回退到本地存储
       try {
+        const uploadsDir = join(process.cwd(), 'public', 'uploads')
+        
+        // 确保 uploads 目录存在
+        if (!existsSync(uploadsDir)) {
+          await mkdir(uploadsDir, { recursive: true })
+        }
+        
         // 生成唯一文件名
         const timestamp = Date.now()
         const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
         const fileName = `${timestamp}-${cleanFileName}`
+        const filePath = join(uploadsDir, fileName)
         
-        // 创建 Firebase Storage 引用
-        const storageRef = ref(storage, `uploads/${fileName}`)
-        
-        // 将文件转换为 ArrayBuffer
+        // 保存文件
         const bytes = await file.arrayBuffer()
         const buffer = Buffer.from(bytes)
-        
-        // 上传到 Firebase Storage
-        const snapshot = await uploadBytes(storageRef, buffer, {
-          contentType: file.type,
-          customMetadata: {
-            originalName: file.name,
-            uploadedAt: new Date().toISOString()
-          }
-        })
-        
-        // 获取下载 URL
-        const downloadURL = await getDownloadURL(snapshot.ref)
+        await writeFile(filePath, buffer)
         
         return NextResponse.json({ 
           success: true, 
           fileName: fileName,
-          filePath: downloadURL,
-          isFirebase: true,
-          message: 'File uploaded to Firebase Storage successfully'
+          filePath: `/uploads/${fileName}`,
+          isSupabase: false,
+          message: 'File saved locally (development mode)'
         })
-        
-      } catch (firebaseError) {
-        console.error('Firebase Storage upload failed:', firebaseError)
-        // 如果 Firebase 上传失败，回退到本地存储
+      } catch (localError) {
+        console.error('Local file save failed:', localError)
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Failed to save file locally',
+          details: localError instanceof Error ? localError.message : 'Unknown error'
+        }, { status: 500 })
       }
-    }
-
-    // 回退到本地存储（开发环境或 Firebase 失败时）
-    const isProduction = process.env.NODE_ENV === 'production'
-    const uploadsDir = isProduction 
-      ? join(tmpdir(), 'uploads')
-      : join(process.cwd(), 'public', 'uploads')
-
-    // 确保uploads目录存在
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
-    }
-
-    // 生成唯一文件名，清理文件名中的特殊字符
-    const timestamp = Date.now()
-    const cleanFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const fileName = `${timestamp}-${cleanFileName}`
-    const filePath = join(uploadsDir, fileName)
-
-    // 将文件写入磁盘
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
-
-    // 在部署环境中，文件存储在 /tmp 目录，需要特殊处理
-    if (isProduction) {
-      console.log('Production upload successful:', {
-        fileName,
-        filePath: `/api/file/${fileName}`,
-        uploadsDir,
-        fileSize: file.size,
-        fileType: file.type
-      })
-      return NextResponse.json({ 
-        success: true, 
-        fileName: fileName,
-        filePath: `/api/file/${fileName}`,
-        isTemporary: true,
-        message: 'File uploaded successfully (temporary storage)'
-      })
-    } else {
-      console.log('Development upload successful:', {
-        fileName,
-        filePath: `/uploads/${fileName}`,
-        uploadsDir,
-        fileSize: file.size,
-        fileType: file.type
-      })
-      return NextResponse.json({ 
-        success: true, 
-        fileName: fileName,
-        filePath: `/uploads/${fileName}`,
-        message: 'File uploaded to local storage successfully'
-      })
     }
 
   } catch (error) {
     console.error('Upload error:', error)
     return NextResponse.json({ 
       success: false, 
-      error: `Failed to upload file: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 }

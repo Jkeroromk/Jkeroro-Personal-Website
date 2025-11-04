@@ -100,8 +100,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
           onFileSelect(file, result.filePath)
           toast({
             title: "Upload successful",
-            description: result.isFirebase 
-              ? "File uploaded to Firebase Storage successfully"
+            description: result.isSupabase 
+              ? "File uploaded to Supabase Storage successfully"
               : result.isTemporary 
                 ? "File uploaded successfully (temporary storage)"
                 : "File uploaded successfully",

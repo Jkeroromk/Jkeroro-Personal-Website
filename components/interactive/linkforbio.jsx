@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { useAuth } from "../../auth";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -10,14 +11,24 @@ import SocialLinks from "./SocialLinks";
 const Car = dynamic(() => import("../media/car"), { ssr: false, loading: () => <p>Loading...</p> });
 
 export default function LinkforBio() {
-  const { isOnline, lastActivity, loading } = useAuth();
+  const { isOnline, lastActivity, loading, isAdmin } = useAuth();
+  const [hasActiveVisitors, setHasActiveVisitors] = useState(false);
   
-  const statusColor = isOnline ? "bg-green-500" : "bg-red-500";
+  // 检查是否有活跃访问者（管理员在线表示有访问者）
+  useEffect(() => {
+    // 如果有管理员在线，表示有活跃访问者
+    setHasActiveVisitors(isOnline);
+  }, [isOnline]);
+  
+  // 显示状态逻辑：有访问者（管理员在线）显示绿色，否则显示红色并显示上次登录时间
+  const statusColor = hasActiveVisitors ? "bg-green-500" : "bg-red-500";
   const statusText = loading
     ? "Loading..."
-    : isOnline
+    : hasActiveVisitors
     ? "Online"
-    : `Last Active: ${lastActivity || "Unknown"}`;
+    : lastActivity
+    ? `Last Active: ${lastActivity}`
+    : "Offline";
 
   return (
     <>
@@ -34,10 +45,13 @@ export default function LinkforBio() {
             <AvatarImage src="/pfp.webp" alt="个人头像" />
             <AvatarFallback>CN</AvatarFallback>
           </Avatar>
-          <div className="flex items-center gap-2 mt-1 mr-2">
-            <span className={`w-2 h-2 rounded-full ${statusColor}`} />
-            <span className="text-white text-xs">{statusText}</span>
-          </div>
+          {/* 始终显示状态：有访问者显示绿色，否则显示红色和上次登录时间 */}
+          {!loading && statusText && (
+            <div className="flex items-center gap-2 mt-1 mr-2">
+              <span className={`w-2 h-2 rounded-full ${statusColor}`} />
+              <span className="text-white text-xs">{statusText}</span>
+            </div>
+          )}
         </div>
       </div>
 

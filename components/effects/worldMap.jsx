@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { database, ref, onValue } from "../../firebase";
+// No longer using Firebase - using API instead
 import ReactECharts from "echarts-for-react";
 import { registerMap } from "echarts";
 
@@ -16,24 +16,46 @@ const WorldMapDialog = () => {
   const [dataFlowAnimation, setDataFlowAnimation] = useState(false);
 
   useEffect(() => {
-    const countriesRef = ref(database, "countries");
-    onValue(countriesRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        setCountryData(data);
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch('/api/stats/countries');
+        if (!response.ok) throw new Error('Failed to fetch countries');
+        
+        const data = await response.json();
+        
+        // Convert array to object format for compatibility
+        const countryDataObj = {};
+        data.forEach((item) => {
+          countryDataObj[item.country] = {
+            count: item.count,
+            lastUpdated: item.lastUpdated,
+            lastVisit: item.lastVisit,
+          };
+        });
+        
+        setCountryData(countryDataObj);
 
-        // ✅ Extract top 3 most visited countries
-        const sortedCountries = Object.entries(data)
-          .sort(([, a], [, b]) => b.count - a.count) // Sort by visit count (descending)
-          .slice(0, 3); // Get the top 3
+        // Extract top 3 most visited countries
+        const sortedCountries = data
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 3)
+          .map((item) => [item.country, { count: item.count, lastUpdated: item.lastUpdated, lastVisit: item.lastVisit }]);
 
         setTopCountries(sortedCountries);
         
-        // 触发数据流动动画
+        // Trigger data flow animation
         setDataFlowAnimation(true);
         setTimeout(() => setDataFlowAnimation(false), 2000);
+      } catch (error) {
+        console.error('Error fetching countries:', error);
       }
-    });
+    };
+
+    fetchCountries();
+    
+    // Poll for updates every 10 seconds
+    const interval = setInterval(fetchCountries, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

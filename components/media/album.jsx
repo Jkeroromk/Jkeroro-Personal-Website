@@ -5,8 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 // 只导入需要的 GSAP 功能
 import { gsap } from "gsap/dist/gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
-import { collection, getDocs } from "firebase/firestore";
-import { firestore } from "../../firebase";
+// No longer using Firebase - using API instead
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -15,58 +14,70 @@ const Album = () => {
   const imageRefs = useRef([]);
   const [images, setImages] = useState([]);
 
-  // 从 Firestore 加载图片数据
+  // 从 API 加载图片数据
   const loadImages = async () => {
     if (typeof window === "undefined") {
       return;
     }
     
-    if (!firestore) {
-      setImages([]);
-      return;
-    }
-    
     try {
-      const imagesSnapshot = await getDocs(collection(firestore, "images"));
-      const firebaseImages = imagesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const response = await fetch('/api/media/images');
+      if (!response.ok) throw new Error('Failed to fetch images');
       
-      // 按order字段排序，如果没有order字段则按创建时间排序
-      const sortedImages = firebaseImages.sort((a, b) => {
-        if (a.order !== undefined && b.order !== undefined) {
-          return a.order - b.order
-        } else if (a.order !== undefined) {
-          return -1
-        } else if (b.order !== undefined) {
-          return 1
-        } else {
-          // 如果都没有order字段，按创建时间排序
-          const aTime = new Date(a.createdAt || 0).getTime()
-          const bTime = new Date(b.createdAt || 0).getTime()
-          return aTime - bTime
-        }
-      });
+      const data = await response.json();
       
-      // 如果 Firestore 中没有图片，不显示任何内容
-      if (sortedImages.length === 0) {
+      // API 已经按 order 排序，如果没有 order 则按创建时间排序
+      if (data.length === 0) {
         setImages([]);
       } else {
-        setImages(sortedImages);
+        setImages(data);
       }
     } catch (error) {
-      console.error('Album: Error loading images from Firestore:', error);
-      // 如果 Firestore 加载失败，不显示任何内容
+      console.error('Album: Error loading images:', error);
       setImages([]);
     }
   };
 
   useEffect(() => {
     loadImages();
+    
+    // Poll for updates every 5 seconds
+    // 只在数据真正变化时才更新状态，避免不必要的重新渲染和动画刷新
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/media/images');
+        if (!response.ok) return;
+        
+        const newData = await response.json();
+        
+        // 比较新旧数据，只在真正变化时更新
+        setImages(prevImages => {
+          // 如果图片数量相同，比较 ID 和关键字段
+          if (prevImages.length === newData.length) {
+            const prevIds = prevImages.map(img => img.id).sort().join(',');
+            const newIds = newData.map(img => img.id).sort().join(',');
+            
+            // ID 相同，比较 order 字段（如果存在）
+            if (prevIds === newIds) {
+              const prevOrders = prevImages.map(img => img.order || 0).join(',');
+              const newOrders = newData.map(img => img.order || 0).join(',');
+              
+              // 如果 order 也相同，不更新
+              if (prevOrders === newOrders) {
+                return prevImages; // 返回原数组，不触发重新渲染
+              }
+            }
+          }
+          
+          // 数据有变化，更新状态
+          return newData;
+        });
+      } catch (error) {
+        // 静默处理错误，不中断轮询
+      }
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
-
-  // 注意：不再监听全局事件，直接通过Firebase数据变化自动更新
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -78,9 +89,21 @@ const Album = () => {
       return;
     }
 
+    // 清理该元素上已有的 ScrollTrigger（避免重复创建）
+    imageElements.forEach((image) => {
+      if (image) {
+        const existingTriggers = ScrollTrigger.getAll().filter(
+          (trigger) => trigger.vars?.trigger === image
+        );
+        existingTriggers.forEach((trigger) => trigger.kill());
+      }
+    });
+
     gsap.set(imageElements, { opacity: 0 });
 
     imageElements.forEach((image, index) => {
+      if (!image) return;
+
       const isMobile = window.innerWidth <= 768;
       // Reduce the animation distance for mobile to prevent overflow
       const direction = index % 2 === 0 ? (isMobile ? -50 : -200) : (isMobile ? 50 : 200);
@@ -102,6 +125,18 @@ const Album = () => {
         }
       );
     });
+
+    // 清理函数：组件卸载或 images 变化时清理 ScrollTrigger
+    return () => {
+      imageElements.forEach((image) => {
+        if (image) {
+          const existingTriggers = ScrollTrigger.getAll().filter(
+            (trigger) => trigger.vars?.trigger === image
+          );
+          existingTriggers.forEach((trigger) => trigger.kill());
+        }
+      });
+    };
   }, [images]); // 依赖 images 数组，当图片数据变化时重新运行动画
 
   const addToRefs = (el) => {

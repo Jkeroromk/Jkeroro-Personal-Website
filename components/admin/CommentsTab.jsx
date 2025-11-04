@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-import { getAllComments, deleteComment, updateComment } from '../../firebase'
+// No longer using Firebase - using API instead
 
 const CommentsTab = () => {
   const [comments, setComments] = useState([])
@@ -21,8 +21,16 @@ const CommentsTab = () => {
   const fetchComments = async () => {
     try {
       setLoading(true)
-      const allComments = await getAllComments()
-      setComments(allComments)
+      const response = await fetch('/api/comments')
+      if (!response.ok) throw new Error('Failed to fetch comments')
+      
+      const allComments = await response.json()
+      // 转换时间戳格式（如果需要）
+      const formattedComments = allComments.map(comment => ({
+        ...comment,
+        timestamp: comment.createdAt ? new Date(comment.createdAt).getTime() : Date.now()
+      }))
+      setComments(formattedComments)
     } catch (error) {
       console.error('Error fetching comments:', error)
       toast({
@@ -44,7 +52,15 @@ const CommentsTab = () => {
     if (!confirm('确定要删除这条评论吗？')) return
     
     try {
-      await deleteComment(commentId)
+      const response = await fetch(`/api/comments/${commentId}`, {
+        method: 'DELETE',
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete comment')
+      }
+      
       setComments(comments.filter(c => c.id !== commentId))
       toast({
         title: "成功",
@@ -78,7 +94,17 @@ const CommentsTab = () => {
     }
 
     try {
-      await updateComment(editingComment, editText.trim())
+      const response = await fetch(`/api/comments/${editingComment}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: editText.trim() }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update comment')
+      }
+      
       setComments(comments.map(c => 
         c.id === editingComment ? { ...c, text: editText.trim() } : c
       ))
@@ -108,7 +134,10 @@ const CommentsTab = () => {
   const formatTime = (timestamp) => {
     if (!timestamp) return '未知时间'
     
-    const date = new Date(timestamp)
+    // 处理数字时间戳或 ISO 字符串
+    const date = typeof timestamp === 'number' 
+      ? new Date(timestamp) 
+      : new Date(timestamp)
     const now = new Date()
     const diff = now - date
     

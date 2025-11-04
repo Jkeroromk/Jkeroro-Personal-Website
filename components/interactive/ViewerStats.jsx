@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { Button } from '../ui/button'
 import { Eye } from 'lucide-react'
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog'
-import { database, ref, onValue, incrementViewCount, trackVisitorLocation } from '../../firebase'
 import WorldMapDialog from '@/components/effects/worldMap'
 
 const ViewerStats = () => {
@@ -12,30 +11,69 @@ const ViewerStats = () => {
   const [viewerError, setViewerError] = useState(null)
   const [mapOpen, setMapOpen] = useState(false)
 
-  // Viewer count and location tracking
+  // Track visitor location and increment view count (once per hour per visitor)
   useEffect(() => {
-    trackVisitorLocation().catch((err) => {
-      console.error("Error tracking visitor location:", err);
-    });
-    incrementViewCount().catch((err) => {
-      console.error("Error incrementing view count:", err);
-    });
+    // Check if we've already tracked in the last hour (using localStorage for persistence)
+    const lastTracked = localStorage.getItem('viewerTrackedTime')
+    const now = Date.now()
+    const oneHour = 60 * 60 * 1000 // 1小时
+    
+    // 如果上次记录时间超过1小时，或者没有记录，则允许计数
+    const shouldTrack = !lastTracked || (now - parseInt(lastTracked)) > oneHour
+    
+    const trackAndIncrement = async () => {
+      try {
+        // Track visitor location
+        await fetch('/api/stats/countries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        })
 
-    const viewerCountRef = ref(database, "viewCount");
-    const unsubscribe = onValue(
-      viewerCountRef,
-      (snapshot) => {
-        setViewerCount(snapshot.val()?.count || 0);
-        setViewerError(null);
-      },
-      (error) => {
-        console.error("Error fetching viewer count:", error.code, error.message);
-        setViewerError(error.code === "PERMISSION_DENIED" ? "Permission denied" : "Error loading viewers");
+        // Increment view count
+        const response = await fetch('/api/stats/view', {
+          method: 'POST',
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setViewerCount(data.count)
+          // Mark as tracked with current timestamp
+          localStorage.setItem('viewerTrackedTime', now.toString())
+        }
+      } catch (error) {
+        console.error('Error tracking visitor:', error)
       }
-    );
+    }
 
-    return () => unsubscribe();
-  }, []);
+    // Fetch current view count
+    const fetchViewCount = async () => {
+      try {
+        const response = await fetch('/api/stats/view')
+        if (response.ok) {
+          const data = await response.json()
+          setViewerCount(data.count)
+          setViewerError(null)
+        } else {
+          throw new Error('Failed to fetch view count')
+        }
+      } catch (error) {
+        console.error('Error fetching view count:', error)
+        setViewerError('Error loading viewers')
+      }
+    }
+
+    // Only increment if not tracked in the last hour
+    if (shouldTrack) {
+      trackAndIncrement()
+    } else {
+      // Just fetch the current count
+      fetchViewCount()
+    }
+    
+    // Poll for updates every 30 seconds (to see other users' views)
+    const interval = setInterval(fetchViewCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <AlertDialog open={mapOpen} onOpenChange={setMapOpen}>
