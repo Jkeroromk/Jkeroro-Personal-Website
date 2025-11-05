@@ -23,6 +23,16 @@ const nextConfig: NextConfig = {
   // 优化图片
   images: {
     formats: ['image/webp', 'image/avif'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.supabase.in',
+      },
+    ],
   },
   
   // Webpack 配置

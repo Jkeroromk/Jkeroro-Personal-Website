@@ -220,7 +220,10 @@ export const useAdminData = () => {
             throw new Error(errorData.error || 'Failed to create image')
           }
 
-          await loadData()
+          // 等待数据库写入完成后再刷新数据
+          setTimeout(async () => {
+            await loadData()
+          }, 300)
         } else if (activeTab === 'music') {
           const trackData = {
             title: formData.title,
@@ -239,10 +242,11 @@ export const useAdminData = () => {
             throw new Error(errorData.error || 'Failed to create track')
           }
 
-          setTimeout(() => {
-            loadData()
+          // 等待数据库写入完成后再刷新数据
+          setTimeout(async () => {
+            await loadData()
             triggerMusicDataChange()
-          }, 100)
+          }, 300)
         } else if (activeTab === 'projects') {
           const projectData = filterUndefinedValues({
             title: formData.title,
@@ -269,7 +273,10 @@ export const useAdminData = () => {
             throw new Error(errorData.error || 'Failed to create project')
           }
 
-          await loadData()
+          // 等待数据库写入完成后再刷新数据
+          setTimeout(async () => {
+            await loadData()
+          }, 300)
         }
       } else {
         // 更新项目
@@ -294,7 +301,10 @@ export const useAdminData = () => {
             throw new Error(errorData.error || 'Failed to update image')
           }
 
-          await loadData()
+          // 等待数据库写入完成后再刷新数据
+          setTimeout(async () => {
+            await loadData()
+          }, 300)
         } else if (editingItem && activeTab === 'music') {
           const updateData = {
             title: formData.title,
@@ -313,8 +323,11 @@ export const useAdminData = () => {
             throw new Error(errorData.error || 'Failed to update track')
           }
 
-          await loadData()
-          triggerMusicDataChange()
+          // 等待数据库写入完成后再刷新数据
+          setTimeout(async () => {
+            await loadData()
+            triggerMusicDataChange()
+          }, 300)
         } else if (editingItem && activeTab === 'projects') {
           const updateData = filterUndefinedValues({
             title: formData.title,
@@ -341,14 +354,14 @@ export const useAdminData = () => {
             throw new Error(errorData.error || 'Failed to update project')
           }
 
-          await loadData()
+          // 等待数据库写入完成后再刷新数据
+          setTimeout(async () => {
+            await loadData()
+          }, 300)
         }
       }
 
-      // 重新加载数据
-      await loadData()
-
-      // 重置表单
+      // 重置表单（每个保存操作已经包含了 loadData() 调用）
       setFormData({
         title: '',
         subtitle: '',
