@@ -54,6 +54,17 @@ const MusicPlayer = memo(() => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
+    // 先使用缓存数据立即显示（如果存在）
+    const cachedTracks = dataManager.getTracks();
+    if (cachedTracks && cachedTracks.length > 0) {
+      setTracks(cachedTracks);
+      // 确保当前轨道索引在有效范围内
+      if (currentTrackIndex >= cachedTracks.length) {
+        setCurrentTrackIndex(0);
+      }
+    }
+    
+    // 然后异步从 API 获取最新数据
     const loadTracks = async () => {
       try {
         const response = await fetch('/api/media/tracks');
@@ -67,19 +78,13 @@ const MusicPlayer = memo(() => {
           setCurrentTrackIndex(0);
         }
       } catch (error) {
-        console.error('Error loading tracks:', error);
-        // 降级到本地数据
-        try {
-          const localTracks = dataManager.getTracks();
-          setTracks(localTracks);
-        } catch (localError) {
-          setTracks([]);
-        }
-        setCurrentTrackIndex(0);
+        console.error('Error loading tracks from API:', error);
+        // API 失败时，如果缓存数据也没有设置，尝试使用缓存数据
+        // 如果已经有缓存数据显示了，就不需要再次设置
       }
     };
 
-    // 初始加载
+    // 异步加载 API 数据
     loadTracks();
     
     // 使用 SSE 实时更新
