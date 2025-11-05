@@ -4,11 +4,21 @@
 const { spawn } = require('child_process')
 
 // 确保 DATABASE_URL 包含 SSL 配置
-const databaseUrl = process.env.DATABASE_URL
+// 如果使用 pooler，优先使用直连 URL（DIRECT_DATABASE_URL）
+let databaseUrl = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL
+
 if (!databaseUrl) {
   console.error('❌ DATABASE_URL environment variable is not set')
   console.error('   Please check your Vercel environment variables')
   process.exit(1)
+}
+
+// 如果使用直连 URL，提示
+if (process.env.DIRECT_DATABASE_URL) {
+  console.log('✅ 使用直连数据库 URL (DIRECT_DATABASE_URL)')
+} else if (databaseUrl.includes('.pooler.supabase.com')) {
+  console.warn('⚠️  检测到 pooler URL，建议设置 DIRECT_DATABASE_URL 环境变量使用直连')
+  console.warn('   在 Supabase Dashboard -> Settings -> Database 可以找到 "Connection string" (Direct connection)')
 }
 
 // 检查是否是 migrate deploy 命令
