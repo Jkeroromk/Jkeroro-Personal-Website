@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 // 生产环境 seed 数据端点（仅管理员使用）
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     // 这里可以添加管理员验证
     // const session = await getServerSession()

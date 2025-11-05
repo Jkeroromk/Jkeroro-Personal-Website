@@ -1,19 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 // 诊断数据库连接状态
 export async function GET() {
   try {
     // 检查环境变量（不暴露敏感信息）
-    const hasDatabaseUrl = !!process.env.DATABASE_URL
-    const databaseUrlPreview = hasDatabaseUrl
-      ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@') // 隐藏密码
+    const databaseUrl = process.env.DATABASE_URL
+    const hasDatabaseUrl = !!databaseUrl
+    const databaseUrlPreview = hasDatabaseUrl && databaseUrl
+      ? databaseUrl.replace(/:[^:@]+@/, ':****@') // 隐藏密码
       : null
 
     // 测试数据库连接
     let connectionTest = {
       success: false,
       error: null as string | null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       details: null as any,
     }
 
@@ -23,7 +25,8 @@ export async function GET() {
       connectionTest = {
         success: true,
         error: null,
-        details: result,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        details: result as any,
       }
     } catch (error) {
       connectionTest = {
@@ -98,7 +101,7 @@ export async function GET() {
           name: dbInfo[0].current_database,
         }
       }
-    } catch (error) {
+    } catch {
       // 忽略错误
     }
 
@@ -107,7 +110,7 @@ export async function GET() {
         nodeEnv: process.env.NODE_ENV,
         hasDatabaseUrl: hasDatabaseUrl,
         databaseUrlPreview: databaseUrlPreview,
-        databaseUrlLength: hasDatabaseUrl ? process.env.DATABASE_URL.length : 0,
+        databaseUrlLength: hasDatabaseUrl && databaseUrl ? databaseUrl.length : 0,
       },
       connection: connectionTest,
       database: databaseInfo,
