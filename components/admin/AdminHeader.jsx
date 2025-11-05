@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { Settings, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-const AdminHeader = ({ onLogout }) => {
+const AdminHeader = ({ onLogout, isOnline, lastActivity }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
@@ -20,6 +20,11 @@ const AdminHeader = ({ onLogout }) => {
           </h1>
           <p className="text-gray-400 mt-2">
             Manage your website content, images, and music
+            {!isOnline && lastActivity && (
+              <span className="ml-2 text-yellow-400">
+                • Last active: {lastActivity}
+              </span>
+            )}
           </p>
         </div>
         <Button

@@ -19,7 +19,7 @@ import SupabaseDebugTab from '@/components/admin/SupabaseDebugTab'
 import EditModal from '@/components/admin/modals/EditModal'
 
 const AdminPageContent = () => {
-  const { user, isAdmin, loading, logout } = useAuth()
+  const { user, isAdmin, loading, logout, isOnline, lastActivity } = useAuth()
   const router = useRouter()
   
   const {
@@ -66,7 +66,7 @@ const AdminPageContent = () => {
     <>
       <MouseTrail />
       <div className="min-h-screen bg-black text-white">
-        <AdminHeader user={user} onLogout={logout} />
+        <AdminHeader user={user} onLogout={logout} isOnline={isOnline} lastActivity={lastActivity} />
         
         <div className="container mx-auto px-6 py-8">
           <motion.div

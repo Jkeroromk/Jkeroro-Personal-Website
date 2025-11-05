@@ -95,13 +95,18 @@ export const useAdminData = () => {
           setImages(imagesData || [])
         }
 
-        // 加载项目数据
-        const projectsResponse = await fetch('/api/media/projects')
+        // 加载项目数据（带重试机制）
+        let projectsResponse = await fetch('/api/media/projects')
+        if (!projectsResponse.ok && projectsResponse.status === 500) {
+          // 如果是 500 错误，等待 1 秒后重试一次
+          await new Promise(resolve => setTimeout(resolve, 1000))
+          projectsResponse = await fetch('/api/media/projects')
+        }
         if (projectsResponse.ok) {
           const projectsData = await projectsResponse.json()
           setApiProjects(projectsData || [])
         } else {
-          // API 返回错误，记录但静默处理（500 错误时）
+          // API 返回错误，记录但静默处理
           if (projectsResponse.status !== 500) {
             console.error('[Admin] Failed to load projects from API:', projectsResponse.status)
           }

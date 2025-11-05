@@ -1,7 +1,6 @@
 /**
- * 实时数据客户端 - 混合使用 Supabase Realtime 和 Server-Sent Events (SSE)
- * - comments 和 view_count: 使用 Supabase Realtime 直接监听数据库表变化
- * - images, tracks, projects: 使用 SSE（通过 API 轮询）
+ * 实时数据客户端 - 使用 Server-Sent Events (SSE)
+ * 所有数据都通过 SSE 轮询数据库获取更新
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -14,8 +13,6 @@ class RealtimeClient {
   private maxReconnectAttempts = 5
   private reconnectDelay = 3000
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private supabaseChannels: Map<string, any> = new Map() // 存储 Supabase Realtime 订阅
-
   constructor() {
     if (typeof window === 'undefined') {
       return
@@ -93,6 +90,15 @@ class RealtimeClient {
           console.error('解析 comments 事件失败:', error)
         }
       })
+
+      this.eventSource.addEventListener('view_count', (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data)
+          this.handleMessage({ type: 'view_count', data })
+        } catch (error) {
+          console.error('解析 view_count 事件失败:', error)
+        }
+      })
     } catch (error) {
       console.error('创建 SSE 连接失败:', error)
     }
@@ -124,105 +130,14 @@ class RealtimeClient {
     }
     this.listeners.get(type)!.add(callback)
 
-    // comments 和 view_count 使用 Supabase Realtime
-    if (type === 'comments' || type === 'view_count') {
-      this.subscribeSupabaseRealtime(type)
-    } else {
-      // images, tracks, projects 使用 SSE
-      if (!this.eventSource) {
-        this.connect()
-      }
+    // 所有类型都使用 SSE
+    if (!this.eventSource) {
+      this.connect()
     }
 
     // 返回取消订阅的函数
     return () => {
       this.unsubscribe(type, callback)
-    }
-  }
-
-  /**
-   * 使用 Supabase Realtime 订阅数据库表变化
-   */
-  private async subscribeSupabaseRealtime(type: 'comments' | 'view_count') {
-    if (typeof window === 'undefined') {
-      console.warn('Supabase client not available for Realtime subscription (server-side)')
-      return
-    }
-
-    // 动态导入 Supabase client（客户端环境）
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let supabaseClient: any = null
-    try {
-      const supabaseModule = await import('@/supabase')
-      supabaseClient = supabaseModule.default
-    } catch (error) {
-      console.warn('Failed to import Supabase client:', error)
-      return
-    }
-
-    if (!supabaseClient) {
-      console.warn('Supabase client not initialized')
-      return
-    }
-
-    // 如果已经订阅，不再重复订阅
-    if (this.supabaseChannels.has(type)) {
-      return
-    }
-
-    try {
-      let channelName = ''
-      let tableName = ''
-      
-      if (type === 'comments') {
-        channelName = 'comments_changes'
-        tableName = 'comments'
-      } else if (type === 'view_count') {
-        channelName = 'view_count_changes'
-        tableName = 'view_count'
-      }
-
-      const channel = supabaseClient
-        .channel(channelName)
-        .on(
-          'postgres_changes',
-          {
-            event: '*', // 监听所有变化（INSERT, UPDATE, DELETE）
-            schema: 'public',
-            table: tableName,
-          },
-          async () => {
-            // 当数据库变化时，重新获取完整数据
-            try {
-              if (type === 'comments') {
-                const response = await fetch('/api/comments')
-                if (response.ok) {
-                  const data = await response.json()
-                  this.handleMessage({ type: 'comments', data })
-                }
-              } else if (type === 'view_count') {
-                const response = await fetch('/api/stats/view')
-                if (response.ok) {
-                  const data = await response.json()
-                  this.handleMessage({ type: 'view_count', data })
-                }
-              }
-            } catch (error) {
-              console.error(`Error fetching ${type} after Realtime update:`, error)
-            }
-          }
-        )
-        .subscribe((status: string) => {
-          if (status === 'SUBSCRIBED') {
-            console.log(`✅ Supabase Realtime subscribed to ${tableName}`)
-          } else if (status === 'CHANNEL_ERROR') {
-            console.error(`❌ Supabase Realtime channel error for ${tableName}`)
-          }
-        })
-
-      this.supabaseChannels.set(type, channel)
-    } catch (error) {
-      console.error(`Error subscribing to Supabase Realtime for ${type}:`, error)
     }
   }
 
@@ -260,32 +175,11 @@ class RealtimeClient {
   /**
    * 断开连接
    */
-  async disconnect() {
-    // 断开 SSE 连接
+  disconnect() {
     if (this.eventSource) {
       this.eventSource.close()
       this.eventSource = null
     }
-
-    // 断开 Supabase Realtime 订阅
-    if (typeof window !== 'undefined') {
-      try {
-        const supabaseModule = await import('@/supabase')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const supabaseClient: any = supabaseModule.default
-        if (supabaseClient) {
-          this.supabaseChannels.forEach((channel, type) => {
-            if (channel) {
-              supabaseClient.removeChannel(channel)
-              console.log(`🔌 Disconnected from Supabase Realtime: ${type}`)
-            }
-          })
-        }
-      } catch (error) {
-        console.error('Error disconnecting from Supabase Realtime:', error)
-      }
-    }
-    this.supabaseChannels.clear()
   }
 
   /**

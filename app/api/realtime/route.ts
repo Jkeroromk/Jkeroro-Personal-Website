@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
         tracks: '',
         projects: '',
         comments: '',
+        view_count: '',
       }
 
       // 定期检查数据变化并推送
@@ -47,11 +48,11 @@ export async function GET(request: NextRequest) {
             send('tracks', JSON.stringify(tracks))
           }
 
-          // 检查项目数据
+          // 检查项目数据（按 order 排序）
           const projects = await prisma.project.findMany({
-            orderBy: { createdAt: 'desc' },
+            orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
           })
-          const projectsHash = JSON.stringify(projects.map(project => project.id))
+          const projectsHash = JSON.stringify(projects.map(project => ({ id: project.id, order: project.order })))
           if (projectsHash !== lastDataHash.projects) {
             lastDataHash.projects = projectsHash
             send('projects', JSON.stringify(projects))
@@ -66,6 +67,16 @@ export async function GET(request: NextRequest) {
           if (commentsHash !== lastDataHash.comments) {
             lastDataHash.comments = commentsHash
             send('comments', JSON.stringify(comments))
+          }
+
+          // 检查 viewer count 数据
+          const viewCount = await prisma.viewCount.findUnique({
+            where: { id: 'main' },
+          })
+          const viewCountHash = JSON.stringify(viewCount ? { count: viewCount.count, lastUpdated: viewCount.lastUpdated } : null)
+          if (viewCountHash !== lastDataHash.view_count) {
+            lastDataHash.view_count = viewCountHash
+            send('view_count', JSON.stringify(viewCount || { count: 0, lastUpdated: null }))
           }
         } catch (error) {
           // 在开发环境中，如果是数据库连接错误，静默处理
