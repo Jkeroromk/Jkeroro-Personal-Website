@@ -75,20 +75,21 @@ export async function POST(request: NextRequest) {
       count: countryVisit.count,
     })
   } catch (error) {
-    // 在开发环境中，如果是数据库连接错误，静默处理
+    // 检查是否是数据库连接错误
     const isConnectionError = error instanceof Error && 
       (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError'))
+       error.message.includes('PrismaClientInitializationError') ||
+       error.message.includes('P1001') ||
+       error.message.includes('query timeout'))
     
-    if (process.env.NODE_ENV === 'development' && isConnectionError) {
-      // 开发环境返回成功但跳过记录
+    // 如果是连接错误，返回成功但跳过记录（不阻塞用户）
+    if (isConnectionError) {
+      console.error('Database connection error (track visitor location):', error instanceof Error ? error.message : error)
       return NextResponse.json({ success: true, skipped: true })
     }
     
-    if (!isConnectionError || process.env.NODE_ENV === 'production') {
-      console.error('Track visitor location error:', error)
-    }
-    
+    // 其他错误才返回 500
+    console.error('Track visitor location error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -107,20 +108,21 @@ export async function GET() {
 
     return NextResponse.json(countries)
   } catch (error) {
-    // 在开发环境中，如果是数据库连接错误，静默处理
+    // 检查是否是数据库连接错误
     const isConnectionError = error instanceof Error && 
       (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError'))
+       error.message.includes('PrismaClientInitializationError') ||
+       error.message.includes('P1001') ||
+       error.message.includes('query timeout'))
     
-    if (process.env.NODE_ENV === 'development' && isConnectionError) {
-      // 开发环境返回空数组
+    // 如果是连接错误，返回空数组（不阻塞用户）
+    if (isConnectionError) {
+      console.error('Database connection error (get countries stats):', error instanceof Error ? error.message : error)
       return NextResponse.json([])
     }
     
-    if (!isConnectionError || process.env.NODE_ENV === 'production') {
-      console.error('Get countries stats error:', error)
-    }
-    
+    // 其他错误才返回 500
+    console.error('Get countries stats error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

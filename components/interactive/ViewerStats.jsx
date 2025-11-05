@@ -5,6 +5,7 @@ import { Button } from '../ui/button'
 import { Eye } from 'lucide-react'
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog'
 import WorldMapDialog from '@/components/effects/worldMap'
+import { getRealtimeClient } from '@/lib/realtime-client'
 
 const ViewerStats = () => {
   const [viewerCount, setViewerCount] = useState(0)
@@ -70,9 +71,18 @@ const ViewerStats = () => {
       fetchViewCount()
     }
     
-    // Poll for updates every 2 minutes (to see other users' views)
-    const interval = setInterval(fetchViewCount, 120000) // 每2分钟更新一次
-    return () => clearInterval(interval)
+    // 使用 Supabase Realtime 监听 view_count 表变化（实时更新）
+    const realtimeClient = getRealtimeClient()
+    const unsubscribe = realtimeClient.subscribe('view_count', (data) => {
+      if (data && typeof data.count === 'number') {
+        setViewerCount(data.count)
+        setViewerError(null)
+      }
+    })
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   return (

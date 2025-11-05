@@ -60,32 +60,33 @@ export async function GET() {
 
     return NextResponse.json(sortedProjects)
   } catch (error) {
-    // 在开发环境中，如果是数据库连接错误，静默处理
+    // 检查是否是数据库连接错误
     const isConnectionError = error instanceof Error && 
       (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError'))
+       error.message.includes('PrismaClientInitializationError') ||
+       error.message.includes('P1001') ||
+       error.message.includes('query timeout'))
     
-    if (process.env.NODE_ENV === 'development' && isConnectionError) {
-      // 开发环境返回空数组
+    // 如果是连接错误，返回空数组（不阻塞用户）
+    if (isConnectionError) {
+      console.error('Database connection error (get projects):', error instanceof Error ? error.message : error)
       return NextResponse.json([])
     }
     
-    // 只在非连接错误或生产环境记录错误
-    if (!isConnectionError || process.env.NODE_ENV === 'production') {
-      console.error('Get projects error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      console.error('Get projects error details:', {
-        message: errorMessage,
-        timestamp: new Date().toISOString(),
-        nodeEnv: process.env.NODE_ENV,
-        hasDatabaseUrl: !!process.env.DATABASE_URL,
-      })
-    }
+    // 其他错误才返回 500
+    console.error('Get projects error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Get projects error details:', {
+      message: errorMessage,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    })
     
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        message: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : undefined) : undefined,
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
       },
       { status: 500 }
     )

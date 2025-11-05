@@ -29,35 +29,36 @@ export async function GET() {
       isOnline,
     })
   } catch (error) {
-    // 在开发环境中，如果是数据库连接错误，静默处理
+    // 检查是否是数据库连接错误
     const isConnectionError = error instanceof Error && 
       (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError'))
+       error.message.includes('PrismaClientInitializationError') ||
+       error.message.includes('P1001') ||
+       error.message.includes('query timeout'))
     
-    if (process.env.NODE_ENV === 'development' && isConnectionError) {
-      // 开发环境返回默认值
+    // 如果是连接错误，返回默认值（不阻塞用户）
+    if (isConnectionError) {
+      console.error('Database connection error (get admin status):', error instanceof Error ? error.message : error)
       return NextResponse.json({
         lastActive: null,
         isOnline: false,
       })
     }
     
-    // 只在非连接错误或生产环境记录错误
-    if (!isConnectionError || process.env.NODE_ENV === 'production') {
-      console.error('Get admin status error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      console.error('Admin status error details:', {
-        message: errorMessage,
-        timestamp: new Date().toISOString(),
-        nodeEnv: process.env.NODE_ENV,
-        hasDatabaseUrl: !!process.env.DATABASE_URL,
-      })
-    }
+    // 其他错误才返回 500
+    console.error('Get admin status error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Admin status error details:', {
+      message: errorMessage,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    })
     
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        message: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : undefined) : undefined,
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
       },
       { status: 500 }
     )
@@ -82,34 +83,35 @@ export async function POST() {
       lastActive: adminStatus.lastActive.toISOString(),
     })
   } catch (error) {
-    // 在开发环境中，如果是数据库连接错误，静默处理
+    // 检查是否是数据库连接错误
     const isConnectionError = error instanceof Error && 
       (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError'))
+       error.message.includes('PrismaClientInitializationError') ||
+       error.message.includes('P1001') ||
+       error.message.includes('query timeout'))
     
-    if (process.env.NODE_ENV === 'development' && isConnectionError) {
-      // 开发环境返回成功但跳过更新
+    // 如果是连接错误，返回成功但跳过更新（不阻塞用户）
+    if (isConnectionError) {
+      console.error('Database connection error (update admin status):', error instanceof Error ? error.message : error)
       return NextResponse.json({
         lastActive: new Date().toISOString(),
       })
     }
     
-    // 只在非连接错误或生产环境记录错误
-    if (!isConnectionError || process.env.NODE_ENV === 'production') {
-      console.error('Update admin status error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      console.error('Update admin status error details:', {
-        message: errorMessage,
-        timestamp: new Date().toISOString(),
-        nodeEnv: process.env.NODE_ENV,
-        hasDatabaseUrl: !!process.env.DATABASE_URL,
-      })
-    }
+    // 其他错误才返回 500
+    console.error('Update admin status error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Update admin status error details:', {
+      message: errorMessage,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    })
     
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        message: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : undefined) : undefined,
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
       },
       { status: 500 }
     )

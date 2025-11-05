@@ -21,13 +21,17 @@ export async function POST() {
       lastUpdated: viewCount.lastUpdated,
     })
   } catch (error) {
-    // 在开发环境中，如果是数据库连接错误，静默处理
+    // 检查是否是数据库连接错误
     const isConnectionError = error instanceof Error && 
       (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError'))
+       error.message.includes('PrismaClientInitializationError') ||
+       error.message.includes('P1001') ||
+       error.message.includes('query timeout'))
     
-    if (process.env.NODE_ENV === 'development' && isConnectionError) {
-      // 开发环境返回成功但跳过计数
+    // 如果是连接错误，返回降级响应（不阻塞用户）
+    if (isConnectionError) {
+      console.error('Database connection error (increment view count):', error instanceof Error ? error.message : error)
+      // 返回成功但跳过计数，不阻塞用户
       return NextResponse.json({
         count: 0,
         lastUpdated: new Date().toISOString(),
@@ -35,10 +39,8 @@ export async function POST() {
       })
     }
     
-    if (!isConnectionError || process.env.NODE_ENV === 'production') {
-      console.error('Increment view count error:', error)
-    }
-    
+    // 其他错误才返回 500
+    console.error('Increment view count error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -58,23 +60,24 @@ export async function GET() {
       lastUpdated: viewCount?.lastUpdated || null,
     })
   } catch (error) {
-    // 在开发环境中，如果是数据库连接错误，静默处理
+    // 检查是否是数据库连接错误
     const isConnectionError = error instanceof Error && 
       (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError'))
+       error.message.includes('PrismaClientInitializationError') ||
+       error.message.includes('P1001') ||
+       error.message.includes('query timeout'))
     
-    if (process.env.NODE_ENV === 'development' && isConnectionError) {
-      // 开发环境返回默认值
+    // 如果是连接错误，返回默认值（不阻塞用户）
+    if (isConnectionError) {
+      console.error('Database connection error (get view count):', error instanceof Error ? error.message : error)
       return NextResponse.json({
         count: 0,
         lastUpdated: null,
       })
     }
     
-    if (!isConnectionError || process.env.NODE_ENV === 'production') {
-      console.error('Get view count error:', error)
-    }
-    
+    // 其他错误才返回 500
+    console.error('Get view count error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
