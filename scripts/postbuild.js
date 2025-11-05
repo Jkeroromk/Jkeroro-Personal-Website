@@ -30,11 +30,15 @@ const copyPrismaEngine = () => {
     return false;
   }
   
-  // 目标路径（Vercel 查找的位置）
+  // 目标路径（Vercel 查找的位置 - 根据错误信息中的路径）
   const targets = [
-    path.join(__dirname, '../.next/server/chunks', engineFile),
+    path.join(__dirname, '../.next/server/chunks', engineFile), // /var/task/.next/server/chunks
     path.join(__dirname, '../.next/server', engineFile),
     path.join(__dirname, '../.next', engineFile),
+    // 确保 lib/generated/prisma 有文件（根据错误信息：/vercel/path0/lib/generated/prisma）
+    path.join(__dirname, '../lib/generated/prisma', engineFile),
+    // 也复制到 node_modules/.prisma/client（如果存在）
+    path.join(__dirname, '../node_modules/.prisma/client', engineFile),
   ];
   
   let copied = false;

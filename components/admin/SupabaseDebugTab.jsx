@@ -26,6 +26,7 @@ const SupabaseDebugTab = () => {
   const [connectionStatus, setConnectionStatus] = useState(null)
   const [serverStatus, setServerStatus] = useState(null) // 服务器端状态
   const [dbStatus, setDbStatus] = useState(null) // 数据库连接状态
+  const [directConnectionTest, setDirectConnectionTest] = useState(null) // 直接连接测试
   const [testResults, setTestResults] = useState({})
   const [comment, setComment] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -35,7 +36,20 @@ const SupabaseDebugTab = () => {
   useEffect(() => {
     checkConnectionStatus()
     checkDatabaseStatus()
+    testDirectConnection()
   }, [])
+
+  const testDirectConnection = async () => {
+    try {
+      const response = await fetch('/api/admin/test-db-connection')
+      if (response.ok) {
+        const data = await response.json()
+        setDirectConnectionTest(data)
+      }
+    } catch (error) {
+      console.error('Error testing direct connection:', error)
+    }
+  }
 
   const checkDatabaseStatus = async () => {
     try {
@@ -452,6 +466,50 @@ const SupabaseDebugTab = () => {
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                     Refresh Database Status
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Direct Connection Test */}
+            {directConnectionTest && (
+              <div>
+                <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Direct Database Connection Test (绕过 Prisma)
+                </h4>
+                <div className="space-y-2">
+                  {directConnectionTest.checks?.map((check, index) => (
+                    <div key={index} className="p-3 bg-gray-800 rounded-lg">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-white text-sm">{check.name}</span>
+                        {check.success ? (
+                          <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500">
+                            ✅ Success
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive">❌ Failed</Badge>
+                        )}
+                      </div>
+                      {check.details && (
+                        <div className="text-gray-400 text-xs mt-2">
+                          {typeof check.details === 'string' ? (
+                            <p className="text-white">{check.details}</p>
+                          ) : (
+                            <pre className="whitespace-pre-wrap text-white">{JSON.stringify(check.details, null, 2)}</pre>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <Button
+                    onClick={testDirectConnection}
+                    variant="outline"
+                    className="w-full"
+                    disabled={isLoading}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                    Test Direct Connection
                   </Button>
                 </div>
               </div>

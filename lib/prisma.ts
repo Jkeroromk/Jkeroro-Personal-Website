@@ -1,8 +1,91 @@
 import { PrismaClient } from './generated/prisma/client'
+import { join } from 'path'
+import { existsSync, copyFileSync } from 'fs'
 
 // 全局 Prisma 客户端实例（单例模式）
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
+}
+
+// 在 Vercel 上，需要指定 engine 路径
+const getPrismaEnginePath = () => {
+  // 只在生产环境或 Vercel 上运行（避免在 Windows 本地开发时出错）
+  if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+    // 根据错误信息，Vercel 在以下位置查找：
+    // - /var/task/.next/server/chunks
+    // - /vercel/path0/lib/generated/prisma
+    // - /vercel/path0/.prisma/client
+    // - /tmp/prisma-engines
+    
+    const engineFile = 'libquery_engine-rhel-openssl-3.0.x.so.node'
+    const cwd = process.cwd()
+    
+    // 可能的路径（根据 Vercel 错误信息）
+    const possiblePaths = [
+      // Vercel 绝对路径
+      '/var/task/.next/server/chunks/' + engineFile,
+      '/var/task/lib/generated/prisma/' + engineFile,
+      '/var/task/.prisma/client/' + engineFile,
+      // 相对路径（可能的工作目录）
+      join(cwd, '.next/server/chunks', engineFile),
+      join(cwd, 'lib/generated/prisma', engineFile),
+      join(cwd, '.prisma/client', engineFile),
+      join(cwd, 'node_modules/.prisma/client', engineFile),
+      // /tmp 路径（Vercel 允许写入）
+      '/tmp/' + engineFile,
+      '/tmp/prisma-engines/' + engineFile,
+    ]
+    
+    // 查找 engine 文件
+    let foundPath: string | null = null
+    for (const enginePath of possiblePaths) {
+      try {
+        if (existsSync(enginePath)) {
+          foundPath = enginePath
+          process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath
+          process.env.PRISMA_QUERY_ENGINE_BINARY = enginePath
+          console.log(`[Prisma] Found engine at: ${enginePath}`)
+          break
+        }
+      } catch {
+        // 忽略错误，继续查找
+      }
+    }
+    
+    // 如果没找到，尝试从已知源位置复制到 /tmp
+    if (!foundPath) {
+      const sourcePaths = [
+        join(cwd, 'lib/generated/prisma', engineFile),
+        join(cwd, '.next/server/chunks', engineFile),
+        '/var/task/lib/generated/prisma/' + engineFile,
+      ]
+      
+      const tmpPath = '/tmp/' + engineFile
+      for (const sourcePath of sourcePaths) {
+        try {
+          if (existsSync(sourcePath)) {
+            copyFileSync(sourcePath, tmpPath)
+            process.env.PRISMA_QUERY_ENGINE_LIBRARY = tmpPath
+            process.env.PRISMA_QUERY_ENGINE_BINARY = tmpPath
+            console.log(`[Prisma] Copied engine to /tmp from: ${sourcePath}`)
+            foundPath = tmpPath
+            break
+          }
+        } catch {
+          // 忽略错误，继续尝试
+        }
+      }
+    }
+    
+    if (!foundPath) {
+      console.warn('[Prisma] Warning: Engine file not found. Prisma may fail to initialize.')
+    }
+  }
+}
+
+// 在创建客户端之前设置路径（只在服务器端）
+if (typeof window === 'undefined') {
+  getPrismaEnginePath()
 }
 
 // 创建 Prisma 客户端实例
