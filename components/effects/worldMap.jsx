@@ -53,8 +53,8 @@ const WorldMapDialog = () => {
 
     fetchCountries();
     
-    // Poll for updates every 10 seconds
-    const interval = setInterval(fetchCountries, 10000);
+    // Poll for updates every 2 minutes (减少刷新频率)
+    const interval = setInterval(fetchCountries, 120000); // 每2分钟更新一次
     return () => clearInterval(interval);
   }, []);
 

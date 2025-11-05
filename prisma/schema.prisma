@@ -62,6 +62,7 @@ model Project {
   image        String?
   link         String?
   category     String   @default("personal")
+  order        Int      @default(0)
   cropX        Float?   @default(50) @map("crop_x")
   cropY        Float?   @default(50) @map("crop_y")
   cropSize     Float?   @default(100) @map("crop_size")
@@ -71,6 +72,7 @@ model Project {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  @@index([order])
   @@map("projects")
 }
 

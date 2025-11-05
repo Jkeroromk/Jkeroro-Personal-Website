@@ -15,6 +15,7 @@ import { getRealtimeClient } from '@/lib/realtime-client';
 import { useAuth } from "../../auth";
 import { motion } from "framer-motion";
 import DataManager from "@/lib/data-manager";
+import Image from "next/image";
 
 // 简单卡片组件
 const Card3D = ({ children, className = "", href, target, rel, onMouseEnter, onMouseLeave }) => {
@@ -212,18 +213,29 @@ const Tabs = () => {
                     onMouseLeave={resumeAutoplay}
                   >
                       {/* 图片区域 */}
-                      <div 
-                        className="relative h-72 sm:h-96 overflow-hidden"
-                        style={{
-                          backgroundImage: (item.image && item.image.trim() !== '') ? `url("${encodeURI(item.image)}")` : 'none',
-                          backgroundSize: 'cover',
-                          backgroundPosition: item.cropX !== undefined && item.cropY !== undefined ? `${item.cropX}% ${item.cropY}%` : 'center',
-                          backgroundRepeat: 'no-repeat',
-                          backgroundColor: (item.image && item.image.trim() !== '') ? 'transparent' : '#1f2937'
-                        }}
-                      >
-                        {/* 渐变遮罩 */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                      <div className="relative h-72 sm:h-96 overflow-hidden bg-gray-800">
+                        {item.image && item.image.trim() !== '' ? (
+                          <>
+                            <Image
+                              src={item.image}
+                              alt={item.title}
+                              fill
+                              className="object-cover"
+                              style={{
+                                objectPosition: `${item.cropX ?? 50}% ${item.cropY ?? 50}%`
+                              }}
+                              unoptimized={item.image.startsWith('/api/file/') || item.image.startsWith('https://')}
+                            />
+                            {/* 渐变遮罩 */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                          </>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <div className="text-center">
+                              <div className="text-sm">No image</div>
+                            </div>
+                          </div>
+                        )}
                         
                         
                         {/* 悬停指示器 */}

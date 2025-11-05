@@ -70,8 +70,8 @@ export const AuthProvider = ({ children }) => {
       return () => clearInterval(interval);
     }
     
-    // 管理员用户，每 30 秒更新一次状态
-    const interval = setInterval(fetchAdminStatus, 30000); // 每30秒更新一次
+    // 管理员用户，每 2 分钟更新一次状态（减少刷新频率）
+    const interval = setInterval(fetchAdminStatus, 120000); // 每2分钟更新一次
 
     return () => clearInterval(interval);
   }, [isAdmin]);

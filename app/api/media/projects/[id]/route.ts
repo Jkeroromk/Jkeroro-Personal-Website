@@ -15,6 +15,7 @@ export async function PATCH(
       image,
       link,
       category,
+      order,
       cropX,
       cropY,
       cropSize,
@@ -29,6 +30,7 @@ export async function PATCH(
       image?: string | null
       link?: string | null
       category?: string
+      order?: number
       cropX?: number
       cropY?: number
       cropSize?: number
@@ -41,6 +43,7 @@ export async function PATCH(
     if (image !== undefined) updateData.image = image
     if (link !== undefined) updateData.link = link
     if (category) updateData.category = category
+    if (order !== undefined) updateData.order = order
     if (cropX !== undefined) updateData.cropX = cropX
     if (cropY !== undefined) updateData.cropY = cropY
     if (cropSize !== undefined) updateData.cropSize = cropSize

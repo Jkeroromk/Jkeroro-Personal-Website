@@ -70,8 +70,8 @@ const ViewerStats = () => {
       fetchViewCount()
     }
     
-    // Poll for updates every 30 seconds (to see other users' views)
-    const interval = setInterval(fetchViewCount, 30000)
+    // Poll for updates every 2 minutes (to see other users' views)
+    const interval = setInterval(fetchViewCount, 120000) // 每2分钟更新一次
     return () => clearInterval(interval)
   }, [])
 

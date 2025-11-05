@@ -44,6 +44,7 @@ const AdminPageContent = () => {
     handleAddNew,
     handleTrackReorder,
     handleImageReorder,
+    handleProjectReorder,
     handleAddTrack
   } = useAdminData()
 
@@ -134,6 +135,7 @@ const AdminPageContent = () => {
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onAddNew={handleAddNew}
+                  onReorder={handleProjectReorder}
                 />
               </TabsContent>
 

@@ -1,4 +1,3 @@
-// @ts-expect-error - Prisma client will be generated during build
 import { PrismaClient } from './generated/prisma/client'
 import { join } from 'path'
 import { existsSync } from 'fs'

@@ -1,9 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
-// Vercel 构建后复制 Prisma Engine 文件
+// 构建后复制 Prisma Engine 文件（开发和生产环境都需要）
 const copyPrismaEngine = () => {
-  console.log('📦 Copying Prisma Query Engine for Vercel...');
+  const isVercel = process.env.VERCEL === '1'
+  const isProduction = process.env.NODE_ENV === 'production'
+  
+  console.log(`📦 Copying Prisma Query Engine... (${isVercel ? 'Vercel' : 'Local'} ${isProduction ? 'Production' : 'Development'})`);
   
   const engineFile = 'libquery_engine-rhel-openssl-3.0.x.so.node';
   
@@ -24,13 +27,18 @@ const copyPrismaEngine = () => {
   }
   
   if (!enginePath) {
-    console.error('❌ Engine file not found in any expected location');
-    console.error('   Searched locations:');
-    possibleSources.forEach(src => console.error(`   - ${src}`));
+    console.warn('⚠️  Engine file not found in any expected location');
+    console.warn('   Searched locations:');
+    possibleSources.forEach(src => console.warn(`   - ${src}`));
+    // 在开发环境不失败，只是警告
+    if (!isVercel) {
+      console.warn('   Continuing build (this is OK for local development)...');
+      return true;
+    }
     return false;
   }
   
-  // 目标路径（Vercel 查找的位置）
+  // 目标路径
   const targets = [
     path.join(__dirname, '../.next/server/chunks', engineFile),
     path.join(__dirname, '../.next/server', engineFile),

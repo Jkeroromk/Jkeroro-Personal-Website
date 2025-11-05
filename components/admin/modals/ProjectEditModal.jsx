@@ -43,7 +43,7 @@ const ProjectEditModal = ({
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-gray-900 rounded-lg p-3 sm:p-6 w-full border border-gray-700 max-h-[90vh] overflow-y-auto max-w-md"
+        className="bg-gray-900 rounded-lg p-3 sm:p-6 w-full border border-gray-700 max-h-[90vh] overflow-y-auto max-w-2xl"
       >
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg sm:text-xl font-bold text-white">
@@ -76,27 +76,43 @@ const ProjectEditModal = ({
             {formData.src && (
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Image Preview & Position
+                  Image Preview & Position (匹配 Carousel 显示效果)
                 </label>
-                <div className="relative w-full aspect-[4/3] rounded-lg border border-gray-600 overflow-hidden bg-gray-800">
-                  {formData.src ? (
-                    <Image
-                      src={formData.src}
-                      alt={formData.title || 'Preview'}
-                      fill
-                      className="object-cover"
-                      style={{
-                        objectPosition: `${formData.cropX || 50}% ${formData.cropY || 50}%`
-                      }}
-                      onLoad={() => {}}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      <div className="text-center">
-                        <div className="text-sm">No image selected</div>
-                      </div>
+                {/* 模拟 carousel 卡片容器 - 适配 modal 宽度 */}
+                <div className="w-full max-w-[550px] mx-auto bg-white bg-opacity-80 border-2 border-black rounded-3xl overflow-hidden">
+                  {/* 图片区域 - 与 carousel 完全一致的尺寸和比例 */}
+                  <div className="relative w-full" style={{ aspectRatio: '550/384' }}>
+                    <div className="absolute inset-0 overflow-hidden bg-gray-800">
+                      {formData.src ? (
+                        <>
+                          <Image
+                            src={formData.src}
+                            alt={formData.title || 'Preview'}
+                            fill
+                            className="object-cover"
+                            style={{
+                              objectPosition: `${formData.cropX ?? 50}% ${formData.cropY ?? 50}%`
+                            }}
+                            unoptimized={formData.src.startsWith('/api/file/') || formData.src.startsWith('https://')}
+                          />
+                          {/* 渐变遮罩 - 与 carousel 一致 */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          <div className="text-center">
+                            <div className="text-sm">No image selected</div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
+                  
+                  {/* 文字内容区域预览（简化版） */}
+                  <div className="p-4 bg-white bg-opacity-80">
+                    <div className="h-4 bg-gray-200 rounded mb-2 w-3/4"></div>
+                    <div className="h-3 bg-gray-200 rounded w-full"></div>
+                  </div>
                 </div>
                 
                 {/* 位置调整控制 */}

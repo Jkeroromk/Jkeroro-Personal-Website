@@ -727,6 +727,45 @@ export const useAdminData = () => {
     }
   }
 
+  // 处理项目拖拽排序
+  const handleProjectReorder = async (dragIndex, dropIndex) => {
+    try {
+      const newProjects = [...(apiProjects || [])]
+      const draggedProject = newProjects[dragIndex]
+      
+      // 移除拖拽的项目
+      newProjects.splice(dragIndex, 1)
+      // 在目标位置插入
+      newProjects.splice(dropIndex, 0, draggedProject)
+      
+      // 更新 API 中每个项目的顺序
+      const updatePromises = newProjects.map((project, index) => {
+        return fetch(`/api/media/projects/${project.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: index }),
+        })
+      })
+      
+      await Promise.all(updatePromises)
+      
+      // 更新本地状态
+      setApiProjects(newProjects)
+      
+      toast({
+        title: "Success",
+        description: "Project order updated successfully",
+      })
+    } catch (error) {
+      console.error('Project reorder error:', error)
+      toast({
+        title: "Error",
+        description: `Failed to reorder projects: ${error.message}`,
+        variant: "destructive"
+      })
+    }
+  }
+
   // 处理添加新音乐轨道
   const handleAddTrack = () => {
     setFormData({
@@ -772,6 +811,7 @@ export const useAdminData = () => {
     handleAddNew,
     handleTrackReorder,
     handleImageReorder,
+    handleProjectReorder,
     handleAddTrack
   }
 }
