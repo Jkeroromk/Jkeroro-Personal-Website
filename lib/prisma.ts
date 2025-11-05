@@ -99,9 +99,7 @@ const ensureSSLConfig = () => {
   // 对于 direct 连接，可以使用 sslmode=require 或 sslmode=no-verify
   if (!databaseUrl.includes('sslmode=')) {
     const separator = databaseUrl.includes('?') ? '&' : '?'
-    // 检查是否是 pooler 连接
-    const isPooler = databaseUrl.includes('pooler.supabase.com')
-    // 对于 pooler，使用 require；对于 direct，也使用 require
+    // 对于 pooler 和 direct 连接，都使用 sslmode=require
     process.env.DATABASE_URL = `${databaseUrl}${separator}sslmode=require`
   }
 }
