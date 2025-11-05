@@ -47,8 +47,19 @@ export async function POST(request: NextRequest) {
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
       
+      // 检查存储桶是否存在（可选，如果不存在会报错）
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
+      if (bucketsError) {
+        console.warn('Could not list buckets:', bucketsError)
+      } else {
+        const bucketExists = buckets?.some(b => b.name === bucket)
+        if (!bucketExists) {
+          console.warn(`Bucket "${bucket}" does not exist. Please create it in Supabase dashboard.`)
+        }
+      }
+      
       // 上传到 Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data: uploadData } = await supabase.storage
         .from(bucket)
         .upload(fileName, buffer, {
           contentType: file.type,
@@ -56,6 +67,11 @@ export async function POST(request: NextRequest) {
         })
       
       if (uploadError) {
+        console.error('Supabase upload error details:', {
+          message: uploadError.message,
+          statusCode: uploadError.statusCode,
+          error: uploadError.error,
+        })
         throw uploadError
       }
       

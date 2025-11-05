@@ -46,12 +46,19 @@ export async function GET() {
   }
 
   // 检查 3: 直接连接测试（使用 pg）
+  // 确保 DATABASE_URL 包含 SSL 配置
+  // 对于 pg 客户端，我们使用 ssl 选项来接受自签名证书
+  let connectionString = databaseUrl
+  // 移除可能存在的 sslmode 参数，因为我们会在 Client 配置中处理
+  connectionString = connectionString.replace(/[?&]sslmode=[^&]*/g, '')
+  
   let client: Client | null = null
   try {
+    // 对于 pg 客户端，使用 ssl 选项而不是 URL 参数
     client = new Client({
-      connectionString: databaseUrl,
+      connectionString: connectionString,
       ssl: {
-        rejectUnauthorized: false, // Supabase 使用自签名证书
+        rejectUnauthorized: false, // Supabase 使用自签名证书，不验证证书
       },
     })
 

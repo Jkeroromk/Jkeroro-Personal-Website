@@ -88,6 +88,26 @@ if (typeof window === 'undefined') {
   getPrismaEnginePath()
 }
 
+// 确保 DATABASE_URL 包含 SSL 配置（针对 Supabase）
+const ensureSSLConfig = () => {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) return
+
+  // 如果 URL 中还没有 SSL 参数，添加它
+  // Supabase 需要 SSL 连接，使用 sslmode=require
+  // 注意：Prisma 会使用这个连接字符串，它会通过 libpq 处理 SSL
+  if (!databaseUrl.includes('sslmode=')) {
+    const separator = databaseUrl.includes('?') ? '&' : '?'
+    // 对于 Prisma，使用 require 模式，Prisma 的 libpq 会处理证书验证
+    process.env.DATABASE_URL = `${databaseUrl}${separator}sslmode=require`
+  }
+}
+
+// 在服务器端确保 SSL 配置
+if (typeof window === 'undefined') {
+  ensureSSLConfig()
+}
+
 // 创建 Prisma 客户端实例
 // 在开发环境中，每次重新加载时创建新实例
 // 在生产环境中，重用全局实例以避免连接池耗尽
