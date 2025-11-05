@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       }
       
       // 上传到 Supabase Storage
-      const { error: uploadError, data: uploadData } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from(bucket)
         .upload(fileName, buffer, {
           contentType: file.type,
