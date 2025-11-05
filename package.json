@@ -13,7 +13,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build"
+    "vercel-build": "prisma generate && node scripts/run-with-ssl.js prisma migrate deploy && next build && node scripts/postbuild.js"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
