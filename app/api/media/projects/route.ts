@@ -13,8 +13,23 @@ export async function GET() {
     return NextResponse.json(projects)
   } catch (error) {
     console.error('Get projects error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    // 在生产环境记录详细错误信息
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Production error details:', {
+        message: errorMessage,
+        stack: errorStack,
+        timestamp: new Date().toISOString(),
+      })
+    }
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
       { status: 500 }
     )
   }

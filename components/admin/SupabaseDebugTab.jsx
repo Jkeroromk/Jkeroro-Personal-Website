@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/use-toast'
 const SupabaseDebugTab = () => {
   const [connectionStatus, setConnectionStatus] = useState(null)
   const [serverStatus, setServerStatus] = useState(null) // 服务器端状态
+  const [dbStatus, setDbStatus] = useState(null) // 数据库连接状态
   const [testResults, setTestResults] = useState({})
   const [comment, setComment] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -33,7 +34,28 @@ const SupabaseDebugTab = () => {
 
   useEffect(() => {
     checkConnectionStatus()
+    checkDatabaseStatus()
   }, [])
+
+  const checkDatabaseStatus = async () => {
+    try {
+      const response = await fetch('/api/admin/db-status')
+      if (response.ok) {
+        const data = await response.json()
+        setDbStatus(data)
+      } else {
+        const error = await response.json()
+        setDbStatus({
+          error: error.message || 'Failed to check database status',
+        })
+      }
+    } catch (error) {
+      console.error('Error checking database status:', error)
+      setDbStatus({
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+  }
 
   const checkConnectionStatus = async () => {
     // 客户端检查（只能检查 NEXT_PUBLIC_ 变量）
@@ -345,6 +367,95 @@ const SupabaseDebugTab = () => {
                 </div>
               </div>
             </div>
+
+            {/* Database Connection Status */}
+            {dbStatus && (
+              <div>
+                <h4 className="text-white font-medium mb-3 flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Database Connection Status
+                </h4>
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-800 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-300 text-sm">Connection Test</span>
+                      {dbStatus.connection?.success ? (
+                        <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500">
+                          ✅ Connected
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive">
+                          ❌ Failed
+                        </Badge>
+                      )}
+                    </div>
+                    {dbStatus.connection?.error && (
+                      <p className="text-red-400 text-xs mt-2">{dbStatus.connection.error}</p>
+                    )}
+                  </div>
+                  
+                  <div className="p-3 bg-gray-800 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-gray-300 text-sm">Database URL</span>
+                      {dbStatus.environment?.hasDatabaseUrl ? (
+                        <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500">
+                          ✅ Set
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive">
+                          ❌ Missing
+                        </Badge>
+                      )}
+                    </div>
+                    {dbStatus.environment?.databaseUrlPreview && (
+                      <p className="text-gray-400 text-xs mt-2 font-mono break-all">
+                        {dbStatus.environment.databaseUrlPreview}
+                      </p>
+                    )}
+                  </div>
+
+                  {dbStatus.tables?.success && (
+                    <div className="p-3 bg-gray-800 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white text-sm">Tables Found</span>
+                        <Badge variant="default" className="bg-blue-500/20 text-white border-blue-500">
+                          {dbStatus.tables.tables.length}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {dbStatus.tables.tables.map((table) => (
+                          <Badge key={table} variant="outline" className="text-xs text-white border-gray-600">
+                            {table}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {dbStatus.dataCounts && (
+                    <div className="p-3 bg-gray-800 rounded-lg">
+                      <div className="text-white text-sm mb-2">Data Counts</div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-white">
+                        <div>Images: <span className="text-white">{dbStatus.dataCounts.images}</span></div>
+                        <div>Tracks: <span className="text-white">{dbStatus.dataCounts.tracks}</span></div>
+                        <div>Projects: <span className="text-white">{dbStatus.dataCounts.projects}</span></div>
+                        <div>Comments: <span className="text-white">{dbStatus.dataCounts.comments}</span></div>
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={checkDatabaseStatus}
+                    variant="outline"
+                    className="w-full"
+                    disabled={isLoading}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh Database Status
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Development Settings */}
             {process.env.NODE_ENV === 'development' && (
