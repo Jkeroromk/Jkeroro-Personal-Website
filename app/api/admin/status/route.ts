@@ -3,9 +3,15 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const adminStatus = await prisma.adminStatus.findUnique({
-      where: { id: 'admin' },
-    })
+    // 添加连接超时保护
+    const adminStatus = await Promise.race([
+      prisma.adminStatus.findUnique({
+        where: { id: 'admin' },
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database query timeout')), 10000)
+      )
+    ]) as Awaited<ReturnType<typeof prisma.adminStatus.findUnique>>
 
     if (!adminStatus) {
       return NextResponse.json({
@@ -24,8 +30,23 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Get admin status error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    // 详细错误日志
+    console.error('Admin status error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    })
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
       { status: 500 }
     )
   }

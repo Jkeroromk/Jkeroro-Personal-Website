@@ -42,8 +42,6 @@ const nextConfig: NextConfig = {
       config.devtool = 'source-map';
     }
     
-    // Prisma Query Engine 通过 postbuild 脚本复制
-    
     // 优化包大小和压缩
     if (!dev) {
       config.optimization = {

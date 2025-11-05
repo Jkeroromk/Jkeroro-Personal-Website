@@ -77,10 +77,15 @@ export const useAdminData = () => {
         const imagesResponse = await fetch('/api/media/images')
         if (imagesResponse.ok) {
           const imagesData = await imagesResponse.json()
-          setImages(imagesData)
+          console.log('[Admin] Loaded images from API:', imagesData.length, imagesData)
+          setImages(imagesData || [])
         } else {
+          // API 返回错误，记录详细信息
+          const errorText = await imagesResponse.text()
+          console.error('[Admin] Failed to load images from API:', imagesResponse.status, errorText)
           // 降级到本地数据
           const imagesData = dataManager.getImages()
+          console.log('[Admin] Falling back to local data:', imagesData.length)
           setImages(imagesData)
         }
 
@@ -98,9 +103,10 @@ export const useAdminData = () => {
           setTracks(tracksData)
         }
       } catch (apiError) {
-        console.error('API 加载失败，使用本地数据:', apiError)
+        console.error('[Admin] API 加载失败，使用本地数据:', apiError)
         // 降级到本地数据
         const imagesData = dataManager.getImages()
+        console.log('[Admin] Using local data as fallback:', imagesData.length)
         setImages(imagesData)
       }
     } catch (error) {

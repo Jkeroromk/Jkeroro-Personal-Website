@@ -4,11 +4,17 @@ import { prisma } from '@/lib/prisma'
 // 获取所有音乐轨道
 export async function GET() {
   try {
-    const tracks = await prisma.track.findMany({
-      orderBy: {
-        order: 'asc',
-      },
-    })
+    // 添加连接超时保护
+    const tracks = await Promise.race([
+      prisma.track.findMany({
+        orderBy: {
+          order: 'asc',
+        },
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database query timeout')), 10000)
+      )
+    ]) as Awaited<ReturnType<typeof prisma.track.findMany>>
 
     return NextResponse.json(tracks)
   } catch (error) {
@@ -16,14 +22,15 @@ export async function GET() {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     const errorStack = error instanceof Error ? error.stack : undefined
     
-    // 在生产环境记录详细错误信息
-    if (process.env.NODE_ENV === 'production') {
-      console.error('Production error details:', {
-        message: errorMessage,
-        stack: errorStack,
-        timestamp: new Date().toISOString(),
-      })
-    }
+    // 详细错误日志
+    console.error('Get tracks error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      isPrismaError: errorMessage.includes('Prisma') || errorMessage.includes('Query Engine'),
+    })
     
     return NextResponse.json(
       { 
