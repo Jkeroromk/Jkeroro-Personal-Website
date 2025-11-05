@@ -94,11 +94,14 @@ const ensureSSLConfig = () => {
   if (!databaseUrl) return
 
   // 如果 URL 中还没有 SSL 参数，添加它
-  // Supabase 需要 SSL 连接，使用 sslmode=require
-  // 注意：Prisma 会使用这个连接字符串，它会通过 libpq 处理 SSL
+  // Supabase 需要 SSL 连接
+  // 对于 pooler 连接，使用 sslmode=require
+  // 对于 direct 连接，可以使用 sslmode=require 或 sslmode=no-verify
   if (!databaseUrl.includes('sslmode=')) {
     const separator = databaseUrl.includes('?') ? '&' : '?'
-    // 对于 Prisma，使用 require 模式，Prisma 的 libpq 会处理证书验证
+    // 检查是否是 pooler 连接
+    const isPooler = databaseUrl.includes('pooler.supabase.com')
+    // 对于 pooler，使用 require；对于 direct，也使用 require
     process.env.DATABASE_URL = `${databaseUrl}${separator}sslmode=require`
   }
 }
