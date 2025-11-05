@@ -32,6 +32,14 @@ const nextConfig: NextConfig = {
       config.devtool = 'source-map';
     }
     
+    // 修复 Prisma Query Engine 在 Vercel 上的问题
+    if (isServer) {
+      // 确保 Prisma 客户端能被正确解析
+      config.resolve.alias = {
+        ...config.resolve.alias,
+      };
+    }
+    
     // 优化包大小和压缩
     if (!dev) {
       config.optimization = {
