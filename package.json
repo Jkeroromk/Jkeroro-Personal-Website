@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && prisma migrate deploy && next build && node scripts/postbuild.js",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
@@ -12,7 +12,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build"
+    "vercel-build": "prisma generate && prisma migrate deploy && next build && node scripts/postbuild.js"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
@@ -58,6 +58,7 @@
     "pg": "^8.16.3",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "copy-webpack-plugin": "^12.0.2",
     "terser-webpack-plugin": "^5.3.14",
     "tsx": "^4.20.6",
     "typescript": "^5"

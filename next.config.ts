@@ -26,19 +26,13 @@ const nextConfig: NextConfig = {
   },
   
   // Webpack 配置
-  webpack: (config, { dev, isServer }) => {
+  webpack: (config, { dev, isServer, webpack }) => {
     // 在生产环境中生成源映射
     if (!dev && !isServer) {
       config.devtool = 'source-map';
     }
     
-    // 修复 Prisma Query Engine 在 Vercel 上的问题
-    if (isServer) {
-      // 确保 Prisma 客户端能被正确解析
-      config.resolve.alias = {
-        ...config.resolve.alias,
-      };
-    }
+    // Prisma Query Engine 通过 postbuild 脚本复制
     
     // 优化包大小和压缩
     if (!dev) {
