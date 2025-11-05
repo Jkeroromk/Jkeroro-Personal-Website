@@ -24,8 +24,24 @@ export async function PATCH(
     return NextResponse.json(track)
   } catch (error) {
     console.error('Update track error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    // 详细错误日志
+    console.error('Update track error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      isPrismaError: errorMessage.includes('Prisma') || errorMessage.includes('Query Engine'),
+    })
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
       { status: 500 }
     )
   }
@@ -38,15 +54,38 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    await prisma.track.delete({
-      where: { id },
-    })
+    
+    // 添加连接超时保护
+    await Promise.race([
+      prisma.track.delete({
+        where: { id },
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database query timeout')), 10000)
+      )
+    ])
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Delete track error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    
+    // 详细错误日志
+    console.error('Delete track error details:', {
+      message: errorMessage,
+      stack: errorStack,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      isPrismaError: errorMessage.includes('Prisma') || errorMessage.includes('Query Engine'),
+    })
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
       { status: 500 }
     )
   }

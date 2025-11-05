@@ -115,12 +115,14 @@ const LoadingLogic = () => {
     let resourceProgress = 0
     let scriptProgress = 0
     let musicProgress = 0
+    let databaseProgress = 0
     
     // 平滑进度更新函数
     const updateProgress = () => {
       if (isCompleted) return
       
-      const totalProgress = Math.min(95, resourceProgress + scriptProgress + musicProgress)
+      // 资源占40%，脚本占20%，音乐占20%，数据库占20%
+      const totalProgress = Math.min(95, resourceProgress + scriptProgress + musicProgress + databaseProgress)
       setProgress(prev => {
         // 确保进度只增不减，并且平滑增长
         if (totalProgress > prev) {
@@ -159,9 +161,10 @@ const LoadingLogic = () => {
       
       // 超时保护：如果20秒内没有完成，强制继续
       const timeoutId = setTimeout(() => {
-        resourceProgress = 70
-        scriptProgress = 25
-        musicProgress = 25 // 强制设置音乐进度
+        resourceProgress = 40
+        scriptProgress = 20
+        musicProgress = 20
+        databaseProgress = 20 // 强制设置数据库进度
         updateProgress()
       }, 20000)
       
@@ -175,7 +178,11 @@ const LoadingLogic = () => {
               const tracks = await response.json()
               if (tracks && tracks.length > 0) {
                 musicDataLoaded = true
-                musicProgress = 25
+                // 保存到 DataManager 供 home 页面使用
+                const DataManager = (await import('@/lib/data-manager')).default
+                const dataManager = DataManager.getInstance()
+                dataManager.saveTracks(tracks)
+                musicProgress = 20
                 updateProgress()
                 return
               }
@@ -194,12 +201,84 @@ const LoadingLogic = () => {
           
           // 更新进度
           if (musicDataLoaded) {
-            musicProgress = 25
+            musicProgress = 20
             updateProgress()
           }
         } catch (error) {
           // 静默处理错误，使用默认进度
-          musicProgress = 25
+          musicProgress = 20
+          updateProgress()
+        }
+      }
+      
+      // 预加载数据库数据（images, projects, tracks）
+      const preloadDatabaseData = async () => {
+        try {
+          setLoadingDescription({ en: 'Loading database...', zh: '加载数据库...' })
+          
+          const DataManager = (await import('@/lib/data-manager')).default
+          const dataManager = DataManager.getInstance()
+          
+          // 并行加载所有数据库数据
+          const [imagesResponse, projectsResponse, tracksResponse] = await Promise.allSettled([
+            fetch('/api/media/images').catch(() => ({ ok: false, json: () => [] })),
+            fetch('/api/media/projects').catch(() => ({ ok: false, json: () => [] })),
+            fetch('/api/media/tracks').catch(() => ({ ok: false, json: () => [] }))
+          ])
+          
+          let loadedCount = 0
+          
+          // 处理图片数据
+          if (imagesResponse.status === 'fulfilled' && imagesResponse.value.ok) {
+            try {
+              const images = await imagesResponse.value.json()
+              if (images && Array.isArray(images)) {
+                dataManager.saveImages(images)
+                loadedCount++
+              }
+            } catch (e) {
+              // 静默处理错误
+            }
+          }
+          
+          // 处理项目数据
+          if (projectsResponse.status === 'fulfilled' && projectsResponse.value.ok) {
+            try {
+              const projects = await projectsResponse.value.json()
+              if (projects && Array.isArray(projects)) {
+                dataManager.saveProjects(projects)
+                loadedCount++
+              }
+            } catch (e) {
+              // 静默处理错误
+            }
+          }
+          
+          // 处理音乐数据（如果 checkMusicResources 还没完成）
+          if (tracksResponse.status === 'fulfilled' && tracksResponse.value.ok) {
+            try {
+              const tracks = await tracksResponse.value.json()
+              if (tracks && Array.isArray(tracks)) {
+                dataManager.saveTracks(tracks)
+                if (!musicDataLoaded) {
+                  musicDataLoaded = true
+                  musicProgress = 20
+                }
+                loadedCount++
+              }
+            } catch (e) {
+              // 静默处理错误
+            }
+          }
+          
+          // 更新数据库加载进度（至少加载了1个就算成功）
+          databaseProgress = loadedCount >= 1 ? 20 : 10
+          updateProgress()
+          
+          setLoadingDescription({ en: 'Database loaded', zh: '数据库加载完成' })
+        } catch (error) {
+          // 静默处理错误，至少给一些进度
+          databaseProgress = 10
           updateProgress()
         }
       }
@@ -209,7 +288,7 @@ const LoadingLogic = () => {
         if (typeof window !== 'undefined' && 
             window.THREE && 
             window.THREE.PerspectiveCamera) {
-          scriptProgress = 25
+          scriptProgress = 20
           updateProgress()
         } else {
           setTimeout(checkScriptsLoaded, 200)
@@ -218,7 +297,7 @@ const LoadingLogic = () => {
 
       const onResourceLoaded = () => {
         loadedCount++
-        resourceProgress = (loadedCount / totalResources) * 70 // 资源占70%
+        resourceProgress = (loadedCount / totalResources) * 40 // 资源占40%
         updateProgress()
       }
       
@@ -263,6 +342,11 @@ const LoadingLogic = () => {
       setTimeout(() => {
         checkMusicResources()
       }, 1500)
+      
+      // 开始预加载数据库数据
+      setTimeout(() => {
+        preloadDatabaseData()
+      }, 2000)
     }
     
     // 延迟开始预加载，给页面一些初始化时间

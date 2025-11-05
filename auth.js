@@ -13,11 +13,28 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const userJustLoggedOut = useRef(false); // 标记用户是否刚刚登出
 
-  // 获取管理员状态
+  // 获取管理员状态（带错误处理和重试限制）
   const fetchAdminStatus = async () => {
     try {
       const response = await fetch('/api/admin/status');
+      
+      // 检查响应状态
+      if (!response.ok) {
+        // 如果是 500 错误，静默失败，不更新状态
+        if (response.status === 500) {
+          console.warn('[Auth] Admin status API returned 500, skipping update');
+          return;
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      
+      // 检查是否有错误字段
+      if (data.error) {
+        console.warn('[Auth] Admin status API error:', data.error);
+        return;
+      }
       
       if (data.lastActive) {
         setLastActivity(new Date(data.lastActive).toLocaleString());
@@ -31,11 +48,11 @@ export const AuthProvider = ({ children }) => {
         setIsOnline(false);
       }
     } catch (error) {
-      console.error('Error fetching admin status:', error);
-      setLastActivity(null);
-      if (!userJustLoggedOut.current) {
-        setIsOnline(false);
+      // 只在非 500 错误时记录，避免日志噪音
+      if (error instanceof TypeError || !error.message.includes('500')) {
+        console.error('[Auth] Error fetching admin status:', error);
       }
+      // 不更新状态，保持当前状态
     } finally {
       setLoading(false);
     }
@@ -72,9 +89,24 @@ export const AuthProvider = ({ children }) => {
         userJustLoggedOut.current = false; // 登录时清除登出标记
         if (adminEmail) {
           // 更新管理员状态（标记为在线）
-          fetch('/api/admin/status', { method: 'POST' }).then(() => {
-            setIsOnline(true);
-          }).catch(console.error);
+          fetch('/api/admin/status', { method: 'POST' })
+            .then((response) => {
+              if (response.ok) {
+                setIsOnline(true);
+              } else {
+                console.warn('[Auth] Failed to update admin status:', response.status);
+                // 即使 API 失败，也设置在线状态（基于本地认证）
+                setIsOnline(true);
+              }
+            })
+            .catch((error) => {
+              // 静默处理错误，避免日志噪音
+              if (!error.message?.includes('500')) {
+                console.error('[Auth] Error updating admin status:', error);
+              }
+              // 即使 API 失败，也设置在线状态（基于本地认证）
+              setIsOnline(true);
+            });
         } else {
           setIsOnline(false);
         }
@@ -97,9 +129,24 @@ export const AuthProvider = ({ children }) => {
         userJustLoggedOut.current = false; // 登录时清除登出标记
         if (adminEmail) {
           // 更新管理员状态（标记为在线）
-          fetch('/api/admin/status', { method: 'POST' }).then(() => {
-            setIsOnline(true);
-          }).catch(console.error);
+          fetch('/api/admin/status', { method: 'POST' })
+            .then((response) => {
+              if (response.ok) {
+                setIsOnline(true);
+              } else {
+                console.warn('[Auth] Failed to update admin status:', response.status);
+                // 即使 API 失败，也设置在线状态（基于本地认证）
+                setIsOnline(true);
+              }
+            })
+            .catch((error) => {
+              // 静默处理错误，避免日志噪音
+              if (!error.message?.includes('500')) {
+                console.error('[Auth] Error updating admin status:', error);
+              }
+              // 即使 API 失败，也设置在线状态（基于本地认证）
+              setIsOnline(true);
+            });
         } else {
           setIsOnline(false);
         }
@@ -122,20 +169,6 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
-  // 监听管理员在线状态
-  useEffect(() => {
-    if (!isAdmin) {
-      setIsOnline(false);
-      return;
-    }
-
-    // 定期检查管理员状态
-    const checkInterval = setInterval(() => {
-      fetchAdminStatus();
-    }, 30000); // 每30秒检查一次
-
-    return () => clearInterval(checkInterval);
-  }, [isAdmin]);
 
   const loginWithEmail = async (email, password) => {
     if (!supabase) {
@@ -156,8 +189,20 @@ export const AuthProvider = ({ children }) => {
       // 如果是管理员，更新状态（标记为在线）
       if (data.user?.email === 'zzou2000@gmail.com') {
         userJustLoggedOut.current = false; // 登录时清除登出标记
-        await fetch('/api/admin/status', { method: 'POST' });
-        setIsOnline(true);
+        try {
+          const response = await fetch('/api/admin/status', { method: 'POST' });
+          if (response.ok) {
+            setIsOnline(true);
+          } else {
+            console.warn('[Auth] Failed to update admin status on login:', response.status);
+            // 即使 API 失败，也设置在线状态（基于本地认证）
+            setIsOnline(true);
+          }
+        } catch (error) {
+          console.error('[Auth] Error updating admin status on login:', error);
+          // 即使 API 失败，也设置在线状态（基于本地认证）
+          setIsOnline(true);
+        }
       }
 
       return data;

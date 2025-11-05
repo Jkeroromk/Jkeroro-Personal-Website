@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap/dist/gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { getRealtimeClient } from "@/lib/realtime-client";
+import DataManager from "@/lib/data-manager";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -31,15 +32,34 @@ const Album = () => {
         setImages([]);
       } else {
         setImages(data);
+        // 更新缓存
+        const dataManager = DataManager.getInstance();
+        dataManager.saveImages(data);
       }
     } catch (error) {
       console.error('Album: Error loading images:', error);
-      setImages([]);
+      // 如果 API 失败，尝试使用缓存数据
+      const dataManager = DataManager.getInstance();
+      const cachedImages = dataManager.getImages();
+      if (cachedImages && cachedImages.length > 0) {
+        setImages(cachedImages);
+      } else {
+        setImages([]);
+      }
     }
   };
 
   useEffect(() => {
-    // 初始加载
+    // 先使用缓存数据（如果存在）
+    if (typeof window !== "undefined") {
+      const dataManager = DataManager.getInstance();
+      const cachedImages = dataManager.getImages();
+      if (cachedImages && cachedImages.length > 0) {
+        setImages(cachedImages);
+      }
+    }
+    
+    // 然后从 API 更新
     loadImages();
     
     // 使用 SSE 实时更新

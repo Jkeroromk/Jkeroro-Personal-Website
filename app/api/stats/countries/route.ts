@@ -75,7 +75,20 @@ export async function POST(request: NextRequest) {
       count: countryVisit.count,
     })
   } catch (error) {
-    console.error('Track visitor location error:', error)
+    // 在开发环境中，如果是数据库连接错误，静默处理
+    const isConnectionError = error instanceof Error && 
+      (error.message.includes("Can't reach database server") || 
+       error.message.includes('PrismaClientInitializationError'))
+    
+    if (process.env.NODE_ENV === 'development' && isConnectionError) {
+      // 开发环境返回成功但跳过记录
+      return NextResponse.json({ success: true, skipped: true })
+    }
+    
+    if (!isConnectionError || process.env.NODE_ENV === 'production') {
+      console.error('Track visitor location error:', error)
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -94,7 +107,20 @@ export async function GET() {
 
     return NextResponse.json(countries)
   } catch (error) {
-    console.error('Get countries stats error:', error)
+    // 在开发环境中，如果是数据库连接错误，静默处理
+    const isConnectionError = error instanceof Error && 
+      (error.message.includes("Can't reach database server") || 
+       error.message.includes('PrismaClientInitializationError'))
+    
+    if (process.env.NODE_ENV === 'development' && isConnectionError) {
+      // 开发环境返回空数组
+      return NextResponse.json([])
+    }
+    
+    if (!isConnectionError || process.env.NODE_ENV === 'production') {
+      console.error('Get countries stats error:', error)
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

@@ -80,27 +80,45 @@ export const useAdminData = () => {
           console.log('[Admin] Loaded images from API:', imagesData.length, imagesData)
           setImages(imagesData || [])
         } else {
-          // API 返回错误，记录详细信息
-          const errorText = await imagesResponse.text()
-          console.error('[Admin] Failed to load images from API:', imagesResponse.status, errorText)
+          // API 返回错误，记录详细信息（500 错误时静默）
+          if (imagesResponse.status !== 500) {
+            try {
+              const errorText = await imagesResponse.text()
+              console.error('[Admin] Failed to load images from API:', imagesResponse.status, errorText)
+            } catch (e) {
+              console.error('[Admin] Failed to load images from API:', imagesResponse.status)
+            }
+          }
           // 降级到本地数据
           const imagesData = dataManager.getImages()
           console.log('[Admin] Falling back to local data:', imagesData.length)
-          setImages(imagesData)
+          setImages(imagesData || [])
         }
 
         // 加载项目数据
         const projectsResponse = await fetch('/api/media/projects')
         if (projectsResponse.ok) {
           const projectsData = await projectsResponse.json()
-          setApiProjects(projectsData)
+          setApiProjects(projectsData || [])
+        } else {
+          // API 返回错误，记录但静默处理（500 错误时）
+          if (projectsResponse.status !== 500) {
+            console.error('[Admin] Failed to load projects from API:', projectsResponse.status)
+          }
+          setApiProjects([]) // 设置空数组而不是保持旧数据
         }
 
         // 加载音乐数据
         const tracksResponse = await fetch('/api/media/tracks')
         if (tracksResponse.ok) {
           const tracksData = await tracksResponse.json()
-          setTracks(tracksData)
+          setTracks(tracksData || [])
+        } else {
+          // API 返回错误，记录但静默处理（500 错误时）
+          if (tracksResponse.status !== 500) {
+            console.error('[Admin] Failed to load tracks from API:', tracksResponse.status)
+          }
+          setTracks([]) // 设置空数组而不是保持旧数据
         }
       } catch (apiError) {
         console.error('[Admin] API 加载失败，使用本地数据:', apiError)
@@ -222,8 +240,16 @@ export const useAdminData = () => {
           })
 
           if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to create image')
+            let errorMessage = 'Failed to create image'
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData.error || errorData.message || errorMessage
+            } catch (parseError) {
+              errorMessage = response.status === 500 
+                ? '服务器错误，请稍后重试' 
+                : `创建失败 (${response.status})`
+            }
+            throw new Error(errorMessage)
           }
 
           // 等待数据库写入完成后再刷新数据
@@ -244,8 +270,16 @@ export const useAdminData = () => {
           })
 
           if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to create track')
+            let errorMessage = 'Failed to create track'
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData.error || errorData.message || errorMessage
+            } catch (parseError) {
+              errorMessage = response.status === 500 
+                ? '服务器错误，请稍后重试' 
+                : `创建失败 (${response.status})`
+            }
+            throw new Error(errorMessage)
           }
 
           // 等待数据库写入完成后再刷新数据
@@ -275,8 +309,16 @@ export const useAdminData = () => {
           })
 
           if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to create project')
+            let errorMessage = 'Failed to create project'
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData.error || errorData.message || errorMessage
+            } catch (parseError) {
+              errorMessage = response.status === 500 
+                ? '服务器错误，请稍后重试' 
+                : `创建失败 (${response.status})`
+            }
+            throw new Error(errorMessage)
           }
 
           // 等待数据库写入完成后再刷新数据
@@ -303,8 +345,16 @@ export const useAdminData = () => {
           })
 
           if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to update image')
+            let errorMessage = 'Failed to update image'
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData.error || errorData.message || errorMessage
+            } catch (parseError) {
+              errorMessage = response.status === 500 
+                ? '服务器错误，请稍后重试' 
+                : `更新失败 (${response.status})`
+            }
+            throw new Error(errorMessage)
           }
 
           // 等待数据库写入完成后再刷新数据
@@ -325,8 +375,16 @@ export const useAdminData = () => {
           })
 
           if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to update track')
+            let errorMessage = 'Failed to update track'
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData.error || errorData.message || errorMessage
+            } catch (parseError) {
+              errorMessage = response.status === 500 
+                ? '服务器错误，请稍后重试' 
+                : `更新失败 (${response.status})`
+            }
+            throw new Error(errorMessage)
           }
 
           // 等待数据库写入完成后再刷新数据
@@ -356,8 +414,16 @@ export const useAdminData = () => {
           })
 
           if (!response.ok) {
-            const errorData = await response.json()
-            throw new Error(errorData.error || 'Failed to update project')
+            let errorMessage = 'Failed to update project'
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData.error || errorData.message || errorMessage
+            } catch (parseError) {
+              errorMessage = response.status === 500 
+                ? '服务器错误，请稍后重试' 
+                : `更新失败 (${response.status})`
+            }
+            throw new Error(errorMessage)
           }
 
           // 等待数据库写入完成后再刷新数据
@@ -521,8 +587,18 @@ export const useAdminData = () => {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete')
+        // 尝试解析错误消息，但如果失败则不阻塞
+        let errorMessage = 'Failed to delete'
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorData.message || errorMessage
+        } catch (parseError) {
+          // 如果响应不是 JSON，使用状态文本
+          errorMessage = response.status === 500 
+            ? '服务器错误，请稍后重试' 
+            : `删除失败 (${response.status})`
+        }
+        throw new Error(errorMessage)
       }
 
       // 重新加载数据

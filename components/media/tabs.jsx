@@ -14,6 +14,7 @@ import { getRealtimeClient } from '@/lib/realtime-client';
 // No longer using Firebase - using API instead
 import { useAuth } from "../../auth";
 import { motion } from "framer-motion";
+import DataManager from "@/lib/data-manager";
 
 // 简单卡片组件
 const Card3D = ({ children, className = "", href, target, rel, onMouseEnter, onMouseLeave }) => {
@@ -71,15 +72,40 @@ const Tabs = () => {
       const items = await response.json();
       setCarouselItems(items);
       setFetchError(null);
+      
+      // 更新缓存
+      if (typeof window !== "undefined") {
+        const dataManager = DataManager.getInstance();
+        dataManager.saveProjects(items);
+      }
     } catch (error) {
       console.error("Error fetching carousel items:", error);
+      // 如果 API 失败，尝试使用缓存数据
+      if (typeof window !== "undefined") {
+        const dataManager = DataManager.getInstance();
+        const cachedProjects = dataManager.getProjects();
+        if (cachedProjects && cachedProjects.length > 0) {
+          setCarouselItems(cachedProjects);
+          setFetchError(null);
+          return;
+        }
+      }
       setFetchError("Failed to load projects: " + (error.message || 'Unknown error'));
     }
   };
 
   // 使用 SSE 实时更新获取数据变化
   useEffect(() => {
-    // 初始加载
+    // 先使用缓存数据（如果存在）
+    if (typeof window !== "undefined") {
+      const dataManager = DataManager.getInstance();
+      const cachedProjects = dataManager.getProjects();
+      if (cachedProjects && cachedProjects.length > 0) {
+        setCarouselItems(cachedProjects);
+      }
+    }
+    
+    // 然后从 API 更新
     fetchCarouselItems();
     
     // 使用 SSE 实时更新

@@ -68,7 +68,20 @@ export async function GET(request: NextRequest) {
             send('comments', JSON.stringify(comments))
           }
         } catch (error) {
-          console.error('SSE error:', error)
+          // 在开发环境中，如果是数据库连接错误，静默处理
+          const isConnectionError = error instanceof Error && 
+            (error.message.includes("Can't reach database server") || 
+             error.message.includes('PrismaClientInitializationError'))
+          
+          if (process.env.NODE_ENV === 'development' && isConnectionError) {
+            // 开发环境静默处理连接错误
+            return
+          }
+          
+          // 生产环境或其他错误才记录
+          if (!isConnectionError || process.env.NODE_ENV === 'production') {
+            console.error('SSE error:', error)
+          }
           send('error', JSON.stringify({ message: 'Failed to fetch data' }))
         }
       }, 3000) // 每 3 秒检查一次（只在数据变化时推送）

@@ -436,6 +436,8 @@ const MusicPlayer = memo(() => {
             muted={isMuted}
             preload="none" // 不预加载，节省带宽
             onEnded={() => skipTrack(1)}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleTimeUpdate}
             onLoadStart={() => {}}
             onCanPlay={() => {}}
             onError={() => {}}
