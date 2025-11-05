@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, memo, useCallback, useMemo } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Minus, Plus, Repeat, Shuffle } from 'lucide-react';
 import DataManager from '@/lib/data-manager';
+import { getRealtimeClient } from '@/lib/realtime-client';
 // No longer using Firebase - using API instead
 
 const MusicPlayer = memo(() => {
@@ -49,7 +50,7 @@ const MusicPlayer = memo(() => {
     }
   };
 
-  // 从 API 加载音乐数据
+  // 从 API 加载音乐数据（初始加载）
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
@@ -78,11 +79,22 @@ const MusicPlayer = memo(() => {
       }
     };
 
+    // 初始加载
     loadTracks();
     
-    // Poll for updates every 5 seconds
-    const interval = setInterval(loadTracks, 5000);
-    return () => clearInterval(interval);
+    // 使用 SSE 实时更新
+    const realtimeClient = getRealtimeClient();
+    const unsubscribe = realtimeClient.subscribe('tracks', (tracksData) => {
+      setTracks(tracksData);
+      // 确保当前轨道索引在有效范围内
+      if (tracksData.length > 0 && currentTrackIndex >= tracksData.length) {
+        setCurrentTrackIndex(0);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, [dataManager, currentTrackIndex]);
 
   // 监听音乐数据变化事件

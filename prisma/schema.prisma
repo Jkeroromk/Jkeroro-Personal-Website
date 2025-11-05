@@ -15,8 +15,8 @@ datasource db {
 model User {
   id        String   @id @default(uuid()) @db.Uuid
   email     String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -30,10 +30,10 @@ model Image {
   height       Int      @default(384)
   order        Int      @default(0)
   priority     Boolean  @default(false)
-  imageOffsetX Float    @default(50)
-  imageOffsetY Float    @default(50)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  imageOffsetX Float    @default(50) @map("image_offset_x")
+  imageOffsetY Float    @default(50) @map("image_offset_y")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@index([order])
   @@map("images")
@@ -46,8 +46,8 @@ model Track {
   subtitle  String
   src       String
   order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([order])
   @@map("tracks")
@@ -61,14 +61,14 @@ model Project {
   image        String?
   link         String?
   category     String   @default("personal")
-  cropX        Float?   @default(50)
-  cropY        Float?   @default(50)
-  cropSize     Float?   @default(100)
-  imageOffsetX Float?   @default(0)
-  imageOffsetY Float?   @default(0)
+  cropX        Float?   @default(50) @map("crop_x")
+  cropY        Float?   @default(50) @map("crop_y")
+  cropSize     Float?   @default(100) @map("crop_size")
+  imageOffsetX Float?   @default(0) @map("image_offset_x")
+  imageOffsetY Float?   @default(0) @map("image_offset_y")
   scale        Float?   @default(1)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("projects")
 }
@@ -82,8 +82,8 @@ model Comment {
   hearts    Int      @default(0)
   laughs    Int      @default(0)
   wows      Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // 用户反应关联
   reactions CommentReaction[]
@@ -95,10 +95,10 @@ model Comment {
 // 评论反应模型（记录用户的反应）
 model CommentReaction {
   id        String   @id @default(uuid()) @db.Uuid
-  commentId String   @db.Uuid
-  userId    String
+  commentId String   @db.Uuid @map("comment_id")
+  userId    String   @map("user_id")
   type      String   // 'like', 'fire', 'heart', 'laugh', 'wow'
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
@@ -111,7 +111,7 @@ model CommentReaction {
 model ViewCount {
   id          String   @id @default("main")
   count       Int      @default(0)
-  lastUpdated DateTime @default(now()) @updatedAt
+  lastUpdated DateTime @default(now()) @updatedAt @map("last_updated")
 
   @@map("view_count")
 }
@@ -121,8 +121,8 @@ model CountryVisit {
   id          String   @id @default(uuid()) @db.Uuid
   country     String
   count       Int      @default(0)
-  lastUpdated DateTime @default(now()) @updatedAt
-  lastVisit   DateTime @default(now())
+  lastUpdated DateTime @default(now()) @updatedAt @map("last_updated")
+  lastVisit   DateTime @default(now()) @map("last_visit")
 
   @@unique([country])
   @@index([country])
@@ -132,7 +132,7 @@ model CountryVisit {
 // 管理员状态模型
 model AdminStatus {
   id         String   @id @default("admin")
-  lastActive DateTime @default(now()) @updatedAt
+  lastActive DateTime @default(now()) @updatedAt @map("last_active")
 
   @@map("admin_status")
 }

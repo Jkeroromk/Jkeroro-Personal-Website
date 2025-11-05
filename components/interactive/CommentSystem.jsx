@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '../ui/button'
 import { MessageSquare } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { getRealtimeClient } from '@/lib/realtime-client'
 import { ToastAction } from '@/components/ui/toast'
 import ClientTimeDisplay from '../layout/ClientTimeDisplay'
 import { Smile, X } from 'lucide-react'
@@ -75,7 +76,7 @@ const CommentSystem = () => {
     }
   }, [userReactions]);
 
-  // Fetch comments from API
+  // Fetch comments from API (initial load)
   useEffect(() => {
     const fetchComments = async () => {
       try {
@@ -83,10 +84,10 @@ const CommentSystem = () => {
         if (!response.ok) throw new Error('Failed to fetch comments')
         
         const data = await response.json()
-      const sortedComments = data
-        .map(c => ({ ...c, timestamp: new Date(c.createdAt).getTime() }))
-        .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 5)
+        const sortedComments = data
+          .map(c => ({ ...c, timestamp: new Date(c.createdAt).getTime() }))
+          .sort((a, b) => b.timestamp - a.timestamp)
+          .slice(0, 5)
         
         setComments(sortedComments)
         setCommentsError(null)
@@ -96,11 +97,24 @@ const CommentSystem = () => {
       }
     }
 
+    // 初始加载
     fetchComments()
     
-    // Poll for updates every 5 seconds
-    const interval = setInterval(fetchComments, 5000)
-    return () => clearInterval(interval)
+    // 使用 SSE 实时更新
+    const realtimeClient = getRealtimeClient()
+    const unsubscribe = realtimeClient.subscribe('comments', (data) => {
+      const sortedComments = data
+        .map(c => ({ ...c, timestamp: new Date(c.createdAt).getTime() }))
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 5)
+      
+      setComments(sortedComments)
+      setCommentsError(null)
+    })
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   const handleSubmit = async (e) => {

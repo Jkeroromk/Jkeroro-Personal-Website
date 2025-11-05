@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 // 只导入需要的 GSAP 功能
 import { gsap } from "gsap/dist/gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
-// No longer using Firebase - using API instead
+import { getRealtimeClient } from "@/lib/realtime-client";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -14,7 +14,7 @@ const Album = () => {
   const imageRefs = useRef([]);
   const [images, setImages] = useState([]);
 
-  // 从 API 加载图片数据
+  // 从 API 加载图片数据（初始加载）
   const loadImages = async () => {
     if (typeof window === "undefined") {
       return;
@@ -39,44 +39,39 @@ const Album = () => {
   };
 
   useEffect(() => {
+    // 初始加载
     loadImages();
     
-    // Poll for updates every 5 seconds
-    // 只在数据真正变化时才更新状态，避免不必要的重新渲染和动画刷新
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch('/api/media/images');
-        if (!response.ok) return;
-        
-        const newData = await response.json();
-        
-        // 比较新旧数据，只在真正变化时更新
-        setImages(prevImages => {
-          // 如果图片数量相同，比较 ID 和关键字段
-          if (prevImages.length === newData.length) {
-            const prevIds = prevImages.map(img => img.id).sort().join(',');
-            const newIds = newData.map(img => img.id).sort().join(',');
+    // 使用 SSE 实时更新
+    const realtimeClient = getRealtimeClient();
+    const unsubscribe = realtimeClient.subscribe('images', (newData) => {
+      // 比较新旧数据，只在真正变化时更新
+      setImages(prevImages => {
+        // 如果图片数量相同，比较 ID 和关键字段
+        if (prevImages.length === newData.length) {
+          const prevIds = prevImages.map(img => img.id).sort().join(',');
+          const newIds = newData.map(img => img.id).sort().join(',');
+          
+          // ID 相同，比较 order 字段（如果存在）
+          if (prevIds === newIds) {
+            const prevOrders = prevImages.map(img => img.order || 0).join(',');
+            const newOrders = newData.map(img => img.order || 0).join(',');
             
-            // ID 相同，比较 order 字段（如果存在）
-            if (prevIds === newIds) {
-              const prevOrders = prevImages.map(img => img.order || 0).join(',');
-              const newOrders = newData.map(img => img.order || 0).join(',');
-              
-              // 如果 order 也相同，不更新
-              if (prevOrders === newOrders) {
-                return prevImages; // 返回原数组，不触发重新渲染
-              }
+            // 如果 order 也相同，不更新
+            if (prevOrders === newOrders) {
+              return prevImages; // 返回原数组，不触发重新渲染
             }
           }
-          
-          // 数据有变化，更新状态
-          return newData;
-        });
-      } catch (error) {
-        // 静默处理错误，不中断轮询
-      }
-    }, 5000);
-    return () => clearInterval(interval);
+        }
+        
+        // 数据有变化，更新状态
+        return newData;
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

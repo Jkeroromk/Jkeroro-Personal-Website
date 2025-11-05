@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { getRealtimeClient } from '@/lib/realtime-client';
 // No longer using Firebase - using API instead
 import { useAuth } from "../../auth";
 import { motion } from "framer-motion";
@@ -76,14 +77,21 @@ const Tabs = () => {
     }
   };
 
-  // 使用 API 轮询获取数据变化
+  // 使用 SSE 实时更新获取数据变化
   useEffect(() => {
+    // 初始加载
     fetchCarouselItems();
     
-    // 每 5 秒轮询一次更新
-    const interval = setInterval(fetchCarouselItems, 5000);
-    
-    return () => clearInterval(interval);
+    // 使用 SSE 实时更新
+    const realtimeClient = getRealtimeClient();
+    const unsubscribe = realtimeClient.subscribe('projects', (items) => {
+      setCarouselItems(items);
+      setFetchError(null);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
