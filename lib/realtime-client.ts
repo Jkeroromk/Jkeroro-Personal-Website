@@ -12,7 +12,7 @@ class RealtimeClient {
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
   private reconnectDelay = 3000
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   constructor() {
     if (typeof window === 'undefined') {
       return

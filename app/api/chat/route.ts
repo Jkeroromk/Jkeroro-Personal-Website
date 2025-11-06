@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 
-export const runtime = 'edge';
+// 使用 Node.js runtime 以支持更好的数据库连接和错误处理
+// export const runtime = 'edge'; // 已移除，避免禁用静态生成的警告
 
 // 环境变量
 const PROVIDER_API_KEY = process.env.PROVIDER_API_KEY;

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 // No longer using Firebase - using API instead
 import ReactECharts from "echarts-for-react";
 import { registerMap } from "echarts";
+import DataManager from "@/lib/data-manager";
 
 const WorldMapDialog = () => {
   const [countryData, setCountryData] = useState({});
@@ -15,7 +16,42 @@ const WorldMapDialog = () => {
   const [isZoomed, setIsZoomed] = useState(false);
   const [dataFlowAnimation, setDataFlowAnimation] = useState(false);
 
+  // 处理国家数据
+  const processCountryData = (data) => {
+    // Convert array to object format for compatibility
+    const countryDataObj = {};
+    data.forEach((item) => {
+      countryDataObj[item.country] = {
+        count: item.count,
+        lastUpdated: item.lastUpdated,
+        lastVisit: item.lastVisit,
+      };
+    });
+    
+    setCountryData(countryDataObj);
+
+    // Extract top 3 most visited countries
+    const sortedCountries = data
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3)
+      .map((item) => [item.country, { count: item.count, lastUpdated: item.lastUpdated, lastVisit: item.lastVisit }]);
+
+    setTopCountries(sortedCountries);
+    
+    // Trigger data flow animation
+    setDataFlowAnimation(true);
+    setTimeout(() => setDataFlowAnimation(false), 2000);
+  };
+
   useEffect(() => {
+    const dataManager = DataManager.getInstance();
+    
+    // 先使用缓存数据立即显示
+    const cachedCountries = dataManager.getCountries();
+    if (cachedCountries && cachedCountries.length > 0) {
+      processCountryData(cachedCountries);
+    }
+
     const fetchCountries = async () => {
       try {
         const response = await fetch('/api/stats/countries');
@@ -23,34 +59,17 @@ const WorldMapDialog = () => {
         
         const data = await response.json();
         
-        // Convert array to object format for compatibility
-        const countryDataObj = {};
-        data.forEach((item) => {
-          countryDataObj[item.country] = {
-            count: item.count,
-            lastUpdated: item.lastUpdated,
-            lastVisit: item.lastVisit,
-          };
-        });
+        // 保存到缓存
+        dataManager.saveCountries(data);
         
-        setCountryData(countryDataObj);
-
-        // Extract top 3 most visited countries
-        const sortedCountries = data
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 3)
-          .map((item) => [item.country, { count: item.count, lastUpdated: item.lastUpdated, lastVisit: item.lastVisit }]);
-
-        setTopCountries(sortedCountries);
-        
-        // Trigger data flow animation
-        setDataFlowAnimation(true);
-        setTimeout(() => setDataFlowAnimation(false), 2000);
+        // 更新显示
+        processCountryData(data);
       } catch (error) {
         console.error('Error fetching countries:', error);
       }
     };
 
+    // 异步获取最新数据
     fetchCountries();
     
     // Poll for updates every 2 minutes (减少刷新频率)

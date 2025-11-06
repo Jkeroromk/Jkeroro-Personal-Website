@@ -202,6 +202,39 @@ class DataManager {
     this.saveProjects(filtered)
   }
 
+  // 国家数据管理
+  getCountries(): Array<{ country: string; count: number; lastUpdated: string; lastVisit: string }> {
+    if (typeof window === 'undefined') return []
+    
+    try {
+      const stored = localStorage.getItem('jkeroro-countries-data')
+      if (stored) {
+        const data = JSON.parse(stored)
+        // 检查缓存是否过期（5分钟）
+        if (data.timestamp && Date.now() - data.timestamp < 5 * 60 * 1000) {
+          return data.countries || []
+        }
+      }
+    } catch (error) {
+      console.error('Error loading countries from localStorage:', error)
+    }
+    
+    return []
+  }
+
+  saveCountries(countries: Array<{ country: string; count: number; lastUpdated: string; lastVisit: string }>) {
+    if (typeof window === 'undefined') return
+    
+    try {
+      localStorage.setItem('jkeroro-countries-data', JSON.stringify({
+        countries,
+        timestamp: Date.now()
+      }))
+    } catch (error) {
+      console.error('Error saving countries to localStorage:', error)
+    }
+  }
+
   // 导出数据
   exportData() {
     const data = this.getAllData()

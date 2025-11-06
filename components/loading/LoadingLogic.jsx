@@ -132,18 +132,19 @@ const LoadingLogic = () => {
       })
       
       // 检查是否完成 - 需要所有资源都加载完成
-      if (totalProgress >= 95 && !isCompleted) {
+      // 降低完成阈值到 80%，让用户更快进入（剩余数据可以后台加载）
+      if (totalProgress >= 80 && !isCompleted) {
         isCompleted = true
         setTimeout(() => {
           setProgress(100)
           setTimeout(() => {
             setShowAudioPermission(true)
-          }, 800)
-        }, 1000)
+          }, 300) // 减少延迟，从 800ms 到 300ms
+        }, 500) // 减少延迟，从 1000ms 到 500ms
       }
     }
 
-    // 预加载 home 页面的关键资源
+    // 预加载 home 页面的关键资源（立即开始，不延迟）
     const preloadHomeResources = () => {
       const homeResources = [
         '/pfp.webp',
@@ -159,14 +160,14 @@ const LoadingLogic = () => {
       const totalResources = homeResources.length
       let musicDataLoaded = false
       
-      // 超时保护：如果20秒内没有完成，强制继续
+      // 超时保护：如果8秒内没有完成，强制继续（减少等待时间）
       const timeoutId = setTimeout(() => {
         resourceProgress = 40
         scriptProgress = 20
         musicProgress = 20
         databaseProgress = 20 // 强制设置数据库进度
         updateProgress()
-      }, 20000)
+      }, 8000) // 从 20 秒减少到 8 秒
       
       // 检查音乐数据（从 API 或本地数据）
       const checkMusicResources = async () => {
@@ -211,7 +212,7 @@ const LoadingLogic = () => {
         }
       }
       
-      // 预加载数据库数据（images, projects, tracks）
+      // 预加载数据库数据（images, projects, tracks, countries, view_count）
       const preloadDatabaseData = async () => {
         try {
           setLoadingDescription({ en: 'Loading database...', zh: '加载数据库...' })
@@ -219,11 +220,13 @@ const LoadingLogic = () => {
           const DataManager = (await import('@/lib/data-manager')).default
           const dataManager = DataManager.getInstance()
           
-          // 并行加载所有数据库数据
-          const [imagesResponse, projectsResponse, tracksResponse] = await Promise.allSettled([
+          // 并行加载所有数据库数据（包括 countries 和 view_count）
+          const [imagesResponse, projectsResponse, tracksResponse, countriesResponse, viewCountResponse] = await Promise.allSettled([
             fetch('/api/media/images').catch(() => ({ ok: false, json: () => [] })),
             fetch('/api/media/projects').catch(() => ({ ok: false, json: () => [] })),
-            fetch('/api/media/tracks').catch(() => ({ ok: false, json: () => [] }))
+            fetch('/api/media/tracks').catch(() => ({ ok: false, json: () => [] })),
+            fetch('/api/stats/countries').catch(() => ({ ok: false, json: () => [] })),
+            fetch('/api/stats/view').catch(() => ({ ok: false, json: () => ({ count: 0 }) }))
           ])
           
           let loadedCount = 0
@@ -265,6 +268,32 @@ const LoadingLogic = () => {
                   musicProgress = 20
                 }
                 loadedCount++
+              }
+            } catch (e) {
+              // 静默处理错误
+            }
+          }
+          
+          // 处理国家数据
+          if (countriesResponse.status === 'fulfilled' && countriesResponse.value.ok) {
+            try {
+              const countries = await countriesResponse.value.json()
+              if (countries && Array.isArray(countries)) {
+                dataManager.saveCountries(countries)
+                loadedCount++
+              }
+            } catch (e) {
+              // 静默处理错误
+            }
+          }
+          
+          // 处理 viewer count 数据（可选，不阻塞）
+          if (viewCountResponse.status === 'fulfilled' && viewCountResponse.value.ok) {
+            try {
+              const viewData = await viewCountResponse.value.json()
+              if (viewData && typeof viewData.count === 'number') {
+                // 可以保存到 localStorage 供 ViewerStats 使用
+                localStorage.setItem('jkeroro-view-count', JSON.stringify(viewData))
               }
             } catch (e) {
               // 静默处理错误
@@ -318,6 +347,10 @@ const LoadingLogic = () => {
             onResourceLoaded()
           }
           img.src = src
+          // 添加 fetchpriority 提示浏览器优先加载
+          if (src === '/me.webp' || src === '/pfp.webp') {
+            img.fetchPriority = 'high'
+          }
         } else if (src.endsWith('.mp4')) {
           const video = document.createElement('video')
           video.oncanplay = () => {
@@ -330,27 +363,22 @@ const LoadingLogic = () => {
           }
           video.src = src
           video.preload = 'metadata'
+          // 视频不需要完全加载，metadata 就够了
         }
       })
       
-      // 开始检查脚本加载状态
-      setTimeout(() => {
-        checkScriptsLoaded()
-      }, 1000)
+      // 立即开始检查脚本加载状态（不延迟）
+      checkScriptsLoaded()
       
-      // 开始检查音乐资源
-      setTimeout(() => {
-        checkMusicResources()
-      }, 1500)
+      // 立即开始检查音乐资源（不延迟）
+      checkMusicResources()
       
-      // 开始预加载数据库数据
-      setTimeout(() => {
-        preloadDatabaseData()
-      }, 2000)
+      // 立即开始预加载数据库数据（不延迟）
+      preloadDatabaseData()
     }
     
-    // 延迟开始预加载，给页面一些初始化时间
-    setTimeout(preloadHomeResources, 1000)
+    // 立即开始预加载（不延迟，让用户更快进入）
+    preloadHomeResources()
     
     // 确保进度从0开始
     setProgress(0)

@@ -6,11 +6,32 @@ import { Eye } from 'lucide-react'
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog'
 import WorldMapDialog from '@/components/effects/worldMap'
 import { getRealtimeClient } from '@/lib/realtime-client'
+import DataManager from '@/lib/data-manager'
 
 const ViewerStats = () => {
   const [viewerCount, setViewerCount] = useState(0)
   const [viewerError, setViewerError] = useState(null)
   const [mapOpen, setMapOpen] = useState(false)
+
+  // 预加载国家数据（在组件挂载时）
+  useEffect(() => {
+    const dataManager = DataManager.getInstance()
+    
+    // 如果缓存中没有数据或已过期，预加载
+    const cachedCountries = dataManager.getCountries()
+    if (!cachedCountries || cachedCountries.length === 0) {
+      // 静默预加载，不阻塞 UI
+      fetch('/api/stats/countries')
+        .then(response => response.json())
+        .then(data => {
+          dataManager.saveCountries(data)
+        })
+        .catch(error => {
+          // 静默处理错误
+          console.error('Preload countries error:', error)
+        })
+    }
+  }, [])
 
   // Track visitor location and increment view count (once per hour per visitor)
   useEffect(() => {
@@ -49,17 +70,37 @@ const ViewerStats = () => {
     // Fetch current view count
     const fetchViewCount = async () => {
       try {
+        // 先使用缓存数据立即显示
+        const cachedViewCount = localStorage.getItem('jkeroro-view-count')
+        if (cachedViewCount) {
+          try {
+            const cachedData = JSON.parse(cachedViewCount)
+            if (cachedData && typeof cachedData.count === 'number') {
+              setViewerCount(cachedData.count)
+              setViewerError(null)
+            }
+          } catch (e) {
+            // 静默处理缓存解析错误
+          }
+        }
+
+        // 然后异步获取最新数据
         const response = await fetch('/api/stats/view')
         if (response.ok) {
           const data = await response.json()
           setViewerCount(data.count)
           setViewerError(null)
+          // 更新缓存
+          localStorage.setItem('jkeroro-view-count', JSON.stringify(data))
         } else {
           throw new Error('Failed to fetch view count')
         }
       } catch (error) {
         console.error('Error fetching view count:', error)
-        setViewerError('Error loading viewers')
+        // 如果 API 失败，保持使用缓存数据（如果有）
+        if (!localStorage.getItem('jkeroro-view-count')) {
+          setViewerError('Error loading viewers')
+        }
       }
     }
 
