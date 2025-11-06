@@ -8,7 +8,7 @@ const { spawn } = require('child_process')
 // - Vercel 部署：使用 pooler 连接（6543端口 + pgbouncer=true）
 const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
 
-// 根据环境选择数据库 URL（与 prisma.config.ts 逻辑一致）
+// 根据环境选择数据库 URL（与 lib/prisma.ts 逻辑一致）
 let databaseUrl = isProd
   ? process.env.SUPABASE_POOLER_URL || process.env.DATABASE_URL
   : process.env.DATABASE_URL
