@@ -14,7 +14,6 @@ const WorldMapDialog = () => {
   const [topCountries, setTopCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [isZoomed, setIsZoomed] = useState(false);
-  const [dataFlowAnimation, setDataFlowAnimation] = useState(false);
 
   // 处理国家数据
   const processCountryData = (data) => {
@@ -38,9 +37,9 @@ const WorldMapDialog = () => {
 
     setTopCountries(sortedCountries);
     
-    // Trigger data flow animation
-    setDataFlowAnimation(true);
-    setTimeout(() => setDataFlowAnimation(false), 2000);
+    // 移除数据流动动画
+    // setDataFlowAnimation(true);
+    // setTimeout(() => setDataFlowAnimation(false), 2000);
   };
 
   useEffect(() => {
@@ -240,73 +239,16 @@ const WorldMapDialog = () => {
         zoom: isZoomed ? 3 : 1,
         center: selectedCountry ? selectedCountry.coordinates : undefined,
         emphasis: {
-          label: {
-            show: true,
-            color: "#fff",
-            fontSize: 12,
-          },
-          itemStyle: {
-            areaColor: "#ff6b6b",
-            borderColor: "#fff",
-            borderWidth: 2,
-          },
+          disabled: true,
         },
         select: {
-          label: {
-            show: true,
-            color: "#fff",
-            fontSize: 14,
-            fontWeight: "bold",
-          },
-          itemStyle: {
-            areaColor: "#4ecdc4",
-            borderColor: "#fff",
-            borderWidth: 3,
-          },
+          disabled: true,
         },
         data: Object.keys(countryData).map((country) => ({
           name: country,
           value: countryData[country].count || 0,
-          itemStyle: {
-            areaColor: dataFlowAnimation ? "#ffd93d" : undefined,
-            borderColor: dataFlowAnimation ? "#ff6b6b" : undefined,
-            borderWidth: dataFlowAnimation ? 2 : 1,
-          },
         })),
       },
-      // 数据流动动画效果
-      ...(dataFlowAnimation ? [{
-        name: "Data Flow",
-        type: "effectScatter",
-        coordinateSystem: "geo",
-        data: Object.keys(countryData).map((country) => {
-          // 使用国家坐标而不是随机坐标
-          const coords = countryCoordinates[country] || [0, 0];
-          return {
-            name: country,
-            value: [coords[0], coords[1], countryData[country].count || 0],
-          };
-        }),
-        symbolSize: (val) => Math.max(val[2] * 2, 5),
-        showEffectOn: "render",
-        rippleEffect: {
-          brushType: "stroke",
-          color: "#4ecdc4",
-          scale: 4,
-        },
-        emphasis: {
-          scale: 1.2,
-        },
-        label: {
-          show: false,
-        },
-        itemStyle: {
-          color: "#4ecdc4",
-          shadowBlur: 10,
-          shadowColor: "#4ecdc4",
-        },
-        zlevel: 1,
-      }] : []),
     ],
   });
 

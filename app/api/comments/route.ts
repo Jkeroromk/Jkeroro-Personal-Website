@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
 
 // 获取所有评论
 export async function GET() {
   try {
-    // 添加连接超时保护
-    const comments = await Promise.race([
+    // 添加连接超时保护（8秒超时）
+    const comments = await withTimeout(
       prisma.comment.findMany({
         include: {
           reactions: true,
@@ -14,40 +15,24 @@ export async function GET() {
           createdAt: 'desc',
         },
       }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database query timeout')), 10000)
-      )
-    ]) as Awaited<ReturnType<typeof prisma.comment.findMany>>
+      8000
+    )
 
     return NextResponse.json(comments)
   } catch (error) {
-    // 检查是否是数据库连接错误
-    const isConnectionError = error instanceof Error && 
-      (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError') ||
-       error.message.includes('P1001') ||
-       error.message.includes('query timeout'))
+    const errorInfo = getDbErrorInfo(error)
     
-    // 如果是连接错误，返回空数组（不阻塞用户）
-    if (isConnectionError) {
-      console.error('Database connection error (get comments):', error instanceof Error ? error.message : error)
+    // 如果是连接错误或超时，返回空数组（不阻塞用户）
+    if (errorInfo.shouldReturnEmpty) {
       return NextResponse.json([])
     }
     
     // 其他错误才返回 500
     console.error('Get comments error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    console.error('Get comments error details:', {
-      message: errorMessage,
-      timestamp: new Date().toISOString(),
-      nodeEnv: process.env.NODE_ENV,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-    })
-    
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        message: process.env.NODE_ENV === 'development' ? errorInfo.errorMessage : undefined,
       },
       { status: 500 }
     )

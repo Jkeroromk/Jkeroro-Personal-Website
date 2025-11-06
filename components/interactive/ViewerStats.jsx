@@ -28,7 +28,6 @@ const ViewerStats = () => {
         })
         .catch(error => {
           // 静默处理错误
-          console.error('Preload countries error:', error)
         })
     }
   }, [])
@@ -63,7 +62,7 @@ const ViewerStats = () => {
           localStorage.setItem('viewerTrackedTime', now.toString())
         }
       } catch (error) {
-        console.error('Error tracking visitor:', error)
+        // 静默处理错误
       }
     }
 
@@ -86,6 +85,7 @@ const ViewerStats = () => {
 
         // 然后异步获取最新数据
         const response = await fetch('/api/stats/view')
+        
         if (response.ok) {
           const data = await response.json()
           setViewerCount(data.count)
@@ -93,10 +93,9 @@ const ViewerStats = () => {
           // 更新缓存
           localStorage.setItem('jkeroro-view-count', JSON.stringify(data))
         } else {
-          throw new Error('Failed to fetch view count')
+          throw new Error(`Failed to fetch view count: ${response.status}`)
         }
       } catch (error) {
-        console.error('Error fetching view count:', error)
         // 如果 API 失败，保持使用缓存数据（如果有）
         if (!localStorage.getItem('jkeroro-view-count')) {
           setViewerError('Error loading viewers')

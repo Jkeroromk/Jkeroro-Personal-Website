@@ -1,83 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
 
 // 获取所有项目
 export async function GET() {
   try {
-    // 添加连接超时保护
+    // 添加连接超时保护（8秒超时）
     // 先获取所有项目，然后手动排序（处理 null order 值）
-    const allProjects = await Promise.race([
+    const allProjects = await withTimeout(
       prisma.project.findMany({
         orderBy: { createdAt: 'desc' },
       }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database query timeout')), 10000)
+      8000
+    )
+
+    // 尝试按 order 排序，如果 order 字段不存在则按创建时间排序
+    let sortedProjects = allProjects
+    try {
+      // 检查是否有 order 字段
+      const hasOrderField = allProjects.length === 0 || 'order' in allProjects[0]
+      
+      if (hasOrderField) {
+        // 分离有 order 和没有 order 的项目
+        const projectsWithOrder = allProjects.filter(p => p.order !== null && p.order !== undefined)
+        const projectsWithoutOrder = allProjects.filter(p => p.order === null || p.order === undefined)
+
+        // 按 order 排序有 order 的项目
+        projectsWithOrder.sort((a, b) => a.order! - b.order!)
+
+        // 合并并排序
+        sortedProjects = [...projectsWithOrder, ...projectsWithoutOrder]
+          .sort((a, b) => {
+            const aOrder = a.order ?? Number.MAX_SAFE_INTEGER
+            const bOrder = b.order ?? Number.MAX_SAFE_INTEGER
+            if (aOrder !== bOrder) {
+              return aOrder - bOrder
+            }
+            // 如果 order 相同，按创建时间排序
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          })
+      } else {
+        // 如果没有 order 字段，只按创建时间排序
+        sortedProjects = allProjects.sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+      }
+    } catch (error) {
+      // 如果访问 order 字段出错，只按创建时间排序
+      console.warn('Error accessing order field, sorting by createdAt only:', error)
+      sortedProjects = allProjects.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
-    ]) as Awaited<ReturnType<typeof prisma.project.findMany>>
-
-    // 分离有 order 和没有 order 的项目
-    const projectsWithOrder = allProjects.filter(p => p.order !== null && p.order !== undefined)
-    const projectsWithoutOrder = allProjects.filter(p => p.order === null || p.order === undefined)
-
-    // 按 order 排序有 order 的项目
-    projectsWithOrder.sort((a, b) => a.order! - b.order!)
-
-    // 为没有 order 的项目设置默认值（向后兼容）
-    const maxOrder = projectsWithOrder.length > 0 
-      ? Math.max(...projectsWithOrder.map(p => p.order!)) 
-      : -1
-    
-    // 更新没有 order 的项目（异步，不阻塞响应）
-    const updatePromises = projectsWithoutOrder.map((project, index) => {
-      const newOrder = maxOrder + 1 + index
-      // 临时设置 order 值用于返回，同时异步更新数据库
-      project.order = newOrder
-      return prisma.project.update({
-        where: { id: project.id },
-        data: { order: newOrder },
-      }).catch(err => {
-        console.error(`Failed to update project ${project.id} order:`, err)
-        return null
-      })
-    })
-    
-    // 不等待更新完成，直接返回
-    Promise.all(updatePromises).catch(err => {
-      console.error('Some project order updates failed:', err)
-    })
-
-    // 合并并排序
-    const sortedProjects = [...projectsWithOrder, ...projectsWithoutOrder]
-      .sort((a, b) => {
-        const aOrder = a.order ?? Number.MAX_SAFE_INTEGER
-        const bOrder = b.order ?? Number.MAX_SAFE_INTEGER
-        if (aOrder !== bOrder) {
-          return aOrder - bOrder
-        }
-        // 如果 order 相同，按创建时间排序
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      })
+    }
 
     return NextResponse.json(sortedProjects)
   } catch (error) {
-    // 检查是否是数据库连接错误
-    const isConnectionError = error instanceof Error && 
-      (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError') ||
-       error.message.includes('P1001') ||
-       error.message.includes('query timeout'))
+    const errorInfo = getDbErrorInfo(error)
     
-    // 如果是连接错误，返回空数组（不阻塞用户）
-    if (isConnectionError) {
-      console.error('Database connection error (get projects):', error instanceof Error ? error.message : error)
+    // 如果是连接错误或超时，返回空数组（不阻塞用户）
+    if (errorInfo.shouldReturnEmpty) {
+      console.error('Database connection/timeout error (get projects):', errorInfo.errorMessage)
       return NextResponse.json([])
     }
     
     // 其他错误才返回 500
     console.error('Get projects error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     console.error('Get projects error details:', {
-      message: errorMessage,
+      message: errorInfo.errorMessage,
       timestamp: new Date().toISOString(),
       nodeEnv: process.env.NODE_ENV,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
@@ -86,7 +75,7 @@ export async function GET() {
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        message: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        message: process.env.NODE_ENV === 'development' ? errorInfo.errorMessage : undefined,
       },
       { status: 500 }
     )
@@ -122,11 +111,18 @@ export async function POST(request: NextRequest) {
     // 如果没有提供 order，自动设置为最大值 + 1
     let finalOrder = order
     if (finalOrder === undefined) {
-      const maxOrder = await prisma.project.findFirst({
-        orderBy: { order: 'desc' },
-        select: { order: true },
-      })
-      finalOrder = (maxOrder?.order ?? -1) + 1
+      try {
+        // 尝试获取最大 order 值（如果 order 列存在）
+        const maxOrder = await prisma.project.findFirst({
+          orderBy: { createdAt: 'desc' },
+          select: { order: true },
+        })
+        finalOrder = (maxOrder?.order ?? -1) + 1
+      } catch (error) {
+        // 如果 order 列不存在，使用默认值 0
+        console.warn('Order column may not exist, using default order 0:', error)
+        finalOrder = 0
+      }
     }
 
     const project = await prisma.project.create({

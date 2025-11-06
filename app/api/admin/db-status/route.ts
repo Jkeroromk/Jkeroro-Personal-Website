@@ -69,6 +69,7 @@ export async function GET() {
       tracks: 0,
       projects: 0,
       comments: 0,
+      viewCount: null as { id: string; count: number; lastUpdated: Date | null } | null,
       error: null as string | null,
     }
 
@@ -78,6 +79,9 @@ export async function GET() {
         tracks: await prisma.track.count(),
         projects: await prisma.project.count(),
         comments: await prisma.comment.count(),
+        viewCount: await prisma.viewCount.findUnique({
+          where: { id: 'main' },
+        }),
         error: null,
       }
     } catch (error) {
@@ -86,6 +90,7 @@ export async function GET() {
         tracks: 0,
         projects: 0,
         comments: 0,
+        viewCount: null,
         error: error instanceof Error ? error.message : 'Unknown error',
       }
     }
@@ -105,6 +110,59 @@ export async function GET() {
       // 忽略错误
     }
 
+    // 检查 view_count 和 comments 表的详细信息
+    let viewCountDetails = {
+      exists: false,
+      record: null as { id: string; count: number; lastUpdated: Date | null } | null,
+      error: null as string | null,
+    }
+
+    let commentsDetails = {
+      count: 0,
+      sample: [] as Array<{ id: string; text: string; createdAt: Date }>,
+      error: null as string | null,
+    }
+
+    try {
+      const viewCountRecord = await prisma.viewCount.findUnique({
+        where: { id: 'main' },
+      })
+      viewCountDetails = {
+        exists: !!viewCountRecord,
+        record: viewCountRecord,
+        error: null,
+      }
+    } catch (error) {
+      viewCountDetails = {
+        exists: false,
+        record: null,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+
+    try {
+      const comments = await prisma.comment.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          text: true,
+          createdAt: true,
+        },
+      })
+      commentsDetails = {
+        count: await prisma.comment.count(),
+        sample: comments,
+        error: null,
+      }
+    } catch (error) {
+      commentsDetails = {
+        count: 0,
+        sample: [],
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }
+    }
+
     return NextResponse.json({
       environment: {
         nodeEnv: process.env.NODE_ENV,
@@ -116,6 +174,8 @@ export async function GET() {
       database: databaseInfo,
       tables: tablesCheck,
       dataCounts: dataCounts,
+      viewCountDetails: viewCountDetails,
+      commentsDetails: commentsDetails,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

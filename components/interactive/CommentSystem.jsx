@@ -81,9 +81,13 @@ const CommentSystem = () => {
     const fetchComments = async () => {
       try {
         const response = await fetch('/api/comments')
-        if (!response.ok) throw new Error('Failed to fetch comments')
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch comments: ${response.status}`)
+        }
         
         const data = await response.json()
+        
         const sortedComments = data
           .map(c => ({ ...c, timestamp: new Date(c.createdAt).getTime() }))
           .sort((a, b) => b.timestamp - a.timestamp)
@@ -92,7 +96,6 @@ const CommentSystem = () => {
         setComments(sortedComments)
         setCommentsError(null)
       } catch (error) {
-        console.error('Error fetching comments:', error)
         setCommentsError('Failed to load comments')
       }
     }
@@ -151,7 +154,6 @@ const CommentSystem = () => {
         description: "Your comment has been posted.",
       })
     } catch (error) {
-      console.error('Error adding comment:', error)
       toast({
         title: "Error",
         description: "Failed to add comment. Please try again.",

@@ -2,6 +2,20 @@ import { PrismaClient } from './generated/prisma/client'
 import { join } from 'path'
 import { existsSync } from 'fs'
 
+// 导入 Prisma Accelerate 扩展
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let withAccelerate: ((client: any) => any) | null = null
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const accelerateModule = require('@prisma/extension-accelerate')
+  withAccelerate = accelerateModule.withAccelerate
+} catch {
+  // Accelerate 扩展未安装，将使用标准连接
+  if (process.env.NODE_ENV === 'development') {
+    console.log('ℹ️ Prisma Accelerate 未安装，使用标准数据库连接')
+  }
+}
+
 // 全局 Prisma 客户端实例（单例模式）
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -33,6 +47,7 @@ if (typeof window === 'undefined' && (process.env.NODE_ENV === 'production' || p
 // 根据环境自动切换数据库连接（运行时）
 // - 本地开发：使用 direct 连接（5432端口）
 // - Vercel 部署：使用 pooler 连接（6543端口 + pgbouncer=true）
+// - Prisma Accelerate：使用 prisma+ 协议（不需要 SSL 配置）
 // 注意：prisma.config.ts 已处理 Prisma CLI 的切换，这里是运行时切换
 if (typeof window === 'undefined') {
   const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
@@ -43,28 +58,57 @@ if (typeof window === 'undefined') {
     : process.env.DATABASE_URL
   
   if (databaseUrl) {
-    // 确保包含 SSL 配置
-    if (!databaseUrl.includes('sslmode=')) {
-      const separator = databaseUrl.includes('?') ? '&' : '?'
-      databaseUrl = `${databaseUrl}${separator}sslmode=require`
+    // Prisma Accelerate 连接（prisma+ 协议）不需要添加 sslmode
+    const isAccelerate = databaseUrl.startsWith('prisma+')
+    
+    if (!isAccelerate) {
+      // 对于普通 Supabase 连接，确保包含 SSL 配置
+      if (!databaseUrl.includes('sslmode=')) {
+        const separator = databaseUrl.includes('?') ? '&' : '?'
+        databaseUrl = `${databaseUrl}${separator}sslmode=require`
+      }
     }
     
     process.env.DATABASE_URL = databaseUrl
     
-    if (isProd) {
+    if (isAccelerate) {
+      console.log('🔄 [Prisma Accelerate] 使用 Accelerate 连接')
+    } else if (databaseUrl.includes('pooler') || databaseUrl.includes(':6543')) {
+      console.log('🔄 [Local] 使用 Supabase Pooler 连接 (6543端口)')
+    } else if (isProd) {
       console.log('🔄 [Vercel] 使用 Pooler 连接 (6543端口)')
     } else {
       console.log('🔄 [Local] 使用直连数据库连接 (5432端口)')
+    }
+    
+    // 调试：显示数据库连接信息（隐藏密码）
+    if (process.env.NODE_ENV === 'development') {
+      const dbUrlPreview = databaseUrl.replace(/:[^:@]+@/, ':****@')
+      console.log('🔍 [Prisma] DATABASE_URL:', dbUrlPreview)
     }
   }
 }
 
 // 创建 Prisma 客户端实例
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
-  })
+let prismaClient = new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+})
+
+// 如果安装了 Accelerate 扩展且 DATABASE_URL 使用 prisma:// 协议，则启用 Accelerate
+if (withAccelerate && process.env.DATABASE_URL?.startsWith('prisma+')) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  prismaClient = prismaClient.$extends(withAccelerate({})) as any
+  if (process.env.NODE_ENV === 'development') {
+    console.log('✅ Prisma Accelerate 已启用')
+  }
+}
+
+export const prisma = globalForPrisma.prisma ?? prismaClient
 
 // 在开发环境中，将实例保存到全局变量
 if (process.env.NODE_ENV !== 'production') {

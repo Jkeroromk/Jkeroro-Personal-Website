@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import axios from 'axios'
+import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
 
 // 记录访客位置
 export async function POST(request: NextRequest) {
@@ -55,19 +56,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, skipped: true })
     }
 
-    // 更新或创建国家访问记录
-    const countryVisit = await prisma.countryVisit.upsert({
-      where: { country },
-      update: {
-        count: { increment: 1 },
-        lastVisit: new Date(),
-      },
-      create: {
-        country,
-        count: 1,
-        lastVisit: new Date(),
-      },
-    })
+    // 更新或创建国家访问记录（8秒超时）
+    const countryVisit = await withTimeout(
+      prisma.countryVisit.upsert({
+        where: { country },
+        update: {
+          count: { increment: 1 },
+          lastVisit: new Date(),
+        },
+        create: {
+          country,
+          count: 1,
+          lastVisit: new Date(),
+        },
+      }),
+      8000
+    )
 
     return NextResponse.json({
       success: true,
@@ -75,16 +79,11 @@ export async function POST(request: NextRequest) {
       count: countryVisit.count,
     })
   } catch (error) {
-    // 检查是否是数据库连接错误
-    const isConnectionError = error instanceof Error && 
-      (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError') ||
-       error.message.includes('P1001') ||
-       error.message.includes('query timeout'))
+    const errorInfo = getDbErrorInfo(error)
     
-    // 如果是连接错误，返回成功但跳过记录（不阻塞用户）
-    if (isConnectionError) {
-      console.error('Database connection error (track visitor location):', error instanceof Error ? error.message : error)
+    // 如果是连接错误或超时，返回成功但跳过记录（不阻塞用户）
+    if (errorInfo.shouldReturnEmpty) {
+      console.error('Database connection/timeout error (track visitor location):', errorInfo.errorMessage)
       return NextResponse.json({ success: true, skipped: true })
     }
     
@@ -100,24 +99,22 @@ export async function POST(request: NextRequest) {
 // 获取所有国家访问统计
 export async function GET() {
   try {
-    const countries = await prisma.countryVisit.findMany({
-      orderBy: {
-        count: 'desc',
-      },
-    })
+    const countries = await withTimeout(
+      prisma.countryVisit.findMany({
+        orderBy: {
+          count: 'desc',
+        },
+      }),
+      8000
+    )
 
     return NextResponse.json(countries)
   } catch (error) {
-    // 检查是否是数据库连接错误
-    const isConnectionError = error instanceof Error && 
-      (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError') ||
-       error.message.includes('P1001') ||
-       error.message.includes('query timeout'))
+    const errorInfo = getDbErrorInfo(error)
     
-    // 如果是连接错误，返回空数组（不阻塞用户）
-    if (isConnectionError) {
-      console.error('Database connection error (get countries stats):', error instanceof Error ? error.message : error)
+    // 如果是连接错误或超时，返回空数组（不阻塞用户）
+    if (errorInfo.shouldReturnEmpty) {
+      console.error('Database connection/timeout error (get countries stats):', errorInfo.errorMessage)
       return NextResponse.json([])
     }
     

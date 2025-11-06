@@ -1,50 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
 
 // 获取所有图片
 export async function GET() {
   try {
-    // 添加连接超时保护
-    const images = await Promise.race([
+    // 添加连接超时保护（8秒超时）
+    const images = await withTimeout(
       prisma.image.findMany({
         orderBy: [
           { order: 'asc' },
           { createdAt: 'asc' },
         ],
       }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Database query timeout')), 10000)
-      )
-    ]) as Awaited<ReturnType<typeof prisma.image.findMany>>
+      8000
+    )
 
     return NextResponse.json(images)
   } catch (error) {
-    // 在开发环境中，如果是数据库连接错误，静默处理
-    const isConnectionError = error instanceof Error && 
-      (error.message.includes("Can't reach database server") || 
-       error.message.includes('PrismaClientInitializationError'))
+    const errorInfo = getDbErrorInfo(error)
     
-    if (process.env.NODE_ENV === 'development' && isConnectionError) {
-      // 开发环境返回空数组
+    // 如果是连接错误或超时，返回空数组（不阻塞用户）
+    if (errorInfo.shouldReturnEmpty) {
+      console.error('Database connection/timeout error (get images):', errorInfo.errorMessage)
       return NextResponse.json([])
     }
     
-    // 只在非连接错误或生产环境记录错误
-    if (!isConnectionError || process.env.NODE_ENV === 'production') {
-      console.error('Get images error:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      console.error('Get images error details:', {
-        message: errorMessage,
-        timestamp: new Date().toISOString(),
-        nodeEnv: process.env.NODE_ENV,
-        hasDatabaseUrl: !!process.env.DATABASE_URL,
-      })
-    }
+    // 其他错误才返回 500
+    console.error('Get images error:', error)
+    console.error('Get images error details:', {
+      message: errorInfo.errorMessage,
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+    })
     
     return NextResponse.json(
       { 
         error: 'Internal server error',
-        message: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.message : undefined) : undefined,
+        message: process.env.NODE_ENV === 'development' ? errorInfo.errorMessage : undefined,
       },
       { status: 500 }
     )

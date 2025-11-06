@@ -16,7 +16,8 @@
     "vercel-build": "prisma generate && (node scripts/run-with-ssl.js prisma migrate deploy || echo '⚠️ Migration skipped (may already be applied)') && next build && node scripts/postbuild.js"
   },
   "dependencies": {
-    "@prisma/client": "^6.18.0",
+    "@prisma/client": "^6.19.0",
+    "@prisma/extension-accelerate": "^2.0.2",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.5",
     "@radix-ui/react-avatar": "^1.1.2",
