@@ -368,13 +368,13 @@ const LoadingLogic = () => {
       })
       
       // 立即开始检查脚本加载状态（不延迟）
-      checkScriptsLoaded()
+        checkScriptsLoaded()
       
       // 立即开始检查音乐资源（不延迟）
-      checkMusicResources()
+        checkMusicResources()
       
       // 立即开始预加载数据库数据（不延迟）
-      preloadDatabaseData()
+        preloadDatabaseData()
     }
     
     // 立即开始预加载（不延迟，让用户更快进入）

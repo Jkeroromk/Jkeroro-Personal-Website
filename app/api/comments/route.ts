@@ -16,7 +16,7 @@ export async function GET() {
         },
       }),
       8000
-    )
+      )
 
     return NextResponse.json(comments)
   } catch (error) {
@@ -28,7 +28,7 @@ export async function GET() {
     }
     
     // 其他错误才返回 500
-    console.error('Get comments error:', error)
+      console.error('Get comments error:', error)
     return NextResponse.json(
       { 
         error: 'Internal server error',

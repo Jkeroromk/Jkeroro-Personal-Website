@@ -14,7 +14,7 @@ export async function GET() {
         ],
       }),
       8000
-    )
+      )
 
     return NextResponse.json(images)
   } catch (error) {
@@ -27,13 +27,13 @@ export async function GET() {
     }
     
     // 其他错误才返回 500
-    console.error('Get images error:', error)
-    console.error('Get images error details:', {
+      console.error('Get images error:', error)
+      console.error('Get images error details:', {
       message: errorInfo.errorMessage,
-      timestamp: new Date().toISOString(),
-      nodeEnv: process.env.NODE_ENV,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-    })
+        timestamp: new Date().toISOString(),
+        nodeEnv: process.env.NODE_ENV,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+      })
     
     return NextResponse.json(
       { 

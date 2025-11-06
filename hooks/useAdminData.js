@@ -247,7 +247,7 @@ export const useAdminData = () => {
           if (!response.ok) {
             let errorMessage = 'Failed to create image'
             try {
-              const errorData = await response.json()
+            const errorData = await response.json()
               errorMessage = errorData.error || errorData.message || errorMessage
             } catch (parseError) {
               errorMessage = response.status === 500 
@@ -259,7 +259,7 @@ export const useAdminData = () => {
 
           // 等待数据库写入完成后再刷新数据
           setTimeout(async () => {
-            await loadData()
+          await loadData()
           }, 300)
         } else if (activeTab === 'music') {
           const trackData = {
@@ -277,7 +277,7 @@ export const useAdminData = () => {
           if (!response.ok) {
             let errorMessage = 'Failed to create track'
             try {
-              const errorData = await response.json()
+            const errorData = await response.json()
               errorMessage = errorData.error || errorData.message || errorMessage
             } catch (parseError) {
               errorMessage = response.status === 500 
@@ -316,7 +316,7 @@ export const useAdminData = () => {
           if (!response.ok) {
             let errorMessage = 'Failed to create project'
             try {
-              const errorData = await response.json()
+            const errorData = await response.json()
               errorMessage = errorData.error || errorData.message || errorMessage
             } catch (parseError) {
               errorMessage = response.status === 500 
@@ -328,7 +328,7 @@ export const useAdminData = () => {
 
           // 等待数据库写入完成后再刷新数据
           setTimeout(async () => {
-            await loadData()
+          await loadData()
           }, 300)
         }
       } else {
@@ -352,7 +352,7 @@ export const useAdminData = () => {
           if (!response.ok) {
             let errorMessage = 'Failed to update image'
             try {
-              const errorData = await response.json()
+            const errorData = await response.json()
               errorMessage = errorData.error || errorData.message || errorMessage
             } catch (parseError) {
               errorMessage = response.status === 500 
@@ -364,7 +364,7 @@ export const useAdminData = () => {
 
           // 等待数据库写入完成后再刷新数据
           setTimeout(async () => {
-            await loadData()
+          await loadData()
           }, 300)
         } else if (editingItem && activeTab === 'music') {
           const updateData = {
@@ -382,7 +382,7 @@ export const useAdminData = () => {
           if (!response.ok) {
             let errorMessage = 'Failed to update track'
             try {
-              const errorData = await response.json()
+            const errorData = await response.json()
               errorMessage = errorData.error || errorData.message || errorMessage
             } catch (parseError) {
               errorMessage = response.status === 500 
@@ -394,8 +394,8 @@ export const useAdminData = () => {
 
           // 等待数据库写入完成后再刷新数据
           setTimeout(async () => {
-            await loadData()
-            triggerMusicDataChange()
+          await loadData()
+          triggerMusicDataChange()
           }, 300)
         } else if (editingItem && activeTab === 'projects') {
           const updateData = filterUndefinedValues({
@@ -421,7 +421,7 @@ export const useAdminData = () => {
           if (!response.ok) {
             let errorMessage = 'Failed to update project'
             try {
-              const errorData = await response.json()
+            const errorData = await response.json()
               errorMessage = errorData.error || errorData.message || errorMessage
             } catch (parseError) {
               errorMessage = response.status === 500 
@@ -433,7 +433,7 @@ export const useAdminData = () => {
 
           // 等待数据库写入完成后再刷新数据
           setTimeout(async () => {
-            await loadData()
+          await loadData()
           }, 300)
         }
       }
@@ -595,7 +595,7 @@ export const useAdminData = () => {
         // 尝试解析错误消息，但如果失败则不阻塞
         let errorMessage = 'Failed to delete'
         try {
-          const errorData = await response.json()
+        const errorData = await response.json()
           errorMessage = errorData.error || errorData.message || errorMessage
         } catch (parseError) {
           // 如果响应不是 JSON，使用状态文本

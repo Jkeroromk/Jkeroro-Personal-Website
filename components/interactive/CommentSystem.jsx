@@ -22,6 +22,8 @@ import {
 const CommentSystem = () => {
   const [comment, setComment] = useState("")
   const [comments, setComments] = useState([])
+  const [allComments, setAllComments] = useState([]) // 存储所有评论
+  const [displayedCount, setDisplayedCount] = useState(5) // 当前显示的数量
   const [commentsError, setCommentsError] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [commentError, setCommentError] = useState(false)
@@ -91,9 +93,12 @@ const CommentSystem = () => {
         const sortedComments = data
           .map(c => ({ ...c, timestamp: new Date(c.createdAt).getTime() }))
           .sort((a, b) => b.timestamp - a.timestamp)
-          .slice(0, 5)
         
-        setComments(sortedComments)
+        // 保存所有评论
+        setAllComments(sortedComments)
+        // 初始只显示前5条
+        setComments(sortedComments.slice(0, displayedCount))
+        setHasMoreComments(sortedComments.length > displayedCount)
         setCommentsError(null)
       } catch (error) {
         setCommentsError('Failed to load comments')
@@ -109,9 +114,16 @@ const CommentSystem = () => {
       const sortedComments = data
         .map(c => ({ ...c, timestamp: new Date(c.createdAt).getTime() }))
         .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 5)
       
-      setComments(sortedComments)
+      // 更新所有评论
+      setAllComments(sortedComments)
+      // 更新显示的评论（使用当前显示的评论数量）
+      setComments(prevComments => {
+        const currentCount = prevComments.length || 5
+        const newComments = sortedComments.slice(0, currentCount)
+        setHasMoreComments(sortedComments.length > currentCount)
+        return newComments
+      })
       setCommentsError(null)
     })
 
@@ -146,8 +158,10 @@ const CommentSystem = () => {
       const sortedComments = updatedData
         .map(c => ({ ...c, timestamp: new Date(c.createdAt).getTime() }))
         .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 5)
-      setComments(sortedComments)
+      
+      setAllComments(sortedComments)
+      setComments(sortedComments.slice(0, displayedCount))
+      setHasMoreComments(sortedComments.length > displayedCount)
 
       toast({
         title: "Comment added!",
@@ -229,8 +243,10 @@ const CommentSystem = () => {
       const sortedComments = updatedData
         .map(c => ({ ...c, timestamp: new Date(c.createdAt).getTime() }))
         .sort((a, b) => b.timestamp - a.timestamp)
-        .slice(0, 5)
-      setComments(sortedComments)
+      
+      setAllComments(sortedComments)
+      setComments(sortedComments.slice(0, displayedCount))
+      setHasMoreComments(sortedComments.length > displayedCount)
     } catch (error) {
       toast({
         title: "Error",
@@ -281,6 +297,24 @@ const CommentSystem = () => {
 
   const reactionTypes = ['likes', 'fires', 'hearts', 'laughs', 'wows']
 
+  // 加载更多评论
+  const handleLoadMore = () => {
+    setLoadingMore(true)
+    const newCount = displayedCount + 5
+    setDisplayedCount(newCount)
+    setComments(allComments.slice(0, newCount))
+    setHasMoreComments(allComments.length > newCount)
+    setLoadingMore(false)
+  }
+  
+  // 当 displayedCount 改变时，更新显示的评论
+  useEffect(() => {
+    if (allComments.length > 0 && displayedCount > 0) {
+      setComments(allComments.slice(0, displayedCount))
+      setHasMoreComments(allComments.length > displayedCount)
+    }
+  }, [displayedCount, allComments.length])
+
   return (
     <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <AlertDialogTrigger asChild>
@@ -288,20 +322,21 @@ const CommentSystem = () => {
           <MessageSquare /> Comments
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="bg-black text-white border border-gray-400 shadow-lg scale-[0.9] sm:scale-[1] max-h-[80vh] overflow-y-auto">
-        <AlertDialogHeader>
+      <AlertDialogContent className="bg-black text-white border border-gray-400 shadow-lg scale-[0.9] sm:scale-[1] max-h-[90vh] flex flex-col">
+        <AlertDialogHeader className="flex-shrink-0">
           <AlertDialogTitle className="text-base font-semibold">Comments</AlertDialogTitle>
           <AlertDialogDescription className="text-gray-300">
             Share your thoughts and interact with others!
           </AlertDialogDescription>
         </AlertDialogHeader>
         
-        {commentsError ? (
-          <div className="bg-red-100/90 backdrop-blur-sm border border-red-300/50 rounded-lg p-3">
-            <p className="text-red-600 text-sm">{commentsError}</p>
-          </div>
-        ) : comments.length > 0 ? (
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+        <div className="flex-1 min-h-0 flex flex-col">
+          {commentsError ? (
+            <div className="bg-red-100/90 backdrop-blur-sm border border-red-300/50 rounded-lg p-3 flex-shrink-0">
+              <p className="text-red-600 text-sm">{commentsError}</p>
+            </div>
+          ) : comments.length > 0 ? (
+            <div className="space-y-3 flex-1 overflow-y-auto pr-2 min-h-0">
             {comments.map((c, index) => (
               <div key={c.id || index} className="group relative pt-2">
                 <div className="bg-white/90 backdrop-blur-sm border border-gray-300/50 rounded-lg p-4 pb-3 hover:bg-white/95 transition-all duration-200 w-full max-w-full overflow-visible">
@@ -410,54 +445,70 @@ const CommentSystem = () => {
                 </div>
               </div>
             ))}
-          </div>
-        ) : (
-          <div className="text-center py-6">
-            <div className="w-12 h-12 mx-auto mb-3 bg-gray-800/50 rounded-full flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
             </div>
-            <p className="text-gray-400 text-sm">No comments yet.</p>
-          </div>
-        )}
-        
-        <div className="space-y-4 mt-4">
-          <div className="flex items-center justify-center sm:justify-start">
-            <h1 className="text-lg font-semibold text-white">
-              I want to hear from you
-            </h1>
-          </div>
-          <div className="relative">
-            <textarea
-              className={`w-full p-3 bg-white/90 text-black border ${
-                commentError ? "border-red-500" : "border-gray-300"
-              } rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-200 resize-none placeholder-gray-500`}
-              placeholder="Type your comment..."
-              rows={4}
-              value={comment}
-              onChange={(e) => {
-                setComment(e.target.value)
-                setCommentError(false)
-              }}
-            />
-          </div>
-          {commentError && (
-            <div className="bg-red-100/90 backdrop-blur-sm border border-red-300/50 rounded-lg p-2">
-              <p className="text-red-600 text-sm">
-                Comment cannot be empty!
-              </p>
+          ) : null}
+          
+          {/* 加载更多按钮 */}
+          {comments.length > 0 && hasMoreComments && (
+            <div className="flex justify-center mt-4">
+              <Button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-all duration-200"
+              >
+                {loadingMore ? 'Loading...' : 'Load More Comments'}
+              </Button>
             </div>
           )}
-          <div className="flex justify-end">
-            <Button
-              onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all duration-200"
-            >
-              Post Comment
-            </Button>
+          
+          {comments.length === 0 && !commentsError && (
+            <div className="text-center py-6 flex-shrink-0">
+              <div className="w-12 h-12 mx-auto mb-3 bg-gray-800/50 rounded-full flex items-center justify-center">
+                <div className="w-6 h-6 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
+              </div>
+              <p className="text-gray-400 text-sm">No comments yet.</p>
+            </div>
+          )}
+          
+          <div className="space-y-4 mt-4 flex-shrink-0">
+            <div className="flex items-center justify-center sm:justify-start">
+              <h1 className="text-lg font-semibold text-white">
+                I want to hear from you
+              </h1>
+            </div>
+            <div className="relative">
+              <textarea
+                className={`w-full p-3 bg-white/90 text-black border ${
+                  commentError ? "border-red-500" : "border-gray-300"
+                } rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 transition-all duration-200 resize-none placeholder-gray-500`}
+                placeholder="Type your comment..."
+                rows={4}
+                value={comment}
+                onChange={(e) => {
+                  setComment(e.target.value)
+                  setCommentError(false)
+                }}
+              />
+            </div>
+            {commentError && (
+              <div className="bg-red-100/90 backdrop-blur-sm border border-red-300/50 rounded-lg p-2">
+                <p className="text-red-600 text-sm">
+                  Comment cannot be empty!
+                </p>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSubmit}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all duration-200"
+              >
+                Post Comment
+              </Button>
+            </div>
           </div>
         </div>
 
-        <AlertDialogFooter>
+        <AlertDialogFooter className="flex-shrink-0">
           <AlertDialogCancel className="bg-black text-white hover:bg-red-400">Close</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>

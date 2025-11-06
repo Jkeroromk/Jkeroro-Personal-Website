@@ -98,7 +98,7 @@ const ViewerStats = () => {
       } catch (error) {
         // 如果 API 失败，保持使用缓存数据（如果有）
         if (!localStorage.getItem('jkeroro-view-count')) {
-          setViewerError('Error loading viewers')
+        setViewerError('Error loading viewers')
         }
       }
     }

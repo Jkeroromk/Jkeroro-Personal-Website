@@ -11,6 +11,7 @@ import Tabs from "@/components/media/tabs"
 import PersonalStore from "@/components/interactive/personalStore"
 import Album from "@/components/media/album"
 import Footer from "@/components/layout/footer"
+import AnniversaryCounter from "@/components/interactive/AnniversaryCounter"
 
 
 const HomeContent = () => {
@@ -34,6 +35,10 @@ const HomeContent = () => {
       
       <HomeSection delay={0.5}>
         <PersonalStore/>
+      </HomeSection>
+      
+      <HomeSection delay={0.55}>
+        <AnniversaryCounter />
       </HomeSection>
       
       <HomeSection delay={0.6}>

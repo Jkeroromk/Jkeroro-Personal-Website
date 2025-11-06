@@ -33,6 +33,15 @@ export async function POST(request: NextRequest) {
 
     // 优先使用 Supabase Storage
     try {
+      // 检查环境变量
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is not set')
+      }
+      
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        throw new Error('NEXT_PUBLIC_SUPABASE_URL environment variable is not set')
+      }
+      
       const supabase = createServerClient()
       
       // 生成唯一文件名
@@ -47,15 +56,18 @@ export async function POST(request: NextRequest) {
       const bytes = await file.arrayBuffer()
       const buffer = Buffer.from(bytes)
       
-      // 检查存储桶是否存在（可选，如果不存在会报错）
+      // 检查存储桶是否存在
       const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
       if (bucketsError) {
-        console.warn('Could not list buckets:', bucketsError)
-      } else {
-        const bucketExists = buckets?.some(b => b.name === bucket)
-        if (!bucketExists) {
-          console.warn(`Bucket "${bucket}" does not exist. Please create it in Supabase dashboard.`)
-        }
+        console.error('Failed to list buckets:', bucketsError)
+        throw new Error(`Failed to access Supabase Storage: ${bucketsError.message}`)
+      }
+      
+      const bucketExists = buckets?.some(b => b.name === bucket)
+      if (!bucketExists) {
+        const errorMsg = `Storage bucket "${bucket}" does not exist. Please create it in Supabase Dashboard (Storage > New bucket).`
+        console.error(errorMsg)
+        throw new Error(errorMsg)
       }
       
       // 上传到 Supabase Storage
@@ -71,7 +83,18 @@ export async function POST(request: NextRequest) {
           message: uploadError.message,
           name: uploadError.name,
         })
-        throw uploadError
+        
+        // 提供更友好的错误信息
+        let errorMessage = uploadError.message
+        if (uploadError.message.includes('new row violates row-level security')) {
+          errorMessage = `Storage bucket "${bucket}" has RLS enabled. Please disable RLS or add a policy to allow uploads.`
+        } else if (uploadError.message.includes('JWT')) {
+          errorMessage = 'Authentication failed. Please check SUPABASE_SERVICE_ROLE_KEY.'
+        } else if (uploadError.message.includes('permission') || uploadError.message.includes('denied')) {
+          errorMessage = `Permission denied. Please check bucket "${bucket}" permissions in Supabase Dashboard.`
+        }
+        
+        throw new Error(errorMessage)
       }
       
       // 获取公开 URL

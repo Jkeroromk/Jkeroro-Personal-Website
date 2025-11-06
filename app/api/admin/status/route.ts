@@ -46,14 +46,14 @@ export async function GET() {
     }
     
     // 其他错误才返回 500
-    console.error('Get admin status error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    console.error('Admin status error details:', {
-      message: errorMessage,
-      timestamp: new Date().toISOString(),
-      nodeEnv: process.env.NODE_ENV,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-    })
+      console.error('Get admin status error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('Admin status error details:', {
+        message: errorMessage,
+        timestamp: new Date().toISOString(),
+        nodeEnv: process.env.NODE_ENV,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+      })
     
     return NextResponse.json(
       { 
@@ -99,14 +99,14 @@ export async function POST() {
     }
     
     // 其他错误才返回 500
-    console.error('Update admin status error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    console.error('Update admin status error details:', {
-      message: errorMessage,
-      timestamp: new Date().toISOString(),
-      nodeEnv: process.env.NODE_ENV,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-    })
+      console.error('Update admin status error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.error('Update admin status error details:', {
+        message: errorMessage,
+        timestamp: new Date().toISOString(),
+        nodeEnv: process.env.NODE_ENV,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+      })
     
     return NextResponse.json(
       { 

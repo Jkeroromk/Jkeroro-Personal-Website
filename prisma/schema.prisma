@@ -123,3 +123,13 @@ model AdminStatus {
 
   @@map("admin_status")
 }
+
+model AnniversarySettings {
+  id             String   @id @default("main")
+  backgroundImages Json?   @map("background_images")
+  imagePositions  Json?   @map("image_positions") // 存储每张图片的位置 { "imageUrl": { "x": 50, "y": 50 } }
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("anniversary_settings")
+}

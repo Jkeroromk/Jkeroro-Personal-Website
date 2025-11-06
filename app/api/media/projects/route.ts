@@ -64,13 +64,13 @@ export async function GET() {
     }
     
     // 其他错误才返回 500
-    console.error('Get projects error:', error)
-    console.error('Get projects error details:', {
+      console.error('Get projects error:', error)
+      console.error('Get projects error details:', {
       message: errorInfo.errorMessage,
-      timestamp: new Date().toISOString(),
-      nodeEnv: process.env.NODE_ENV,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-    })
+        timestamp: new Date().toISOString(),
+        nodeEnv: process.env.NODE_ENV,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+      })
     
     return NextResponse.json(
       { 

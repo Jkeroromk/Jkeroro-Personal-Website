@@ -17,26 +17,26 @@ const WorldMapDialog = () => {
 
   // 处理国家数据
   const processCountryData = (data) => {
-    // Convert array to object format for compatibility
-    const countryDataObj = {};
-    data.forEach((item) => {
-      countryDataObj[item.country] = {
-        count: item.count,
-        lastUpdated: item.lastUpdated,
-        lastVisit: item.lastVisit,
-      };
-    });
-    
-    setCountryData(countryDataObj);
+        // Convert array to object format for compatibility
+        const countryDataObj = {};
+        data.forEach((item) => {
+          countryDataObj[item.country] = {
+            count: item.count,
+            lastUpdated: item.lastUpdated,
+            lastVisit: item.lastVisit,
+          };
+        });
+        
+        setCountryData(countryDataObj);
 
-    // Extract top 3 most visited countries
-    const sortedCountries = data
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 3)
-      .map((item) => [item.country, { count: item.count, lastUpdated: item.lastUpdated, lastVisit: item.lastVisit }]);
+        // Extract top 3 most visited countries
+        const sortedCountries = data
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 3)
+          .map((item) => [item.country, { count: item.count, lastUpdated: item.lastUpdated, lastVisit: item.lastVisit }]);
 
-    setTopCountries(sortedCountries);
-    
+        setTopCountries(sortedCountries);
+        
     // 移除数据流动动画
     // setDataFlowAnimation(true);
     // setTimeout(() => setDataFlowAnimation(false), 2000);

@@ -8,14 +8,14 @@ export async function POST() {
     // 获取或创建单条访问计数记录（8秒超时）
     const viewCount = await withTimeout(
       prisma.viewCount.upsert({
-        where: { id: 'main' },
-        update: {
-          count: { increment: 1 },
-        },
-        create: {
-          id: 'main',
-          count: 1,
-        },
+      where: { id: 'main' },
+      update: {
+        count: { increment: 1 },
+      },
+      create: {
+        id: 'main',
+        count: 1,
+      },
       }),
       8000
     )
@@ -38,7 +38,7 @@ export async function POST() {
     }
     
     // 其他错误才返回 500
-    console.error('Increment view count error:', error)
+      console.error('Increment view count error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -52,7 +52,7 @@ export async function GET() {
     // 使用 upsert 确保记录存在（如果不存在则创建）
     const viewCount = await withTimeout(
       prisma.viewCount.upsert({
-        where: { id: 'main' },
+      where: { id: 'main' },
         update: {}, // 如果存在，不更新
         create: { id: 'main', count: 0 }, // 如果不存在，创建初始记录
       }),
@@ -77,7 +77,7 @@ export async function GET() {
     }
     
     // 其他错误才返回 500
-    console.error('Get view count error:', error)
+      console.error('Get view count error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

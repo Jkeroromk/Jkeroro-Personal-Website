@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
           const [images, tracks, projects, comments, viewCount] = await Promise.allSettled([
             withTimeout(
               prisma.image.findMany({
-                orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+            orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
               }),
               5000
             ),
@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
           // 处理图片数据
           if (images.status === 'fulfilled') {
             const imagesHash = JSON.stringify(images.value.map(img => ({ id: img.id, order: img.order })))
-            if (imagesHash !== lastDataHash.images) {
-              lastDataHash.images = imagesHash
+          if (imagesHash !== lastDataHash.images) {
+            lastDataHash.images = imagesHash
               send('images', JSON.stringify(images.value))
             }
           }
@@ -78,8 +78,8 @@ export async function GET(request: NextRequest) {
           // 处理音乐轨道数据
           if (tracks.status === 'fulfilled') {
             const tracksHash = JSON.stringify(tracks.value.map(track => ({ id: track.id, order: track.order })))
-            if (tracksHash !== lastDataHash.tracks) {
-              lastDataHash.tracks = tracksHash
+          if (tracksHash !== lastDataHash.tracks) {
+            lastDataHash.tracks = tracksHash
               send('tracks', JSON.stringify(tracks.value))
             }
           }
@@ -87,8 +87,8 @@ export async function GET(request: NextRequest) {
           // 处理项目数据
           if (projects.status === 'fulfilled') {
             const projectsHash = JSON.stringify(projects.value.map(project => ({ id: project.id, createdAt: project.createdAt })))
-            if (projectsHash !== lastDataHash.projects) {
-              lastDataHash.projects = projectsHash
+          if (projectsHash !== lastDataHash.projects) {
+            lastDataHash.projects = projectsHash
               send('projects', JSON.stringify(projects.value))
             }
           }
@@ -96,8 +96,8 @@ export async function GET(request: NextRequest) {
           // 处理评论数据
           if (comments.status === 'fulfilled') {
             const commentsHash = JSON.stringify(comments.value.map(comment => ({ id: comment.id, createdAt: comment.createdAt })))
-            if (commentsHash !== lastDataHash.comments) {
-              lastDataHash.comments = commentsHash
+          if (commentsHash !== lastDataHash.comments) {
+            lastDataHash.comments = commentsHash
               send('comments', JSON.stringify(comments.value))
             }
           }
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
           }
           
           // 其他错误才记录并发送错误消息
-          console.error('SSE error:', error)
+            console.error('SSE error:', error)
           send('error', JSON.stringify({ message: 'Failed to fetch data' }))
         }
       }, 3000) // 每 3 秒检查一次（只在数据变化时推送）
