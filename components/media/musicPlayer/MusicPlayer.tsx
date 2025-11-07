@@ -9,16 +9,16 @@ import { useState, useEffect, useRef } from 'react'
 import { useTracks } from '@/hooks/useTracks'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { useVolume } from '@/hooks/useVolume'
-import TrackInfo from './musicPlayer/TrackInfo'
-import PlayerControls from './musicPlayer/PlayerControls'
-import ProgressBar from './musicPlayer/ProgressBar'
-import VolumeControl from './musicPlayer/VolumeControl'
+import TrackInfo from './TrackInfo'
+import PlayerControls from './PlayerControls'
+import ProgressBar from './ProgressBar'
+import VolumeControl from './VolumeControl'
 
 export default function MusicPlayer() {
   const { tracks, loading } = useTracks()
   const [isLooping, setIsLooping] = useState(false)
   const [isShuffled, setIsShuffled] = useState(false)
-  const audioRef = useRef(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
 
   const {
     isPlaying,
@@ -30,7 +30,6 @@ export default function MusicPlayer() {
     skipTrack,
     formatTime,
     setCurrentTimeValue,
-    safePlay,
   } = useAudioPlayer({
     tracks,
     isLooping,
@@ -54,58 +53,6 @@ export default function MusicPlayer() {
       updateVolume(volume, audioRef.current)
     }
   }, [volume, isMuted, updateVolume])
-
-  // 检查localStorage中的音频权限设置并自动播放
-  useEffect(() => {
-    // 确保在客户端环境运行
-    if (typeof window === 'undefined') return
-
-    // 确保有音乐数据且不在加载中
-    if (loading || !tracks || tracks.length === 0) {
-      return
-    }
-
-    // 获取当前曲目
-    const currentTrack = tracks[currentTrackIndex]
-
-    const audioPermission = localStorage.getItem('audioPermission')
-    const fromLoading = sessionStorage.getItem('fromLoading')
-
-    if (audioPermission === 'allowed' && fromLoading && !isPlaying) {
-      // 如果用户允许了音频且从loading页面跳转过来，自动播放
-      const audio = audioRef.current
-      if (audio && currentTrack?.src) {
-        audio.muted = false
-        
-        // 等待音频元素准备好
-        const tryPlay = async () => {
-          if (!audio || !audio.src) return
-          
-          // 如果音频还没加载，等待加载完成
-          if (audio.readyState < 2) {
-            audio.addEventListener('canplay', async () => {
-              if (!isPlaying) {
-                await safePlay()
-              }
-              sessionStorage.removeItem('fromLoading')
-            }, { once: true })
-            
-            // 触发加载
-            audio.load()
-          } else {
-            // 音频已准备好，直接播放
-            await safePlay()
-            sessionStorage.removeItem('fromLoading')
-          }
-        }
-        
-        // 延迟一点确保 DOM 已更新
-        const playTimer = setTimeout(tryPlay, 300)
-        
-        return () => clearTimeout(playTimer)
-      }
-    }
-  }, [loading, tracks, currentTrackIndex, isPlaying, safePlay])
 
   // 如果没有音乐数据，显示空状态
   if (loading) {
@@ -145,7 +92,7 @@ export default function MusicPlayer() {
             <p className="text-xs text-gray-300 mb-2">How to add music:</p>
             <ol className="text-xs text-gray-400 space-y-1 text-left">
               <li>1. Go to Admin Panel</li>
-              <li>2. Click on "Music" tab</li>
+              <li>2. Click on &quot;Music&quot; tab</li>
               <li>3. Upload your music files</li>
               <li>4. Add title and artist info</li>
             </ol>
@@ -173,19 +120,7 @@ export default function MusicPlayer() {
           ref={audioRef}
           src={currentTrack.src}
           muted={isMuted}
-          preload="auto"
-          onTimeUpdate={() => {
-            const audio = audioRef.current
-            if (audio) {
-              // 时间更新由 useAudioPlayer hook 处理
-            }
-          }}
-          onLoadedMetadata={() => {
-            const audio = audioRef.current
-            if (audio) {
-              // 元数据加载由 useAudioPlayer hook 处理
-            }
-          }}
+          preload="none"
           onEnded={() => skipTrack(1)}
         />
       )}

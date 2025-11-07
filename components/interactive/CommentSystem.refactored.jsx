@@ -7,7 +7,7 @@
 
 import { useState } from 'react'
 import { Button } from '../ui/button'
-import { MessageSquare, X } from 'lucide-react'
+import { MessageSquare } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -46,7 +46,7 @@ const CommentSystem = () => {
   }
 
   // 处理反应
-  const handleCommentReaction = (commentId, reactionType) => {
+  const handleCommentReaction = (commentId: string, reactionType: string) => {
     handleReaction(commentId, reactionType, () => {
       refetch()
     })
@@ -61,21 +61,10 @@ const CommentSystem = () => {
       </AlertDialogTrigger>
       <AlertDialogContent className="bg-black text-white border border-gray-400 shadow-lg scale-[0.9] sm:scale-[1] max-h-[90vh] flex flex-col">
         <AlertDialogHeader className="flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <AlertDialogTitle className="text-base font-semibold">Comments</AlertDialogTitle>
-              <AlertDialogDescription className="text-gray-300 mt-2">
-                Share your thoughts and interact with others!
-              </AlertDialogDescription>
-            </div>
-            <button
-              onClick={() => setDialogOpen(false)}
-              className="text-red-500 hover:text-red-400 transition-colors p-1 hover:bg-red-500/20 rounded"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <AlertDialogTitle className="text-base font-semibold">Comments</AlertDialogTitle>
+          <AlertDialogDescription className="text-gray-300 mt-2">
+            Share your thoughts and interact with others!
+          </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="flex-1 min-h-0 flex flex-col">
@@ -97,9 +86,7 @@ const CommentSystem = () => {
                 hasMore={hasMoreComments}
                 loadingMore={loadingMore}
               />
-              <CommentInput 
-                onCommentAdded={handleCommentAdded}
-              />
+              <CommentInput onCommentAdded={handleCommentAdded} />
             </>
           )}
         </div>

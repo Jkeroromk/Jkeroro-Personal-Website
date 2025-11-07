@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Heart } from 'lucide-react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAnniversaryData } from '@/hooks/useAnniversaryData'
 
 const AnniversaryCounter = () => {
   const [days, setDays] = useState(0)
@@ -19,32 +20,21 @@ const AnniversaryCounter = () => {
   // 纪念日开始日期：2023年5月20日
   const anniversaryDate = new Date('2023-05-20T00:00:00')
 
-  // 获取背景图列表和位置
+  // 获取背景图列表和位置 - 使用新的 Hook
+  const { backgroundImages: fetchedImages, imagePositions: fetchedPositions, loading: imagesLoading } = useAnniversaryData()
+  
   useEffect(() => {
-    const fetchBackground = async () => {
-      try {
-        const response = await fetch('/api/anniversary/background')
-        if (response.ok) {
-          const data = await response.json()
-          const images = Array.isArray(data.backgroundImages) ? data.backgroundImages : []
-          const positions = data.imagePositions || {}
-          setBackgroundImages(images)
-          setImagePositions(positions)
-          
-          // 加载当前图片的位置
-          if (images.length > 0) {
-            const currentImageUrl = images[currentImageIndex]
-            const currentPosition = positions[currentImageUrl] || { x: 50, y: 50 }
-            setImageOffsetX(currentPosition.x)
-            setImageOffsetY(currentPosition.y)
-          }
-        }
-      } catch (error) {
-        // 静默处理错误
-      }
+    setBackgroundImages(fetchedImages)
+    setImagePositions(fetchedPositions)
+    
+    // 加载当前图片的位置
+    if (fetchedImages.length > 0) {
+      const currentImageUrl = fetchedImages[currentImageIndex]
+      const currentPosition = fetchedPositions[currentImageUrl] || { x: 50, y: 50 }
+      setImageOffsetX(currentPosition.x)
+      setImageOffsetY(currentPosition.y)
     }
-    fetchBackground()
-  }, [])
+  }, [fetchedImages, fetchedPositions, currentImageIndex])
 
   // 当图片索引或位置数据变化时，更新位置
   useEffect(() => {

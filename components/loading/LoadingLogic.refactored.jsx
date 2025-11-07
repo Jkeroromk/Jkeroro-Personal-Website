@@ -136,17 +136,13 @@ const LoadingLogic = () => {
   useEffect(() => {
     if (isCompleted && !showAudioPermission && !isFadingOut) {
       setTimeout(() => {
-        // 强制设置总进度为100
-        setResourceProgress(40)
-        setScriptProgress(20)
-        setMusicProgress(20)
-        setDatabaseProgress(20)
+        setProgress((prev) => ({ ...prev, total: 100 }))
         setTimeout(() => {
           setShowAudioPermission(true)
         }, 300)
       }, 500)
     }
-  }, [isCompleted, showAudioPermission, isFadingOut, setResourceProgress, setScriptProgress, setMusicProgress, setDatabaseProgress])
+  }, [isCompleted, showAudioPermission, isFadingOut])
 
   // 确保MouseTrail在loading页面正确初始化
   useEffect(() => {
