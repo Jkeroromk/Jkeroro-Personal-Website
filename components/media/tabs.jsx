@@ -16,6 +16,7 @@ import { useAuth } from "../../auth";
 import { motion } from "framer-motion";
 import DataManager from "@/lib/data-manager";
 import Image from "next/image";
+import DonationButton from '@/components/interactive/DonationButton';
 
 // 简单卡片组件
 const Card3D = ({ children, className = "", href, target, rel, onMouseEnter, onMouseLeave }) => {
@@ -357,21 +358,7 @@ const Tabs = () => {
         </a>
       </div>
 
-      <div className="flex flex-col items-center w-full">
-        <a
-          href="https://www.patreon.com/yourprofile"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-10 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
-        >
-          <h1 className="text-xl font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
-            Donation
-          </h1>
-          <h2 className="text-sm font-semibold text-black hover:text-blue-600 transition-colors duration-300">
-            Payment
-          </h2>
-        </a>
-      </div>
+      <DonationButton />
     </div>
   );
 };

@@ -150,57 +150,72 @@ const AnniversaryTab = () => {
     : null
 
   return (
-    <Card className="bg-gray-800 border-gray-600">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center">
-          <Heart className="w-5 h-5 mr-2 text-pink-400" />
-          Anniversary Settings
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* 当前背景图预览 */}
-        <div>
-          <h3 className="text-white font-semibold mb-3">Preview (匹配首页显示效果)</h3>
-          <AnniversaryPreview
-            imageUrl={currentImageUrl}
-            imageOffsetX={imageOffsetX}
-            imageOffsetY={imageOffsetY}
-          />
-          
-          {/* 位置调整控制 */}
-          {backgroundImages.length > 0 && (
-            <ImagePositionControls
-              imageOffsetX={imageOffsetX}
-              imageOffsetY={imageOffsetY}
-              selectedImageIndex={selectedImageIndex}
-              totalImages={backgroundImages.length}
-              onPositionChange={handlePositionUpdate}
-            />
-          )}
-        </div>
+    <div className="space-y-6">
+      <Card className="bg-gray-800 border-gray-600">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center">
+            <Heart className="w-5 h-5 mr-2 text-pink-400" />
+            Anniversary Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {/* 左右分栏布局 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 左侧：预览和位置控制 */}
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-white font-semibold mb-3 text-sm">Preview</h3>
+                <AnniversaryPreview
+                  imageUrl={currentImageUrl}
+                  imageOffsetX={imageOffsetX}
+                  imageOffsetY={imageOffsetY}
+                />
+              </div>
+              
+              {/* 位置调整控制 */}
+              {backgroundImages.length > 0 && (
+                <div className="mt-4">
+                  <ImagePositionControls
+                    imageOffsetX={imageOffsetX}
+                    imageOffsetY={imageOffsetY}
+                    selectedImageIndex={selectedImageIndex}
+                    totalImages={backgroundImages.length}
+                    onPositionChange={handlePositionUpdate}
+                  />
+                </div>
+              )}
+            </div>
 
-        {/* 背景图列表 */}
-        <div>
-          <h3 className="text-white font-semibold mb-3">
-            Background Images ({backgroundImages.length})
-          </h3>
-          <ImageList
-            backgroundImages={backgroundImages}
-            selectedImageIndex={selectedImageIndex}
-            uploading={uploading}
-            onSelect={setSelectedImageIndex}
-            onDelete={handleDeleteImage}
-          />
-        </div>
+            {/* 右侧：图片列表和上传 */}
+            <div className="space-y-4">
+              {/* 上传新背景图 */}
+              <div>
+                <h3 className="text-white font-semibold mb-3 text-sm">Upload New Image</h3>
+                <ImageUploadSection
+                  uploading={uploading}
+                  uploadKey={uploadKey}
+                  onFileSelect={handleFileSelect}
+                />
+              </div>
 
-        {/* 上传新背景图 */}
-        <ImageUploadSection
-          uploading={uploading}
-          uploadKey={uploadKey}
-          onFileSelect={handleFileSelect}
-        />
-      </CardContent>
-    </Card>
+              {/* 背景图列表 */}
+              <div>
+                <h3 className="text-white font-semibold mb-3 text-sm">
+                  Background Images ({backgroundImages.length})
+                </h3>
+                <ImageList
+                  backgroundImages={backgroundImages}
+                  selectedImageIndex={selectedImageIndex}
+                  uploading={uploading}
+                  onSelect={setSelectedImageIndex}
+                  onDelete={handleDeleteImage}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 

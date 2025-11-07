@@ -20,6 +20,9 @@ const MusicPlayer = memo(() => {
   const [dataManager] = useState(() => DataManager.getInstance());
   const audioRef = useRef(null);
   const playPromiseRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const gainNodeRef = useRef(null);
+  const sourceRef = useRef(null);
 
   // 安全的播放函数，避免 AbortError
   const safePlay = async () => {
@@ -273,18 +276,35 @@ const MusicPlayer = memo(() => {
   const toggleMute = () => {
     const audio = audioRef.current;
     if (audio) {
-      audio.volume = isMuted ? volume / 100 : 0;
+      if (gainNodeRef.current) {
+        const gainValue = isMuted 
+          ? (volume <= 100 ? volume / 100 : 1.0 + ((volume - 100) / 50) * 1.0)
+          : 0;
+        gainNodeRef.current.gain.value = gainValue;
+      } else {
+        audio.volume = isMuted ? Math.min(1.0, volume / 100) : 0;
+      }
     }
     setIsMuted(!isMuted);
   };
 
-  // Adjust volume
+  // Adjust volume with amplification support
   const changeVolume = (delta) => {
-    const newVolume = Math.max(0, Math.min(100, volume + delta));
+    const newVolume = Math.max(0, Math.min(150, volume + delta)); // 允许到 150%
     setVolume(newVolume);
     const audio = audioRef.current;
     if (audio) {
-      audio.volume = newVolume / 100;
+      // 使用 Web Audio API 的 GainNode 来放大音量
+      if (gainNodeRef.current) {
+        // 音量映射：0-100 对应 0-1.0，100-150 对应 1.0-2.0（放大）
+        const gainValue = newVolume <= 100 
+          ? newVolume / 100 
+          : 1.0 + ((newVolume - 100) / 50) * 1.0; // 100-150 映射到 1.0-2.0
+        gainNodeRef.current.gain.value = gainValue;
+      } else {
+        // 回退到标准音量控制
+        audio.volume = Math.min(1.0, newVolume / 100);
+      }
     }
     setIsMuted(newVolume === 0);
   };
@@ -303,19 +323,51 @@ const MusicPlayer = memo(() => {
     setIsShuffled(!isShuffled);
   };
 
-  // Setup audio listeners and initial volume
+  // Initialize Web Audio API for volume amplification
   useEffect(() => {
     const audio = audioRef.current;
-    if (audio) {
-      audio.volume = volume / 100;
-      audio.loop = isLooping;
-      audio.addEventListener('timeupdate', handleTimeUpdate);
-      audio.addEventListener('ended', () => {
-        if (!isLooping) {
-          skipTrack(1);
+    if (!audio) return;
+
+    // 初始化 Web Audio API（只初始化一次）
+    if (!audioContextRef.current) {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioContextRef.current = new AudioContext();
+        gainNodeRef.current = audioContextRef.current.createGain();
+        gainNodeRef.current.connect(audioContextRef.current.destination);
+        
+        // 创建 MediaElementSource（只能创建一次）
+        try {
+          sourceRef.current = audioContextRef.current.createMediaElementSource(audio);
+          sourceRef.current.connect(gainNodeRef.current);
+          // 断开音频元素的直接输出，只通过 GainNode 输出
+          audio.setAttribute('crossorigin', 'anonymous');
+        } catch (error) {
+          // MediaElementSource 已存在或创建失败，使用标准音量控制
+          console.warn('MediaElementSource creation failed, using standard volume:', error);
         }
-      });
+      } catch (error) {
+        console.warn('Web Audio API not supported, using standard volume control:', error);
+      }
     }
+
+    // 设置音量（使用 GainNode 或标准音量）
+    if (gainNodeRef.current) {
+      const gainValue = volume <= 100 
+        ? volume / 100 
+        : 1.0 + ((volume - 100) / 50) * 1.0;
+      gainNodeRef.current.gain.value = isMuted ? 0 : gainValue;
+    } else {
+      audio.volume = isMuted ? 0 : Math.min(1.0, volume / 100);
+    }
+
+    audio.loop = isLooping;
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', () => {
+      if (!isLooping) {
+        skipTrack(1);
+      }
+    });
 
     return () => {
       if (audio) {
@@ -327,7 +379,7 @@ const MusicPlayer = memo(() => {
         });
       }
     };
-  }, [volume, currentTrackIndex, isLooping]);
+  }, [volume, isLooping, isMuted]);
 
   // Update audio source when track changes
   useEffect(() => {
@@ -357,6 +409,14 @@ const MusicPlayer = memo(() => {
 
       audio.src = tracks[currentTrackIndex].src;
       audio.loop = isLooping;
+      
+      // 如果 Web Audio API 已初始化，确保音量设置正确
+      if (gainNodeRef.current) {
+        const gainValue = volume <= 100 
+          ? volume / 100 
+          : 1.0 + ((volume - 100) / 50) * 1.0;
+        gainNodeRef.current.gain.value = isMuted ? 0 : gainValue;
+      }
       
       // 只有在用户已经交互过且当前正在播放时才自动播放
       if (isPlaying) {
@@ -530,7 +590,7 @@ const MusicPlayer = memo(() => {
             </div>
             <Minus
               className="cursor-pointer text-white text-xl hover:scale-[1.5] transition duration-300"
-              onPointerDown={() => changeVolume(-5)}
+              onPointerDown={() => changeVolume(-10)}
               title="Decrease Volume"
             />
             <div
@@ -541,10 +601,10 @@ const MusicPlayer = memo(() => {
               {isMuted ? <VolumeX className="text-white text-xl" /> : <Volume2 className="text-white text-xl" />}
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-white font-bold">{isMuted ? '0' : volume}</span>
+              <span className="text-white font-bold">{isMuted ? '0' : volume > 100 ? `${volume}%` : volume}</span>
               <Plus
                 className="cursor-pointer text-white text-xl hover:scale-[1.5] transition duration-300"
-                onPointerDown={() => changeVolume(5)}
+                onPointerDown={() => changeVolume(10)}
                 title="Increase Volume"
               />
             </div>

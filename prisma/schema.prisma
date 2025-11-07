@@ -125,11 +125,14 @@ model AdminStatus {
 }
 
 model AnniversarySettings {
-  id             String   @id @default("main")
-  backgroundImages Json?   @map("background_images")
-  imagePositions  Json?   @map("image_positions") // 存储每张图片的位置 { "imageUrl": { "x": 50, "y": 50 } }
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id               String   @id
+  background_image String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+  backgroundImages Json?    @default("[]") @map("background_images")
+  image_offset_x   Float?   @default(50)
+  image_offset_y   Float?   @default(50)
+  imagePositions   Json?    @default("{}") @map("image_positions")
 
   @@map("anniversary_settings")
 }

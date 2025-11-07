@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Heart } from 'lucide-react'
 import Image from 'next/image'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const AnniversaryCounter = () => {
   const [days, setDays] = useState(0)
@@ -13,7 +14,6 @@ const AnniversaryCounter = () => {
   const [imageOffsetY, setImageOffsetY] = useState(50)
   const [isHovered, setIsHovered] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
-  const [imageOpacity, setImageOpacity] = useState(1)
   const currentIndexRef = useRef(0)
 
   // 纪念日开始日期：2023年5月20日
@@ -64,26 +64,18 @@ const AnniversaryCounter = () => {
     }
 
     const rotateImages = () => {
-      // 淡出当前图片
-      setImageOpacity(0)
-      
-      // 等待淡出动画完成后切换图片
-      setTimeout(() => {
-        const currentIdx = currentIndexRef.current
-        const nextIndex = (currentIdx + 1) % backgroundImages.length
-        setCurrentImageIndex(nextIndex)
-        // 更新新图片的位置
-        const nextImageUrl = backgroundImages[nextIndex]
-        const nextPosition = imagePositions[nextImageUrl] || { x: 50, y: 50 }
-        setImageOffsetX(nextPosition.x)
-        setImageOffsetY(nextPosition.y)
-        // 淡入新图片
-        setImageOpacity(1)
-      }, 300) // 等待淡出动画完成
+      const currentIdx = currentIndexRef.current
+      const nextIndex = (currentIdx + 1) % backgroundImages.length
+      setCurrentImageIndex(nextIndex)
+      // 更新新图片的位置
+      const nextImageUrl = backgroundImages[nextIndex]
+      const nextPosition = imagePositions[nextImageUrl] || { x: 50, y: 50 }
+      setImageOffsetX(nextPosition.x)
+      setImageOffsetY(nextPosition.y)
     }
 
-    // 每 3 秒轮换一次
-    const interval = setInterval(rotateImages, 3000)
+    // 每 6 秒轮换一次（给图片更多停留时间）
+    const interval = setInterval(rotateImages, 6000)
 
     return () => {
       clearInterval(interval)
@@ -94,17 +86,13 @@ const AnniversaryCounter = () => {
   const goToImage = (index) => {
     if (index < 0 || index >= backgroundImages.length) return
     
-    setImageOpacity(0)
-    setTimeout(() => {
-      setCurrentImageIndex(index)
-      currentIndexRef.current = index
-      // 更新新图片的位置
-      const targetImageUrl = backgroundImages[index]
-      const targetPosition = imagePositions[targetImageUrl] || { x: 50, y: 50 }
-      setImageOffsetX(targetPosition.x)
-      setImageOffsetY(targetPosition.y)
-      setImageOpacity(1)
-    }, 300)
+    setCurrentImageIndex(index)
+    currentIndexRef.current = index
+    // 更新新图片的位置
+    const targetImageUrl = backgroundImages[index]
+    const targetPosition = imagePositions[targetImageUrl] || { x: 50, y: 50 }
+    setImageOffsetX(targetPosition.x)
+    setImageOffsetY(targetPosition.y)
   }
 
   // 鼠标进入时暂停轮换
@@ -143,7 +131,7 @@ const AnniversaryCounter = () => {
   }, [])
 
   return (
-    <div className="flex justify-center w-full py-8">
+    <div className="flex justify-center w-full py-8 px-4 sm:px-6">
       <div className="w-full sm:w-[550px] mx-auto group">
         <div 
           className="bg-white bg-opacity-80 border-2 border-black rounded-3xl overflow-hidden transition-all duration-300 h-[360px] sm:h-[400px] relative group-hover:shadow-[0_0_20px_white] my-4"
@@ -153,22 +141,38 @@ const AnniversaryCounter = () => {
           {/* 背景图片区域 - 占满整个卡片 */}
           <div className="relative h-full w-full overflow-hidden">
             {/* 背景图片 - hover 时自动轮换 */}
-            {backgroundImages.length > 0 && currentImageIndex < backgroundImages.length ? (
-              <Image
-                src={backgroundImages[currentImageIndex]}
-                alt="Anniversary background"
-                fill
-                className="object-cover transition-opacity duration-300"
-                style={{
-                  objectPosition: `${imageOffsetX}% ${imageOffsetY}%`,
-                  filter: 'blur(4px)',
-                  opacity: imageOpacity,
-                }}
-                unoptimized={backgroundImages[currentImageIndex].startsWith('/api/file/') || backgroundImages[currentImageIndex].startsWith('https://')}
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-pink-500/30 via-red-500/30 to-purple-500/30"></div>
-            )}
+            <AnimatePresence>
+              {backgroundImages.length > 0 && currentImageIndex < backgroundImages.length ? (
+                <motion.div
+                  key={backgroundImages[currentImageIndex]}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    duration: 2,
+                    ease: [0.25, 0.46, 0.45, 0.94] // 平滑的缓动曲线
+                  }}
+                  className="absolute inset-0"
+                  style={{
+                    objectPosition: `${imageOffsetX}% ${imageOffsetY}%`,
+                  }}
+                >
+                  <Image
+                    src={backgroundImages[currentImageIndex]}
+                    alt="Anniversary background"
+                    fill
+                    className="object-cover"
+                    style={{
+                      objectPosition: `${imageOffsetX}% ${imageOffsetY}%`,
+                      filter: 'blur(4px)',
+                    }}
+                    unoptimized={backgroundImages[currentImageIndex].startsWith('/api/file/') || backgroundImages[currentImageIndex].startsWith('https://')}
+                  />
+                </motion.div>
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-pink-500/30 via-red-500/30 to-purple-500/30"></div>
+              )}
+            </AnimatePresence>
             
             {/* 渐变遮罩 */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
