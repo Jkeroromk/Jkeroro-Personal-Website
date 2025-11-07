@@ -118,10 +118,7 @@ export async function GET() {
 
   // 检查 6: Prisma 是否能初始化（不执行查询）
   try {
-    const { PrismaClient } = await import('@/lib/generated/prisma/client')
-    const prisma = new PrismaClient({
-      log: [],
-    })
+    const { prisma } = await import('@/lib/prisma')
     // 只是初始化，不查询
     await prisma.$disconnect()
     results.checks.push({

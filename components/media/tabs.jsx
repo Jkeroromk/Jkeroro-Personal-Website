@@ -208,12 +208,12 @@ const Tabs = () => {
                     href={item.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-white bg-opacity-80 border-2 border-black rounded-3xl overflow-hidden transition-all duration-300 h-[360px] sm:h-[400px] flex flex-col relative z-30 group-hover:shadow-[0_0_20px_white] my-4"
+                    className="bg-white bg-opacity-80 border-2 border-black rounded-3xl overflow-hidden transition-all duration-300 h-[360px] sm:h-[500px] flex flex-col relative z-30 group-hover:shadow-[0_0_20px_white] my-4"
                     onMouseEnter={pauseAutoplay}
                     onMouseLeave={resumeAutoplay}
                   >
                       {/* 图片区域 */}
-                      <div className="relative h-72 sm:h-96 overflow-hidden bg-gray-800">
+                      <div className="relative h-72 sm:h-[400px] overflow-hidden bg-gray-800">
                         {item.image && item.image.trim() !== '' ? (
                           <>
                             <Image
