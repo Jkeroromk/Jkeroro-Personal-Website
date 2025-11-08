@@ -137,7 +137,8 @@ export function useAudioPlayer({
     
     // 只有当音频源真正改变时才重新设置，避免不必要的重新加载
     if (audio.src !== newSrc) {
-      const wasPlaying = !audio.paused
+      // 保存当前播放状态（使用 isPlaying 状态，而不是 audio.paused）
+      const shouldContinuePlaying = isPlaying
       
       // 立即重置进度条到 0（新歌曲开始）
       setCurrentTime(0)
@@ -154,15 +155,28 @@ export function useAudioPlayer({
       audio.addEventListener('loadedmetadata', updateTime, { once: true })
       audio.addEventListener('canplay', updateTime, { once: true })
 
-      // 如果之前正在播放，继续播放
-      if (wasPlaying) {
-        safePlay()
+      // 如果之前正在播放，继续播放新歌曲
+      if (shouldContinuePlaying) {
+        // 等待音频可以播放后再播放
+        const playWhenReady = async () => {
+          if (audio.readyState >= 2) {
+            // 音频已准备好，直接播放
+            await safePlay()
+          } else {
+            // 等待音频加载完成
+            audio.addEventListener('canplay', async () => {
+              await safePlay()
+            }, { once: true })
+            audio.load()
+          }
+        }
+        playWhenReady()
       }
     } else {
       // 音频源没变，只更新循环设置
       audio.loop = isLooping
     }
-  }, [currentTrackIndex, tracks, isLooping, safePlay])
+  }, [currentTrackIndex, tracks, isLooping, isPlaying, safePlay])
 
   // MediaSession API - 单独管理，避免不必要的重新设置
   useEffect(() => {
