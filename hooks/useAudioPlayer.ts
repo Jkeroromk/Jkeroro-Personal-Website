@@ -148,7 +148,7 @@ export function useAudioPlayer({
     }
   }, [isPlaying])
 
-  // 跳转曲目
+  // 跳转曲目 - 参考旧版本的简单方式
   const skipTrack = useCallback(
     (direction: number, shouldAutoPlay?: boolean) => {
       if (!tracks || tracks.length === 0) return
@@ -164,19 +164,19 @@ export function useAudioPlayer({
         newIndex = (currentTrackIndex + direction + tracks.length) % tracks.length
       }
 
-      // 如果明确指定了 shouldAutoPlay，使用它；否则使用当前的 isPlaying 状态
-      // 使用 ref 来获取最新的播放状态，避免闭包问题
-      const willPlay = shouldAutoPlay !== undefined ? shouldAutoPlay : isPlayingRef.current
-      
-      // 更新索引，这会触发 useEffect 来加载新歌曲
+      // 更新索引
       setCurrentTrackIndex(newIndex)
       
-      // 注意：实际的播放会在 useEffect 中处理（当音频源改变时）
-      // 这里只更新状态标记
-      if (willPlay) {
-        isPlayingRef.current = true
+      // 如果明确指定了 shouldAutoPlay，使用它；否则保持当前播放状态
+      // 参考旧版本：skipTrack 会设置 isPlaying(true)，然后 useEffect 会检测到并播放
+      if (shouldAutoPlay !== undefined) {
+        setIsPlaying(shouldAutoPlay)
+        isPlayingRef.current = shouldAutoPlay
       } else {
-        isPlayingRef.current = false
+        // 保持当前播放状态（如果正在播放，继续播放；如果暂停，保持暂停）
+        // 使用 ref 来获取最新状态
+        const currentPlaying = isPlayingRef.current
+        setIsPlaying(currentPlaying)
       }
     },
     [tracks, currentTrackIndex, isShuffled]
@@ -207,137 +207,69 @@ export function useAudioPlayer({
     }
   }, [])
 
-  // 更新音频源 - 只在曲目或循环设置改变时更新
+  // 更新音频源和播放状态 - 参考旧版本的简单直接方式
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !tracks[currentTrackIndex]?.src) return
 
     const newSrc = tracks[currentTrackIndex].src
     
-    // 只有当音频源真正改变时才重新设置，避免不必要的重新加载
+    // 只有当音频源真正改变时才重新设置
     if (audio.src !== newSrc) {
-      // 保存当前播放状态（使用 ref 来获取最新状态，避免闭包问题）
-      const shouldContinuePlaying = isPlayingRef.current
-      
       // 立即重置进度条到 0（新歌曲开始）
       setCurrentTime(0)
       setDuration(0)
       
+      // 设置新的音频源
       audio.src = newSrc
       audio.loop = isLooping
       
       // 立即触发加载
       audio.load()
-
-      // 立即更新时间（当音频源改变时）
-      const updateTime = () => {
-        setCurrentTime(audio.currentTime || 0)
-        setDuration(audio.duration || 0)
-      }
-      audio.addEventListener('loadedmetadata', updateTime, { once: true })
-      audio.addEventListener('canplay', updateTime, { once: true })
-
-      // 如果之前正在播放，继续播放新歌曲
-      if (shouldContinuePlaying) {
-        // 先设置播放状态为 true（UI 更新）
-        setIsPlaying(true)
-        isPlayingRef.current = true
-        
-        // 等待音频可以播放后再播放
-        const playWhenReady = async () => {
-          try {
-            // 确保音频已加载
-            if (audio.readyState < 2) {
-              // 等待 canplay 事件（最多等待 5 秒）
-              await new Promise<void>((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                  audio.removeEventListener('canplay', onCanPlay)
-                  audio.removeEventListener('error', onError)
-                  reject(new Error('Audio load timeout'))
-                }, 5000)
-                
-                const onCanPlay = () => {
-                  clearTimeout(timeout)
-                  audio.removeEventListener('canplay', onCanPlay)
-                  audio.removeEventListener('error', onError)
-                  resolve()
-                }
-                
-                const onError = () => {
-                  clearTimeout(timeout)
-                  audio.removeEventListener('canplay', onCanPlay)
-                  audio.removeEventListener('error', onError)
-                  reject(new Error('Audio load error'))
-                }
-                
-                audio.addEventListener('canplay', onCanPlay, { once: true })
-                audio.addEventListener('error', onError, { once: true })
-                
-                // 如果 readyState 是 0，确保加载
-                if (audio.readyState === 0) {
-                  audio.load()
-                }
-              })
-            }
-
-            // 尝试播放（最多重试 3 次）
-            let retries = 3
-            let success = false
-            
-            while (retries > 0 && !success) {
-              success = await safePlay()
-              if (!success) {
-                retries--
-                if (retries > 0) {
-                  // 等待一小段时间后重试
-                  await new Promise(resolve => setTimeout(resolve, 200))
-                }
-              }
-            }
-            
-            if (!success) {
-              // 播放失败，重置状态
-              console.warn('Failed to auto-play next track after retries')
-              setIsPlaying(false)
-              isPlayingRef.current = false
-              return
-            }
-            
-            // 再次验证音频确实在播放（等待一小段时间确保播放已开始）
-            await new Promise(resolve => setTimeout(resolve, 150))
-            if (audio.paused) {
-              // 如果音频仍然暂停，说明播放失败
-              console.warn('Audio is still paused after play attempt')
-              setIsPlaying(false)
-              isPlayingRef.current = false
-              return
-            }
-            
-            // 播放成功，确保状态正确
-            setIsPlaying(true)
-            isPlayingRef.current = true
-          } catch (error) {
-            console.warn('Failed to auto-play next track:', error)
-            setIsPlaying(false)
-            isPlayingRef.current = false
-          }
-        }
-        
-        // 使用 setTimeout 确保音频源已设置完成后再尝试播放
-        // 使用较短的延迟，让浏览器有时间处理音频源变更
-        setTimeout(() => {
-          playWhenReady()
-        }, 50)
-      } else {
-        // 如果不应该播放，确保状态正确
-        setIsPlaying(false)
-        isPlayingRef.current = false
-      }
     } else {
       // 音频源没变，只更新循环设置
       audio.loop = isLooping
     }
-  }, [currentTrackIndex, tracks, isLooping, safePlay])
+  }, [currentTrackIndex, tracks, isLooping])
+
+  // 当 isPlaying 或 currentTrackIndex 改变时，尝试播放/暂停
+  // 参考旧版本：当 isPlaying 为 true 时，直接调用 audio.play()
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !tracks[currentTrackIndex]?.src) return
+
+    if (isPlaying) {
+      // 如果应该播放，尝试播放
+      // 参考旧版本：直接调用 audio.play()，不等待加载
+      const playAudio = async () => {
+        try {
+          // 如果音频还没加载，先加载
+          if (audio.readyState === 0) {
+            audio.load()
+          }
+          
+          // 尝试播放
+          await audio.play().catch((error) => {
+            console.error('Error playing audio:', error)
+            throw error
+          })
+          
+          // 播放成功，确保状态正确
+          isPlayingRef.current = true
+        } catch (error) {
+          // 播放失败（可能是浏览器自动播放策略）
+          console.warn('Auto-play failed:', error)
+          setIsPlaying(false)
+          isPlayingRef.current = false
+        }
+      }
+      playAudio()
+    } else {
+      // 如果应该暂停，暂停音频
+      audio.pause()
+      isPlayingRef.current = false
+    }
+  }, [isPlaying, currentTrackIndex, tracks])
 
   // MediaSession API - 单独管理，避免不必要的重新设置
   useEffect(() => {
