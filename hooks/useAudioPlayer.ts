@@ -128,44 +128,61 @@ export function useAudioPlayer({
     }
   }, [])
 
-  // 更新音频源
+  // 更新音频源 - 只在曲目或循环设置改变时更新
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !tracks[currentTrackIndex]?.src) return
 
-    audio.src = tracks[currentTrackIndex].src
-    audio.loop = isLooping
+    const newSrc = tracks[currentTrackIndex].src
+    
+    // 只有当音频源真正改变时才重新设置，避免不必要的重新加载
+    if (audio.src !== newSrc) {
+      const wasPlaying = !audio.paused
+      
+      // 立即重置进度条到 0（新歌曲开始）
+      setCurrentTime(0)
+      setDuration(0)
+      
+      audio.src = newSrc
+      audio.loop = isLooping
 
-    // 立即更新时间（当音频源改变时）
-    const updateTime = () => {
-      setCurrentTime(audio.currentTime)
-      setDuration(audio.duration)
+      // 立即更新时间（当音频源改变时）
+      const updateTime = () => {
+        setCurrentTime(audio.currentTime || 0)
+        setDuration(audio.duration || 0)
+      }
+      audio.addEventListener('loadedmetadata', updateTime, { once: true })
+      audio.addEventListener('canplay', updateTime, { once: true })
+
+      // 如果之前正在播放，继续播放
+      if (wasPlaying) {
+        safePlay()
+      }
+    } else {
+      // 音频源没变，只更新循环设置
+      audio.loop = isLooping
     }
-    audio.addEventListener('loadedmetadata', updateTime, { once: true })
-    audio.addEventListener('canplay', updateTime, { once: true })
+  }, [currentTrackIndex, tracks, isLooping, safePlay])
 
-    if (isPlaying) {
-      safePlay()
-    }
+  // MediaSession API - 单独管理，避免不必要的重新设置
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !tracks[currentTrackIndex]) return
 
-    // MediaSession API
-    if ('mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: tracks[currentTrackIndex]?.title || 'Unknown Title',
-        artist: tracks[currentTrackIndex]?.subtitle || 'Unknown Artist',
-        album: 'Jkeroro Music',
-        artwork: [
-          { src: '/512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/192.png', sizes: '192x192', type: 'image/png' },
-        ],
-      })
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: tracks[currentTrackIndex]?.title || 'Unknown Title',
+      artist: tracks[currentTrackIndex]?.subtitle || 'Unknown Artist',
+      album: 'Jkeroro Music',
+      artwork: [
+        { src: '/512.png', sizes: '512x512', type: 'image/png' },
+        { src: '/192.png', sizes: '192x192', type: 'image/png' },
+      ],
+    })
 
-      navigator.mediaSession.setActionHandler('play', togglePlayPause)
-      navigator.mediaSession.setActionHandler('pause', togglePlayPause)
-      navigator.mediaSession.setActionHandler('previoustrack', () => skipTrack(-1))
-      navigator.mediaSession.setActionHandler('nexttrack', () => skipTrack(1))
-    }
-  }, [currentTrackIndex, tracks, isLooping, isPlaying, safePlay, togglePlayPause, skipTrack])
+    navigator.mediaSession.setActionHandler('play', togglePlayPause)
+    navigator.mediaSession.setActionHandler('pause', togglePlayPause)
+    navigator.mediaSession.setActionHandler('previoustrack', () => skipTrack(-1))
+    navigator.mediaSession.setActionHandler('nexttrack', () => skipTrack(1))
+  }, [currentTrackIndex, tracks, togglePlayPause, skipTrack])
 
   // 监听播放结束
   useEffect(() => {
