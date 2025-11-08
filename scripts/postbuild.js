@@ -6,6 +6,15 @@ const copyPrismaEngine = () => {
   const isVercel = process.env.VERCEL === '1'
   const isProduction = process.env.NODE_ENV === 'production'
   
+  // 检查是否使用 Prisma Accelerate
+  const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_POOLER_URL
+  const isAccelerate = databaseUrl?.startsWith('prisma://')
+  
+  if (isAccelerate) {
+    console.log('✅ 使用 Prisma Accelerate，跳过引擎文件复制');
+    return true;
+  }
+  
   console.log(`📦 Copying Prisma Query Engine... (${isVercel ? 'Vercel' : 'Local'} ${isProduction ? 'Production' : 'Development'})`);
   
   const engineFile = 'libquery_engine-rhel-openssl-3.0.x.so.node';
