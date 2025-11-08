@@ -4,16 +4,17 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && (node scripts/run-with-ssl.js prisma migrate deploy || echo '⚠️ Migration skipped (OK for local dev)') && next build && node scripts/postbuild.js",
-    "build:local": "prisma generate && next build && node scripts/postbuild.js",
+    "build": "prisma generate --no-engine && (node scripts/run-with-ssl.js prisma migrate deploy || echo '⚠️ Migration skipped (OK for local dev)') && next build && node scripts/postbuild.js",
+    "build:local": "prisma generate --no-engine && next build && node scripts/postbuild.js",
     "start": "next start",
     "lint": "next lint",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "prisma generate --no-engine",
+    "prisma:generate:with-engine": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && (node scripts/run-with-ssl.js prisma migrate deploy || echo '⚠️ Migration skipped (may already be applied)') && next build && node scripts/postbuild.js"
+    "postinstall": "prisma generate --no-engine",
+    "vercel-build": "prisma generate --no-engine && (node scripts/run-with-ssl.js prisma migrate deploy || echo '⚠️ Migration skipped (may already be applied)') && next build && node scripts/postbuild.js"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

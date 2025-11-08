@@ -41,29 +41,54 @@ export function useAudioPlayer({
       } catch (error) {
         // 忽略 AbortError
       }
+      playPromiseRef.current = null
     }
 
     try {
       // 确保音频源已设置
       if (!audio.src) {
+        console.warn('Audio src is not set')
         return false
       }
 
       // 如果音频还没加载，先加载
       if (audio.readyState === 0) {
         audio.load()
-        // 等待加载完成
-        await new Promise<void>((resolve) => {
-          const onCanPlay = () => {
+        // 等待加载完成（最多等待 5 秒）
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
             audio.removeEventListener('canplay', onCanPlay)
+            audio.removeEventListener('error', onError)
+            reject(new Error('Audio load timeout'))
+          }, 5000)
+          
+          const onCanPlay = () => {
+            clearTimeout(timeout)
+            audio.removeEventListener('canplay', onCanPlay)
+            audio.removeEventListener('error', onError)
             resolve()
           }
+          
+          const onError = () => {
+            clearTimeout(timeout)
+            audio.removeEventListener('canplay', onCanPlay)
+            audio.removeEventListener('error', onError)
+            reject(new Error('Audio load error'))
+          }
+          
           audio.addEventListener('canplay', onCanPlay, { once: true })
+          audio.addEventListener('error', onError, { once: true })
         })
       }
 
-      playPromiseRef.current = audio.play()
-      await playPromiseRef.current
+      // 确保音频不在暂停状态
+      if (audio.paused) {
+        playPromiseRef.current = audio.play()
+        await playPromiseRef.current
+      }
+      
+      // 等待一小段时间确保播放已开始
+      await new Promise(resolve => setTimeout(resolve, 50))
       
       // 验证音频确实在播放
       if (audio.paused) {
@@ -76,10 +101,12 @@ export function useAudioPlayer({
       isPlayingRef.current = true
       return true
     } catch (error) {
-      if ((error as Error).name !== 'AbortError') {
-        setIsPlaying(false)
-        isPlayingRef.current = false
+      const errorName = (error as Error).name
+      if (errorName !== 'AbortError' && errorName !== 'NotAllowedError') {
+        console.warn('Play failed:', error)
       }
+      setIsPlaying(false)
+      isPlayingRef.current = false
       return false
     } finally {
       playPromiseRef.current = null
@@ -128,18 +155,21 @@ export function useAudioPlayer({
       }
 
       // 如果明确指定了 shouldAutoPlay，使用它；否则使用当前的 isPlaying 状态
-      const willPlay = shouldAutoPlay !== undefined ? shouldAutoPlay : isPlaying
+      // 使用 ref 来获取最新的播放状态，避免闭包问题
+      const willPlay = shouldAutoPlay !== undefined ? shouldAutoPlay : isPlayingRef.current
       
+      // 更新索引，这会触发 useEffect 来加载新歌曲
       setCurrentTrackIndex(newIndex)
-      // 如果应该继续播放，保持播放状态
+      
+      // 注意：实际的播放会在 useEffect 中处理（当音频源改变时）
+      // 这里只更新状态标记
       if (willPlay) {
-        setIsPlaying(true)
         isPlayingRef.current = true
       } else {
         isPlayingRef.current = false
       }
     },
-    [tracks, currentTrackIndex, isShuffled, isPlaying]
+    [tracks, currentTrackIndex, isShuffled]
   )
 
   // 更新时间
@@ -176,8 +206,8 @@ export function useAudioPlayer({
     
     // 只有当音频源真正改变时才重新设置，避免不必要的重新加载
     if (audio.src !== newSrc) {
-      // 保存当前播放状态（使用 isPlaying 状态，而不是 audio.paused）
-      const shouldContinuePlaying = isPlaying
+      // 保存当前播放状态（使用 ref 来获取最新状态，避免闭包问题）
+      const shouldContinuePlaying = isPlayingRef.current
       
       // 立即重置进度条到 0（新歌曲开始）
       setCurrentTime(0)
@@ -199,10 +229,30 @@ export function useAudioPlayer({
 
       // 如果之前正在播放，继续播放新歌曲
       if (shouldContinuePlaying) {
+        // 先设置播放状态为 true（UI 更新）
+        setIsPlaying(true)
+        isPlayingRef.current = true
+        
         // 等待音频可以播放后再播放
         const playWhenReady = async () => {
           const attemptPlay = async () => {
             try {
+              // 确保音频已加载
+              if (audio.readyState < 2) {
+                // 等待 canplay 事件
+                await new Promise<void>((resolve) => {
+                  const onCanPlay = () => {
+                    audio.removeEventListener('canplay', onCanPlay)
+                    resolve()
+                  }
+                  audio.addEventListener('canplay', onCanPlay, { once: true })
+                  // 如果 readyState 是 0，确保加载
+                  if (audio.readyState === 0) {
+                    audio.load()
+                  }
+                })
+              }
+
               const success = await safePlay()
               if (!success) {
                 // 播放失败，重置状态
@@ -210,13 +260,19 @@ export function useAudioPlayer({
                 isPlayingRef.current = false
                 return false
               }
-              // 验证音频确实在播放
+              
+              // 再次验证音频确实在播放（等待一小段时间确保播放已开始）
+              await new Promise(resolve => setTimeout(resolve, 100))
               if (audio.paused) {
                 // 如果音频仍然暂停，说明播放失败
                 setIsPlaying(false)
                 isPlayingRef.current = false
                 return false
               }
+              
+              // 播放成功，确保状态正确
+              setIsPlaying(true)
+              isPlayingRef.current = true
               return true
             } catch (error) {
               console.warn('Failed to auto-play next track:', error)
@@ -226,24 +282,14 @@ export function useAudioPlayer({
             }
           }
 
-          // 检查音频是否已准备好
-          if (audio.readyState >= 2) {
-            // 音频已准备好，直接播放
-            await attemptPlay()
-          } else {
-            // 等待音频加载完成
-            const playOnReady = async () => {
-              await attemptPlay()
-            }
-            audio.addEventListener('canplay', playOnReady, { once: true })
-            // 如果 readyState 是 0，确保加载
-            if (audio.readyState === 0) {
-              audio.load()
-            }
-          }
+          // 尝试播放
+          await attemptPlay()
         }
-        // 使用 setTimeout 确保音频源已设置完成
-        setTimeout(playWhenReady, 0)
+        
+        // 使用 requestAnimationFrame 确保 DOM 更新完成后再尝试播放
+        requestAnimationFrame(() => {
+          playWhenReady()
+        })
       } else {
         // 如果不应该播放，确保状态正确
         setIsPlaying(false)
@@ -253,7 +299,7 @@ export function useAudioPlayer({
       // 音频源没变，只更新循环设置
       audio.loop = isLooping
     }
-  }, [currentTrackIndex, tracks, isLooping, isPlaying, safePlay])
+  }, [currentTrackIndex, tracks, isLooping, safePlay])
 
   // MediaSession API - 单独管理，避免不必要的重新设置
   useEffect(() => {
@@ -293,7 +339,7 @@ export function useAudioPlayer({
     return () => {
       audio.removeEventListener('ended', handleEnded)
     }
-  }, [isLooping, skipTrack, isPlaying])
+  }, [isLooping, skipTrack])
 
   // 监听时间更新 - 使用轮询确保时间更新
   useEffect(() => {

@@ -6,9 +6,10 @@ import { existsSync } from 'fs'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let withAccelerate: ((client: any) => any) | null = null
 try {
+  // 使用 ES6 import 方式导入（符合文档建议）
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const accelerateModule = require('@prisma/extension-accelerate')
-  withAccelerate = accelerateModule.withAccelerate
+  const { withAccelerate: accelerateExtension } = require('@prisma/extension-accelerate')
+  withAccelerate = accelerateExtension
 } catch {
   // Accelerate 扩展未安装，将使用标准连接
   if (process.env.NODE_ENV === 'development') {
@@ -47,7 +48,7 @@ if (typeof window === 'undefined' && (process.env.NODE_ENV === 'production' || p
 // 根据环境自动切换数据库连接（运行时）
 // - 本地开发：使用 direct 连接（5432端口）
 // - Vercel 部署：使用 pooler 连接（6543端口 + pgbouncer=true）
-// - Prisma Accelerate：使用 prisma+ 协议（不需要 SSL 配置）
+// - Prisma Accelerate：使用 prisma:// 协议（不需要 SSL 配置）
 // 注意：prisma.config.ts 已处理 Prisma CLI 的切换，这里是运行时切换
 if (typeof window === 'undefined') {
   const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
@@ -58,8 +59,8 @@ if (typeof window === 'undefined') {
     : process.env.DATABASE_URL
   
   if (databaseUrl) {
-    // Prisma Accelerate 连接（prisma+ 协议）不需要添加 sslmode
-    const isAccelerate = databaseUrl.startsWith('prisma+')
+    // Prisma Accelerate 连接（prisma:// 协议）不需要添加 sslmode
+    const isAccelerate = databaseUrl.startsWith('prisma://')
     
     if (!isAccelerate) {
       // 对于普通 Supabase 连接，确保包含 SSL 配置
@@ -72,7 +73,7 @@ if (typeof window === 'undefined') {
     process.env.DATABASE_URL = databaseUrl
     
     if (isAccelerate) {
-      console.log('🔄 [Prisma Accelerate] 使用 Accelerate 连接')
+      console.log('🔄 [Prisma Accelerate] 使用 Accelerate 连接 (prisma://)')
     } else if (databaseUrl.includes('pooler') || databaseUrl.includes(':6543')) {
       console.log('🔄 [Local] 使用 Supabase Pooler 连接 (6543端口)')
     } else if (isProd) {
@@ -100,7 +101,7 @@ let prismaClient = new PrismaClient({
 })
 
 // 如果安装了 Accelerate 扩展且 DATABASE_URL 使用 prisma:// 协议，则启用 Accelerate
-if (withAccelerate && process.env.DATABASE_URL?.startsWith('prisma+')) {
+if (withAccelerate && process.env.DATABASE_URL?.startsWith('prisma://')) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prismaClient = prismaClient.$extends(withAccelerate({})) as any
   if (process.env.NODE_ENV === 'development') {

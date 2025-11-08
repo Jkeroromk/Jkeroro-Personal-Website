@@ -50,11 +50,14 @@ export async function POST() {
 export async function GET() {
   try {
     // 使用 upsert 确保记录存在（如果不存在则创建）
+    // 使用 Accelerate 缓存策略：访问计数可以缓存 30 秒
     const viewCount = await withTimeout(
       prisma.viewCount.upsert({
       where: { id: 'main' },
         update: {}, // 如果存在，不更新
         create: { id: 'main', count: 0 }, // 如果不存在，创建初始记录
+        // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+        cacheStrategy: { ttl: 30 },
       }),
       8000
     )

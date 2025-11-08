@@ -7,9 +7,12 @@ export async function GET() {
   try {
     // 添加连接超时保护（8秒超时）
     // 先获取所有项目，然后手动排序（处理 null order 值）
+    // 使用 Accelerate 缓存策略：项目数据不经常变化，缓存 120 秒
     const allProjects = await withTimeout(
       prisma.project.findMany({
         orderBy: { createdAt: 'desc' },
+        // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+        cacheStrategy: { ttl: 120 },
       }),
       8000
     )

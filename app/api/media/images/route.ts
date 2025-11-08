@@ -6,12 +6,15 @@ import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
 export async function GET() {
   try {
     // 添加连接超时保护（8秒超时）
+    // 使用 Accelerate 缓存策略：图片数据不经常变化，缓存 120 秒
     const images = await withTimeout(
       prisma.image.findMany({
         orderBy: [
           { order: 'asc' },
           { createdAt: 'asc' },
         ],
+        // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+        cacheStrategy: { ttl: 120 },
       }),
       8000
       )

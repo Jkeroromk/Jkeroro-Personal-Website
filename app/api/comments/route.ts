@@ -6,6 +6,7 @@ import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
 export async function GET() {
   try {
     // 添加连接超时保护（8秒超时）
+    // 使用 Accelerate 缓存策略：评论可能更频繁变化，缓存 60 秒
     const comments = await withTimeout(
       prisma.comment.findMany({
         include: {
@@ -14,6 +15,8 @@ export async function GET() {
         orderBy: {
           createdAt: 'desc',
         },
+        // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+        cacheStrategy: { ttl: 60 },
       }),
       8000
       )

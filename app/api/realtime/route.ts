@@ -30,22 +30,29 @@ export async function GET(request: NextRequest) {
       const checkInterval = setInterval(async () => {
         try {
           // 并行执行所有查询，每个查询都有超时保护（5秒超时，因为这是定期轮询）
+          // 使用 Accelerate 缓存策略：实时推送需要较短缓存时间，15 秒
           const [images, tracks, projects, comments, viewCount] = await Promise.allSettled([
             withTimeout(
               prisma.image.findMany({
             orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+                // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+                cacheStrategy: { ttl: 15 },
               }),
               5000
             ),
             withTimeout(
               prisma.track.findMany({
                 orderBy: { order: 'asc' },
+                // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+                cacheStrategy: { ttl: 15 },
               }),
               5000
             ),
             withTimeout(
               prisma.project.findMany({
                 orderBy: { createdAt: 'desc' },
+                // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+                cacheStrategy: { ttl: 15 },
               }),
               5000
             ),
@@ -53,6 +60,8 @@ export async function GET(request: NextRequest) {
               prisma.comment.findMany({
                 include: { reactions: true },
                 orderBy: { createdAt: 'desc' },
+                // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+                cacheStrategy: { ttl: 15 },
               }),
               5000
             ),
@@ -61,6 +70,8 @@ export async function GET(request: NextRequest) {
                 where: { id: 'main' },
                 update: {},
                 create: { id: 'main', count: 0 },
+                // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+                cacheStrategy: { ttl: 15 },
               }),
               5000
             ),
