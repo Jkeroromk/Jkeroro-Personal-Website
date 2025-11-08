@@ -115,15 +115,12 @@ export default function MusicPlayer() {
       className="flex flex-col items-center justify-center mt-4 w-full"
       style={{ height: '400px' }}
     >
-      {currentTrack?.src && (
-        <audio
-          ref={audioRef}
-          src={currentTrack.src}
-          muted={isMuted}
-          preload="none"
-          onEnded={() => skipTrack(1)}
-        />
-      )}
+      <audio
+        ref={audioRef}
+        muted={isMuted}
+        preload="none"
+        onEnded={() => skipTrack(1)}
+      />
 
       <div
         className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white"

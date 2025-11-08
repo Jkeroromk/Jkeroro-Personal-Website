@@ -81,10 +81,20 @@ export function useAudioPlayer({
         })
       }
 
-      // 确保音频不在暂停状态
+      // 如果音频在暂停状态，尝试播放
       if (audio.paused) {
-        playPromiseRef.current = audio.play()
-        await playPromiseRef.current
+        try {
+          playPromiseRef.current = audio.play()
+          await playPromiseRef.current
+        } catch (playError) {
+          // 如果播放失败，抛出错误让上层处理
+          throw playError
+        }
+      } else {
+        // 如果已经在播放，确保状态正确
+        setIsPlaying(true)
+        isPlayingRef.current = true
+        return true
       }
       
       // 等待一小段时间确保播放已开始
@@ -235,61 +245,89 @@ export function useAudioPlayer({
         
         // 等待音频可以播放后再播放
         const playWhenReady = async () => {
-          const attemptPlay = async () => {
-            try {
-              // 确保音频已加载
-              if (audio.readyState < 2) {
-                // 等待 canplay 事件
-                await new Promise<void>((resolve) => {
-                  const onCanPlay = () => {
-                    audio.removeEventListener('canplay', onCanPlay)
-                    resolve()
-                  }
-                  audio.addEventListener('canplay', onCanPlay, { once: true })
-                  // 如果 readyState 是 0，确保加载
-                  if (audio.readyState === 0) {
-                    audio.load()
-                  }
-                })
-              }
+          try {
+            // 确保音频已加载
+            if (audio.readyState < 2) {
+              // 等待 canplay 事件（最多等待 5 秒）
+              await new Promise<void>((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                  audio.removeEventListener('canplay', onCanPlay)
+                  audio.removeEventListener('error', onError)
+                  reject(new Error('Audio load timeout'))
+                }, 5000)
+                
+                const onCanPlay = () => {
+                  clearTimeout(timeout)
+                  audio.removeEventListener('canplay', onCanPlay)
+                  audio.removeEventListener('error', onError)
+                  resolve()
+                }
+                
+                const onError = () => {
+                  clearTimeout(timeout)
+                  audio.removeEventListener('canplay', onCanPlay)
+                  audio.removeEventListener('error', onError)
+                  reject(new Error('Audio load error'))
+                }
+                
+                audio.addEventListener('canplay', onCanPlay, { once: true })
+                audio.addEventListener('error', onError, { once: true })
+                
+                // 如果 readyState 是 0，确保加载
+                if (audio.readyState === 0) {
+                  audio.load()
+                }
+              })
+            }
 
-              const success = await safePlay()
+            // 尝试播放（最多重试 3 次）
+            let retries = 3
+            let success = false
+            
+            while (retries > 0 && !success) {
+              success = await safePlay()
               if (!success) {
-                // 播放失败，重置状态
-                setIsPlaying(false)
-                isPlayingRef.current = false
-                return false
+                retries--
+                if (retries > 0) {
+                  // 等待一小段时间后重试
+                  await new Promise(resolve => setTimeout(resolve, 200))
+                }
               }
-              
-              // 再次验证音频确实在播放（等待一小段时间确保播放已开始）
-              await new Promise(resolve => setTimeout(resolve, 100))
-              if (audio.paused) {
-                // 如果音频仍然暂停，说明播放失败
-                setIsPlaying(false)
-                isPlayingRef.current = false
-                return false
-              }
-              
-              // 播放成功，确保状态正确
-              setIsPlaying(true)
-              isPlayingRef.current = true
-              return true
-            } catch (error) {
-              console.warn('Failed to auto-play next track:', error)
+            }
+            
+            if (!success) {
+              // 播放失败，重置状态
+              console.warn('Failed to auto-play next track after retries')
               setIsPlaying(false)
               isPlayingRef.current = false
-              return false
+              return
             }
+            
+            // 再次验证音频确实在播放（等待一小段时间确保播放已开始）
+            await new Promise(resolve => setTimeout(resolve, 150))
+            if (audio.paused) {
+              // 如果音频仍然暂停，说明播放失败
+              console.warn('Audio is still paused after play attempt')
+              setIsPlaying(false)
+              isPlayingRef.current = false
+              return
+            }
+            
+            // 播放成功，确保状态正确
+            setIsPlaying(true)
+            isPlayingRef.current = true
+          } catch (error) {
+            console.warn('Failed to auto-play next track:', error)
+            setIsPlaying(false)
+            isPlayingRef.current = false
           }
-
-          // 尝试播放
-          await attemptPlay()
         }
         
-        // 使用 requestAnimationFrame 确保 DOM 更新完成后再尝试播放
-        requestAnimationFrame(() => {
+        // 使用 setTimeout 确保音频源已设置完成后再尝试播放
+        // 使用较短的延迟，让浏览器有时间处理音频源变更
+        setTimeout(() => {
           playWhenReady()
-        })
+        }, 50)
       } else {
         // 如果不应该播放，确保状态正确
         setIsPlaying(false)

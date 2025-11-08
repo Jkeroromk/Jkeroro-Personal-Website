@@ -22,26 +22,34 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// 在 Vercel 上设置 Prisma Engine 路径
+// 在 Vercel 上设置 Prisma Engine 路径（仅在非 Accelerate 模式下）
+// 如果使用 Prisma Accelerate (prisma:// 协议)，不需要引擎文件
 if (typeof window === 'undefined' && (process.env.NODE_ENV === 'production' || process.env.VERCEL)) {
+  // 检查是否使用 Accelerate
+  const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_POOLER_URL
+  const isAccelerate = databaseUrl?.startsWith('prisma://')
+  
+  // 只有在非 Accelerate 模式下才查找引擎文件
+  if (!isAccelerate) {
     const engineFile = 'libquery_engine-rhel-openssl-3.0.x.so.node'
     const cwd = process.cwd()
     
-  // Vercel 查找的路径
+    // Vercel 查找的路径
     const possiblePaths = [
       join(cwd, '.next/server/chunks', engineFile),
       join(cwd, 'lib/generated/prisma', engineFile),
       join(cwd, '.prisma/client', engineFile),
-    '/var/task/.next/server/chunks/' + engineFile,
-    '/var/task/lib/generated/prisma/' + engineFile,
+      '/var/task/.next/server/chunks/' + engineFile,
+      '/var/task/lib/generated/prisma/' + engineFile,
     ]
     
     for (const enginePath of possiblePaths) {
-        if (existsSync(enginePath)) {
-          process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath
-          process.env.PRISMA_QUERY_ENGINE_BINARY = enginePath
-          break
-        }
+      if (existsSync(enginePath)) {
+        process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath
+        process.env.PRISMA_QUERY_ENGINE_BINARY = enginePath
+        break
+      }
+    }
   }
 }
 
