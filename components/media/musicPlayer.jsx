@@ -186,7 +186,6 @@ export default function MusicPlayer() {
               // 元数据加载由 useAudioPlayer hook 处理
             }
           }}
-          onEnded={() => skipTrack(1)}
         />
       )}
 

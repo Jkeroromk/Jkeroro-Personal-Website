@@ -26,6 +26,8 @@ export function useAudioPlayer({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const playPromiseRef = useRef<Promise<void> | null>(null)
+  // 使用 ref 保存播放状态，确保在 ended 事件中能获取到正确的状态
+  const isPlayingRef = useRef(false)
 
   // 安全的播放函数
   const safePlay = useCallback(async () => {
@@ -45,10 +47,12 @@ export function useAudioPlayer({
       playPromiseRef.current = audio.play()
       await playPromiseRef.current
       setIsPlaying(true)
+      isPlayingRef.current = true
       return true
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
         setIsPlaying(false)
+        isPlayingRef.current = false
       }
       return false
     } finally {
@@ -64,15 +68,18 @@ export function useAudioPlayer({
     if (isPlaying) {
       audio.pause()
       setIsPlaying(false)
+      isPlayingRef.current = false
     } else {
       audio
         .play()
         .then(() => {
           setIsPlaying(true)
+          isPlayingRef.current = true
         })
         .catch((error) => {
           if ((error as Error).name !== 'AbortError') {
             setIsPlaying(false)
+            isPlayingRef.current = false
           }
         })
     }
@@ -80,7 +87,7 @@ export function useAudioPlayer({
 
   // 跳转曲目
   const skipTrack = useCallback(
-    (direction: number) => {
+    (direction: number, shouldAutoPlay?: boolean) => {
       if (!tracks || tracks.length === 0) return
 
       let newIndex: number
@@ -94,10 +101,16 @@ export function useAudioPlayer({
         newIndex = (currentTrackIndex + direction + tracks.length) % tracks.length
       }
 
+      // 如果明确指定了 shouldAutoPlay，使用它；否则使用当前的 isPlaying 状态
+      const willPlay = shouldAutoPlay !== undefined ? shouldAutoPlay : isPlaying
+      
       setCurrentTrackIndex(newIndex)
-      // 如果当前正在播放，继续播放下一首
-      if (isPlaying) {
+      // 如果应该继续播放，保持播放状态
+      if (willPlay) {
         setIsPlaying(true)
+        isPlayingRef.current = true
+      } else {
+        isPlayingRef.current = false
       }
     },
     [tracks, currentTrackIndex, isShuffled, isPlaying]
@@ -159,18 +172,32 @@ export function useAudioPlayer({
       if (shouldContinuePlaying) {
         // 等待音频可以播放后再播放
         const playWhenReady = async () => {
-          if (audio.readyState >= 2) {
-            // 音频已准备好，直接播放
-            await safePlay()
-          } else {
+          // 确保音频已加载
+          if (audio.readyState < 2) {
             // 等待音频加载完成
-            audio.addEventListener('canplay', async () => {
+            const playOnReady = async () => {
+              try {
+                await safePlay()
+              } catch (error) {
+                console.warn('Failed to auto-play next track:', error)
+              }
+            }
+            audio.addEventListener('canplay', playOnReady, { once: true })
+            // 触发加载（如果还没有加载）
+            if (audio.readyState === 0) {
+              audio.load()
+            }
+          } else {
+            // 音频已准备好，直接播放
+            try {
               await safePlay()
-            }, { once: true })
-            audio.load()
+            } catch (error) {
+              console.warn('Failed to auto-play next track:', error)
+            }
           }
         }
-        playWhenReady()
+        // 使用 setTimeout 确保音频源已设置完成
+        setTimeout(playWhenReady, 0)
       }
     } else {
       // 音频源没变，只更新循环设置
@@ -205,7 +232,10 @@ export function useAudioPlayer({
 
     const handleEnded = () => {
       if (!isLooping) {
-        skipTrack(1)
+        // 歌曲播放结束时，如果之前正在播放，切换到下一首并继续播放
+        // 使用 ref 来获取播放状态，确保获取到的是播放结束前的状态
+        const wasPlaying = isPlayingRef.current
+        skipTrack(1, wasPlaying)
       }
     }
 
@@ -213,7 +243,7 @@ export function useAudioPlayer({
     return () => {
       audio.removeEventListener('ended', handleEnded)
     }
-  }, [isLooping, skipTrack])
+  }, [isLooping, skipTrack, isPlaying])
 
   // 监听时间更新 - 使用轮询确保时间更新
   useEffect(() => {
