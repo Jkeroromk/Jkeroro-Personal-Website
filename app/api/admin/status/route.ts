@@ -4,9 +4,12 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     // 添加连接超时保护
+    // 使用 Accelerate 缓存策略：管理员状态变化不频繁，缓存 60 秒
     const adminStatus = await Promise.race([
       prisma.adminStatus.findUnique({
         where: { id: 'admin' },
+        // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
+        cacheStrategy: { swr: 60, ttl: 60 },
       }),
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Database query timeout')), 10000)

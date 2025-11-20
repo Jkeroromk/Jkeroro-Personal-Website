@@ -9,9 +9,18 @@ const { spawn } = require('child_process')
 const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
 
 // 根据环境选择数据库 URL（与 lib/prisma.ts 逻辑一致）
-let databaseUrl = isProd
-  ? process.env.SUPABASE_POOLER_URL || process.env.DATABASE_URL
-  : process.env.DATABASE_URL
+// 优先使用 DATABASE_URL（如果它是 Accelerate URL），否则根据环境选择
+let databaseUrl
+if (process.env.DATABASE_URL?.startsWith('prisma://')) {
+  // 如果 DATABASE_URL 是 Accelerate URL，优先使用它（但 Accelerate 不需要 SSL，所以这个脚本可能不会被调用）
+  databaseUrl = process.env.DATABASE_URL
+} else if (isProd) {
+  // 生产环境：优先使用 SUPABASE_POOLER_URL，否则使用 DATABASE_URL
+  databaseUrl = process.env.SUPABASE_POOLER_URL || process.env.DATABASE_URL
+} else {
+  // 开发环境：只使用 DATABASE_URL
+  databaseUrl = process.env.DATABASE_URL
+}
 
 if (!databaseUrl) {
   console.error('❌ DATABASE_URL environment variable is not set')

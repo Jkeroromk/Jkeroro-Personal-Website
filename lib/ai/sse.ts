@@ -57,9 +57,8 @@ export async function* sseIterator(res: Response): AsyncGenerator<string, void, 
             if (content && typeof content === 'string') {
               yield content;
             }
-          } catch (error) {
+          } catch {
             // 静默忽略非法 JSON 行
-            console.warn('Failed to parse SSE data:', data, error);
           }
         }
       }

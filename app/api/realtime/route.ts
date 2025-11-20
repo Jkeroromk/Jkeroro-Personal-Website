@@ -30,13 +30,15 @@ export async function GET(request: NextRequest) {
       const checkInterval = setInterval(async () => {
         try {
           // 并行执行所有查询，每个查询都有超时保护（5秒超时，因为这是定期轮询）
-          // 使用 Accelerate 缓存策略：实时推送需要较短缓存时间，15 秒
+          // 使用 Accelerate 缓存策略：SWR (Stale-While-Revalidate) 策略
+          // - swr: 60秒 - 在后台重新验证时继续返回缓存数据
+          // - ttl: 60秒 - 缓存有效期，减少数据库查询频率
           const [images, tracks, projects, comments, viewCount] = await Promise.allSettled([
             withTimeout(
               prisma.image.findMany({
             orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
                 // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-                cacheStrategy: { ttl: 15 },
+                cacheStrategy: { swr: 60, ttl: 60 },
               }),
               5000
             ),
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
               prisma.track.findMany({
                 orderBy: { order: 'asc' },
                 // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-                cacheStrategy: { ttl: 15 },
+                cacheStrategy: { swr: 60, ttl: 60 },
               }),
               5000
             ),
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest) {
               prisma.project.findMany({
                 orderBy: { createdAt: 'desc' },
                 // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-                cacheStrategy: { ttl: 15 },
+                cacheStrategy: { swr: 60, ttl: 60 },
               }),
               5000
             ),
@@ -61,7 +63,7 @@ export async function GET(request: NextRequest) {
                 include: { reactions: true },
                 orderBy: { createdAt: 'desc' },
                 // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-                cacheStrategy: { ttl: 15 },
+                cacheStrategy: { swr: 30, ttl: 30 }, // 评论变化更频繁，使用较短缓存
               }),
               5000
             ),
@@ -71,7 +73,7 @@ export async function GET(request: NextRequest) {
                 update: {},
                 create: { id: 'main', count: 0 },
                 // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-                cacheStrategy: { ttl: 15 },
+                cacheStrategy: { swr: 30, ttl: 30 }, // 访问计数变化频繁，使用较短缓存
               }),
               5000
             ),
@@ -152,7 +154,7 @@ export async function GET(request: NextRequest) {
             console.error('SSE error:', error)
           send('error', JSON.stringify({ message: 'Failed to fetch data' }))
         }
-      }, 3000) // 每 3 秒检查一次（只在数据变化时推送）
+      }, 10000) // 每 10 秒检查一次（只在数据变化时推送）- 减少查询频率，配合缓存策略
 
       // 监听连接关闭
       request.signal.addEventListener('abort', () => {

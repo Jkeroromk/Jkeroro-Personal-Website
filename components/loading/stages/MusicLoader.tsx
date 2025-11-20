@@ -3,7 +3,7 @@
  * 音乐加载器 - 优先加载音乐数据
  */
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import DataManager, { MusicTrack } from '@/lib/data-manager'
 import { Track } from '@/types/api'
 
@@ -23,8 +23,22 @@ function convertToTrack(musicTrack: MusicTrack): Track {
 }
 
 export default function MusicLoader({ onProgress, onComplete }: MusicLoaderProps) {
+  const onProgressRef = useRef(onProgress)
+  const onCompleteRef = useRef(onComplete)
+  const hasLoadedRef = useRef(false)
+
+  // 更新 ref，但不触发重新请求
   useEffect(() => {
+    onProgressRef.current = onProgress
+    onCompleteRef.current = onComplete
+  }, [onProgress, onComplete])
+
+  useEffect(() => {
+    // 防止重复加载
+    if (hasLoadedRef.current) return
+    
     let isMounted = true
+    hasLoadedRef.current = true
 
     const loadMusic = async () => {
       try {
@@ -49,22 +63,22 @@ export default function MusicLoader({ onProgress, onComplete }: MusicLoaderProps
               // 等待音频元数据加载
               audio.addEventListener('loadedmetadata', () => {
                 if (isMounted) {
-                  onProgress(20)
-                  onComplete(tracks)
+                  onProgressRef.current(20)
+                  onCompleteRef.current(tracks)
                 }
               }, { once: true })
 
               audio.addEventListener('error', () => {
                 // 即使音频加载失败，也认为音乐数据已准备好
                 if (isMounted) {
-                  onProgress(20)
-                  onComplete(tracks)
+                  onProgressRef.current(20)
+                  onCompleteRef.current(tracks)
                 }
               }, { once: true })
             } else {
               // 没有音频源，直接完成
-              onProgress(20)
-              onComplete(tracks)
+              onProgressRef.current(20)
+              onCompleteRef.current(tracks)
             }
             return
           }
@@ -74,21 +88,21 @@ export default function MusicLoader({ onProgress, onComplete }: MusicLoaderProps
         const dataManager = DataManager.getInstance()
         const cachedTracks = dataManager.getTracks()
         if (cachedTracks && cachedTracks.length > 0) {
-          onProgress(20)
+          onProgressRef.current(20)
           // 将 MusicTrack[] 转换为 Track[]
           const tracks = cachedTracks.map(convertToTrack)
-          onComplete(tracks)
+          onCompleteRef.current(tracks)
           return
         }
 
         // 没有音乐数据，也标记为完成（避免阻塞）
-        onProgress(20)
-        onComplete([])
+        onProgressRef.current(20)
+        onCompleteRef.current([])
       } catch {
         // 静默处理错误，使用默认进度
         if (isMounted) {
-          onProgress(20)
-          onComplete([])
+          onProgressRef.current(20)
+          onCompleteRef.current([])
         }
       }
     }
@@ -98,7 +112,7 @@ export default function MusicLoader({ onProgress, onComplete }: MusicLoaderProps
     return () => {
       isMounted = false
     }
-  }, [onProgress, onComplete])
+  }, []) // 空依赖数组，只在组件挂载时执行一次
 
   return null
 }

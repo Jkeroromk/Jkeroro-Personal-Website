@@ -65,13 +65,14 @@ export const AuthProvider = ({ children }) => {
     
     // 如果用户不是管理员，不需要频繁轮询
     if (!isAdmin) {
-      // 非管理员用户，每 2 分钟检查一次（用于显示管理员是否在线）
-      const interval = setInterval(fetchAdminStatus, 120000); // 每2分钟更新一次
+      // 非管理员用户，每 5 分钟检查一次（用于显示管理员是否在线）
+      // 配合 Accelerate 缓存，实际查询频率更低
+      const interval = setInterval(fetchAdminStatus, 300000); // 每5分钟更新一次
       return () => clearInterval(interval);
     }
     
-    // 管理员用户，每 2 分钟更新一次状态（减少刷新频率）
-    const interval = setInterval(fetchAdminStatus, 120000); // 每2分钟更新一次
+    // 管理员用户，每 5 分钟更新一次状态（减少刷新频率，配合缓存策略）
+    const interval = setInterval(fetchAdminStatus, 300000); // 每5分钟更新一次
 
     return () => clearInterval(interval);
   }, [isAdmin]);

@@ -119,11 +119,23 @@ const Car = memo(function Car() {
       if (THREE.OrbitControls) {
         OrbitControls = THREE.OrbitControls;
       } else {
-        // 如果全局 THREE 中没有 OrbitControls，则动态导入
-        const { OrbitControls: ImportedOrbitControls } = await import('three/addons/controls/OrbitControls.js');
-        OrbitControls = ImportedOrbitControls;
-        // 将 OrbitControls 添加到全局 THREE 中，避免重复导入
-        THREE.OrbitControls = OrbitControls;
+        // 如果全局 THREE 中没有 OrbitControls，等待 ClientScripts 预加载完成
+        // 最多等待 3 秒
+        const maxWait = 3000
+        const startTime = Date.now()
+        
+        while (!THREE.OrbitControls && (Date.now() - startTime) < maxWait) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+        
+        if (THREE.OrbitControls) {
+          OrbitControls = THREE.OrbitControls
+        } else {
+          // 如果等待超时，动态导入（three 包应该已经被 ClientScripts 加载了）
+          const { OrbitControls: ImportedOrbitControls } = await import('three/addons/controls/OrbitControls.js')
+          OrbitControls = ImportedOrbitControls
+          THREE.OrbitControls = OrbitControls
+        }
       }
       
       initScene(THREE, OrbitControls, canvas);

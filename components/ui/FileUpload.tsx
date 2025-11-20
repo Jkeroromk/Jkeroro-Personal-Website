@@ -96,7 +96,6 @@ const FileUpload: React.FC<FileUploadProps> = ({
         
         if (result.success) {
           // 上传成功，调用onFileSelect并传递文件路径
-          console.log('Upload result:', result)
           onFileSelect(file, result.filePath)
           toast({
             title: "Upload successful",

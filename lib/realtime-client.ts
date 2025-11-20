@@ -31,7 +31,6 @@ class RealtimeClient {
       this.eventSource = new EventSource('/api/realtime')
 
       this.eventSource.onopen = () => {
-        console.log('✅ SSE 连接已建立')
         this.reconnectAttempts = 0
       }
 
@@ -42,13 +41,12 @@ class RealtimeClient {
           if (data.type) {
             this.handleMessage({ type: data.type, data: data.data || data })
           }
-        } catch (error) {
-          console.error('解析 SSE 消息失败:', error)
+        } catch {
+          // 静默处理解析错误
         }
       }
 
-      this.eventSource.onerror = (error) => {
-        console.error('SSE 连接错误:', error)
+      this.eventSource.onerror = () => {
         if (this.eventSource?.readyState === EventSource.CLOSED) {
           this.reconnect()
         }
@@ -59,8 +57,8 @@ class RealtimeClient {
         try {
           const data = JSON.parse(event.data)
           this.handleMessage({ type: 'images', data })
-        } catch (error) {
-          console.error('解析 images 事件失败:', error)
+        } catch {
+          // 静默处理解析错误
         }
       })
 
@@ -68,8 +66,8 @@ class RealtimeClient {
         try {
           const data = JSON.parse(event.data)
           this.handleMessage({ type: 'tracks', data })
-        } catch (error) {
-          console.error('解析 tracks 事件失败:', error)
+        } catch {
+          // 静默处理解析错误
         }
       })
 
@@ -77,8 +75,8 @@ class RealtimeClient {
         try {
           const data = JSON.parse(event.data)
           this.handleMessage({ type: 'projects', data })
-        } catch (error) {
-          console.error('解析 projects 事件失败:', error)
+        } catch {
+          // 静默处理解析错误
         }
       })
 
@@ -86,8 +84,8 @@ class RealtimeClient {
         try {
           const data = JSON.parse(event.data)
           this.handleMessage({ type: 'comments', data })
-        } catch (error) {
-          console.error('解析 comments 事件失败:', error)
+        } catch {
+          // 静默处理解析错误
         }
       })
 
@@ -95,12 +93,12 @@ class RealtimeClient {
         try {
           const data = JSON.parse(event.data)
           this.handleMessage({ type: 'view_count', data })
-        } catch (error) {
-          console.error('解析 view_count 事件失败:', error)
+        } catch {
+          // 静默处理解析错误
         }
       })
-    } catch (error) {
-      console.error('创建 SSE 连接失败:', error)
+    } catch {
+      // 静默处理连接错误
     }
   }
 
@@ -114,8 +112,8 @@ class RealtimeClient {
       callbacks.forEach((callback) => {
         try {
           callback(message.data)
-        } catch (error) {
-          console.error(`执行 ${message.type} 回调失败:`, error)
+        } catch {
+          // 静默处理回调错误
         }
       })
     }
@@ -159,7 +157,6 @@ class RealtimeClient {
    */
   private reconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('❌ SSE 重连次数已达上限，停止重连')
       return
     }
 
@@ -167,7 +164,6 @@ class RealtimeClient {
     this.reconnectAttempts++
 
     setTimeout(() => {
-      console.log(`🔄 尝试重新连接 SSE (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`)
       this.connect()
     }, this.reconnectDelay)
   }

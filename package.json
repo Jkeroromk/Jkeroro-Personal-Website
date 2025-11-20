@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/check-accelerate.js && (node scripts/run-with-ssl.js prisma migrate deploy || echo '⚠️ Migration skipped (OK for local dev)') && next build && node scripts/postbuild.js",
-    "build:local": "node scripts/check-accelerate.js && next build && node scripts/postbuild.js",
+    "build": "node scripts/build.js",
+    "build:local": "node scripts/check-accelerate.js && next build",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "node scripts/check-accelerate.js",
@@ -14,7 +14,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "postinstall": "node scripts/check-accelerate.js",
-    "vercel-build": "node scripts/check-accelerate.js && (node scripts/run-with-ssl.js prisma migrate deploy || echo '⚠️ Migration skipped (may already be applied)') && next build && node scripts/postbuild.js"
+    "vercel-build": "node scripts/check-accelerate.js && (node scripts/run-with-ssl.js prisma migrate deploy || echo '⚠️ Migration skipped (may already be applied)') && next build"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",
@@ -41,7 +41,6 @@
     "lil-gui": "^0.20.0",
     "lucide-react": "^0.474.0",
     "next": "^15.2.4",
-    "node-fetch": "^2.7.0",
     "prisma": "^6.18.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -56,7 +55,6 @@
     "@types/pg": "^8.15.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "copy-webpack-plugin": "^12.0.2",
     "dotenv": "^17.2.3",
     "eslint": "^9",
     "eslint-config-next": "15.1.6",

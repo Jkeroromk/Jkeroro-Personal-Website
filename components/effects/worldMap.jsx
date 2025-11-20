@@ -68,12 +68,11 @@ const WorldMapDialog = () => {
       }
     };
 
-    // 异步获取最新数据
+    // 异步获取最新数据（仅首次加载）
     fetchCountries();
     
-    // Poll for updates every 2 minutes (减少刷新频率)
-    const interval = setInterval(fetchCountries, 120000); // 每2分钟更新一次
-    return () => clearInterval(interval);
+    // 注意：不再需要轮询，因为已经有 SSE 实时更新了
+    // 如果需要实时更新，可以通过 SSE 事件来更新数据
   }, []);
 
   useEffect(() => {

@@ -6,7 +6,7 @@
  * const { data, error, loading, refetch } = useApiArray<Image>('/api/media/images')
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { fetchArray, ApiError } from '@/lib/api-client'
 
 export interface UseApiArrayResult<T> {
@@ -23,6 +23,13 @@ export function useApiArray<T>(
   const [data, setData] = useState<T[]>([])
   const [error, setError] = useState<ApiError | null>(null)
   const [loading, setLoading] = useState(true)
+  const optionsRef = useRef(options)
+  const lastPathRef = useRef<string | null>(null)
+
+  // 更新 options ref，但不触发重新请求
+  useEffect(() => {
+    optionsRef.current = options
+  }, [options])
 
   const fetchData = useCallback(async () => {
     if (!path) {
@@ -33,16 +40,23 @@ export function useApiArray<T>(
     setLoading(true)
     setError(null)
 
-    const result = await fetchArray<T>(path, options)
+    const result = await fetchArray<T>(path, optionsRef.current)
 
     setData(result.data)
     setError(result.error)
     setLoading(false)
-  }, [path, options])
+  }, [path])
 
+  // 只在 path 改变时重新请求，避免频繁请求
   useEffect(() => {
+    // 如果 path 没变，不重复请求
+    if (lastPathRef.current === path) {
+      return
+    }
+    
+    lastPathRef.current = path
     fetchData()
-  }, [fetchData])
+  }, [path, fetchData])
 
   return {
     data,

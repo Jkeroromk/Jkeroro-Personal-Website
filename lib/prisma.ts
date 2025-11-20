@@ -12,9 +12,6 @@ try {
   withAccelerate = accelerateExtension
 } catch {
   // Accelerate 扩展未安装，将使用标准连接
-  if (process.env.NODE_ENV === 'development') {
-    console.log('ℹ️ Prisma Accelerate 未安装，使用标准数据库连接')
-  }
 }
 
 // 全局 Prisma 客户端实例（单例模式）
@@ -25,7 +22,7 @@ const globalForPrisma = globalThis as unknown as {
 // 在 Vercel 上设置 Prisma Engine 路径（仅在非 Accelerate 模式下）
 // 如果使用 Prisma Accelerate (prisma:// 协议)，不需要引擎文件
 if (typeof window === 'undefined' && (process.env.NODE_ENV === 'production' || process.env.VERCEL)) {
-  // 检查是否使用 Accelerate
+  // 检查是否使用 Accelerate（优先检查 DATABASE_URL，因为它可能包含 Accelerate URL）
   const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_POOLER_URL
   const isAccelerate = databaseUrl?.startsWith('prisma://')
   
@@ -62,9 +59,18 @@ if (typeof window === 'undefined') {
   const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
   
   // 根据环境选择数据库 URL（与 prisma.config.ts 逻辑一致）
-  let databaseUrl = isProd
-    ? process.env.SUPABASE_POOLER_URL || process.env.DATABASE_URL
-    : process.env.DATABASE_URL
+  // 优先使用 DATABASE_URL（如果它是 Accelerate URL），否则根据环境选择
+  let databaseUrl: string | undefined
+  if (process.env.DATABASE_URL?.startsWith('prisma://')) {
+    // 如果 DATABASE_URL 是 Accelerate URL，优先使用它
+    databaseUrl = process.env.DATABASE_URL
+  } else if (isProd) {
+    // 生产环境：优先使用 SUPABASE_POOLER_URL，否则使用 DATABASE_URL
+    databaseUrl = process.env.SUPABASE_POOLER_URL || process.env.DATABASE_URL
+  } else {
+    // 开发环境：只使用 DATABASE_URL
+    databaseUrl = process.env.DATABASE_URL
+  }
   
   if (databaseUrl) {
     // Prisma Accelerate 连接（prisma:// 协议）不需要添加 sslmode
@@ -80,21 +86,7 @@ if (typeof window === 'undefined') {
     
     process.env.DATABASE_URL = databaseUrl
     
-    if (isAccelerate) {
-      console.log('🔄 [Prisma Accelerate] 使用 Accelerate 连接 (prisma://)')
-    } else if (databaseUrl.includes('pooler') || databaseUrl.includes(':6543')) {
-      console.log('🔄 [Local] 使用 Supabase Pooler 连接 (6543端口)')
-    } else if (isProd) {
-      console.log('🔄 [Vercel] 使用 Pooler 连接 (6543端口)')
-    } else {
-      console.log('🔄 [Local] 使用直连数据库连接 (5432端口)')
-}
-
-    // 调试：显示数据库连接信息（隐藏密码）
-    if (process.env.NODE_ENV === 'development') {
-      const dbUrlPreview = databaseUrl.replace(/:[^:@]+@/, ':****@')
-      console.log('🔍 [Prisma] DATABASE_URL:', dbUrlPreview)
-    }
+    // 连接类型已确定（Accelerate、Pooler 或 Direct）
   }
 }
 
@@ -112,9 +104,6 @@ let prismaClient = new PrismaClient({
 if (withAccelerate && process.env.DATABASE_URL?.startsWith('prisma://')) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prismaClient = prismaClient.$extends(withAccelerate({})) as any
-  if (process.env.NODE_ENV === 'development') {
-    console.log('✅ Prisma Accelerate 已启用')
-  }
 }
 
 export const prisma = globalForPrisma.prisma ?? prismaClient

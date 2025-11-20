@@ -99,14 +99,14 @@ export async function POST(request: NextRequest) {
 // 获取所有国家访问统计
 export async function GET() {
   try {
-    // 使用 Accelerate 缓存策略：国家统计数据可以缓存 60 秒
+    // 使用 Accelerate 缓存策略：SWR 策略，国家统计数据可以缓存 180 秒（3分钟）
     const countries = await withTimeout(
       prisma.countryVisit.findMany({
         orderBy: {
           count: 'desc',
         },
         // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-        cacheStrategy: { ttl: 60 },
+        cacheStrategy: { swr: 180, ttl: 180 },
       }),
       8000
     )

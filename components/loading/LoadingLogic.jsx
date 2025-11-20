@@ -121,10 +121,12 @@ const LoadingLogic = () => {
       { en: 'Almost ready to launch...', zh: '即将准备就绪...' },
     ]
 
-    // 更新加载描述
+    // 使用索引而不是随机数，避免 hydration mismatch
+    // 初始值固定，只在客户端更新
+    let currentIndex = 0
     const descriptionInterval = setInterval(() => {
-      const randomDesc = descriptions[Math.floor(Math.random() * descriptions.length)]
-      setLoadingDescription(randomDesc)
+      currentIndex = (currentIndex + 1) % descriptions.length
+      setLoadingDescription(descriptions[currentIndex])
     }, 3000)
 
     return () => {
@@ -193,9 +195,8 @@ const LoadingLogic = () => {
       {/* 加载阶段组件 - 音乐优先加载 */}
       <MusicLoader
         onProgress={setMusicProgress}
-        onComplete={(tracks) => {
+        onComplete={() => {
           // 音乐加载完成回调
-          console.log('Music loaded:', tracks.length, 'tracks')
         }}
       />
       <ResourceLoader onProgress={setResourceProgress} />

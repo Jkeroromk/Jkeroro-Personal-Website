@@ -37,6 +37,7 @@ export default function NavigationBarAI({
   const [assistantMessages, setAssistantMessages] = useState<Message[]>([])
   const [isAssistantLoading, setIsAssistantLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messageIdCounterRef = useRef(1) // 使用计数器而不是 Date.now()，避免潜在问题
 
   // 初始化欢迎消息
   useEffect(() => {
@@ -63,7 +64,7 @@ export default function NavigationBarAI({
     if (!inputValue.trim() || isAssistantLoading) return
 
     const userMessage: Message = {
-      id: Date.now(),
+      id: messageIdCounterRef.current++,
       role: 'user',
       content: inputValue,
       timestamp: new Date(),
@@ -105,6 +106,18 @@ export default function NavigationBarAI({
         throw new Error(`HTTP ${response.status}`)
       }
 
+      // 创建空的助手消息，用于流式更新
+      const assistantMessageId = messageIdCounterRef.current++
+      setAssistantMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date(),
+        },
+      ])
+
       // 使用 SSE 解析器处理流式响应
       let fullContent = ''
       for await (const token of sseIterator(response)) {
@@ -114,7 +127,7 @@ export default function NavigationBarAI({
           setAssistantMessages((prev) => {
             const newMessages = [...prev]
             const lastMessage = newMessages[newMessages.length - 1]
-            if (lastMessage && lastMessage.role === 'assistant') {
+            if (lastMessage && lastMessage.id === assistantMessageId) {
               lastMessage.content = fullContent
             }
             return newMessages
@@ -126,7 +139,7 @@ export default function NavigationBarAI({
       setAssistantMessages((prev) => [
         ...prev,
         {
-          id: Date.now() + 1,
+          id: messageIdCounterRef.current++,
           role: 'assistant',
           content: `发生错误：${error instanceof Error ? error.message : 'Unknown error'}`,
           timestamp: new Date(),

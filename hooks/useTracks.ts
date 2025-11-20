@@ -51,11 +51,11 @@ export function useTracks() {
       setTracks(apiTracks)
       dataManager.saveTracks(apiTracks)
       setLoading(false) // API 数据加载完成，停止 loading
-    } else if (!apiLoading && tracks.length === 0) {
+    } else if (!apiLoading && apiTracks && apiTracks.length === 0) {
       // API 加载完成但没有数据，停止 loading
       setLoading(false)
     }
-  }, [apiTracks, apiLoading, dataManager, tracks.length])
+  }, [apiTracks, apiLoading, dataManager])
 
   // 实时更新
   useEffect(() => {

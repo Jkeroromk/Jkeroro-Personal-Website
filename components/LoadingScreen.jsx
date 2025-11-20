@@ -45,22 +45,24 @@ const LoadingScreen = () => {
       })
     }, 800) // 从 500ms 增加到 800ms
 
-    // 更新加载描述 - 减少频率
+    // 更新加载描述 - 使用索引而不是随机数，避免 hydration mismatch
+    let descIndex = 0
     const descriptionInterval = setInterval(() => {
-      const randomDesc = descriptions[Math.floor(Math.random() * descriptions.length)]
-      setLoadingDescription(randomDesc)
-    }, 3000) // 从 1500ms 增加到 3000ms
+      descIndex = (descIndex + 1) % descriptions.length
+      setLoadingDescription(descriptions[descIndex])
+    }, 3000)
 
-    // 模拟加载进度 - 减少频率
+    // 模拟加载进度 - 使用固定步长，避免随机数导致的 hydration 问题
     const progressInterval = setInterval(() => {
       setProgress(prev => {
         if (prev >= 100) {
           clearInterval(progressInterval)
           return 100
         }
-        return prev + Math.random() * 12 + 4 // 增加步长，减少更新次数
+        // 使用固定步长而不是随机数
+        return Math.min(prev + 8, 100)
       })
-    }, 1000) // 从 400ms 增加到 1000ms
+    }, 1000)
 
     // 检查关键资源是否加载完成
     const checkResources = () => {

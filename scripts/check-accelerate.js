@@ -8,8 +8,41 @@
 
 const { execSync } = require('child_process')
 
+// 加载 .env.local 文件（使用 dotenv）
 try {
-  // 获取数据库 URL
+  require('dotenv').config({ path: '.env.local' })
+} catch (error) {
+  // 如果 dotenv 不可用，尝试手动加载
+  try {
+    const fs = require('fs')
+    const path = require('path')
+    const envPath = path.join(process.cwd(), '.env.local')
+    if (fs.existsSync(envPath)) {
+      const envFile = fs.readFileSync(envPath, 'utf8')
+      envFile.split('\n').forEach(line => {
+        const trimmedLine = line.trim()
+        if (trimmedLine.startsWith('#') || !trimmedLine) return
+        const match = trimmedLine.match(/^([^#=]+?)\s*=\s*(.+)$/)
+        if (match) {
+          const key = match[1].trim()
+          let value = match[2].trim()
+          if ((value.startsWith('"') && value.endsWith('"')) || 
+              (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1)
+          }
+          if (!process.env[key]) {
+            process.env[key] = value
+          }
+        }
+      })
+    }
+  } catch (err) {
+    console.warn('⚠️  无法加载 .env.local:', err.message)
+  }
+}
+
+try {
+  // 获取数据库 URL（优先使用 DATABASE_URL，因为它可能包含 Accelerate URL）
   const databaseUrl = process.env.DATABASE_URL || process.env.SUPABASE_POOLER_URL
 
   // 检查是否使用 Accelerate
