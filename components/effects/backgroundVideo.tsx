@@ -12,6 +12,7 @@ export default function BackgroundVideo() {
         loop
         muted
         playsInline
+        preload="none"
         className="absolute inset-0 w-full h-full object-cover"
         style={{
           minWidth: '100vw',

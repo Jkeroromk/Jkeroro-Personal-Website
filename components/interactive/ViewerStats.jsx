@@ -1,12 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { Button } from '../ui/button'
 import { Eye } from 'lucide-react'
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog'
-import WorldMapDialog from '@/components/effects/worldMap'
 import { getRealtimeClient } from '@/lib/realtime-client'
 import DataManager from '@/lib/data-manager'
+
+// 延迟加载 WorldMap（含 ECharts ~500KB），仅在弹窗打开时加载
+const WorldMapDialog = dynamic(() => import('@/components/effects/worldMap'), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-[300px] text-gray-400">Loading map...</div>,
+})
 
 const ViewerStats = () => {
   const [viewerCount, setViewerCount] = useState(0)

@@ -7,6 +7,7 @@ import ClientScripts from "@/components/ClientScripts";
 const fredoka = Fredoka({
   weight: ["400", "500", "600"],
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,9 +26,11 @@ export default function RootLayout({
         {/* 关键资源预加载 */}
         <link rel="preload" as="image" href="/pfp.webp" type="image/webp" />
         
-        {/* DNS 预解析 */}
+        {/* DNS 预解析和预连接 */}
         <link rel="dns-prefetch" href="//cdnjs.cloudflare.com" />
         <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         
         {/* 客户端脚本组件 */}
         <ClientScripts />
