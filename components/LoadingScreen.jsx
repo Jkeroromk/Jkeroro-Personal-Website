@@ -134,18 +134,18 @@ const LoadingScreen = () => {
           right: 0,
           bottom: 0,
           width: '100vw',
-          height: '100vh',
+          height: '100dvh',
           margin: 0,
           padding: 0
         }}
       />
-      
+
       {/* 主要内容层 */}
-      <div 
+      <div
         className={`loading-screen fixed bg-black flex items-center justify-center transition-all duration-1000 ease-in-out ${
           isFadingOut ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
         }`}
-        style={{ 
+        style={{
           zIndex: 99999,
           position: 'fixed',
           top: 0,
@@ -153,11 +153,11 @@ const LoadingScreen = () => {
           right: 0,
           bottom: 0,
           width: '100vw',
-          height: '100vh',
+          height: '100dvh',
           minWidth: '100vw',
-          minHeight: '100vh',
+          minHeight: '100dvh',
           maxWidth: '100vw',
-          maxHeight: '100vh',
+          maxHeight: '100dvh',
           margin: 0,
           padding: 0,
           border: 'none',

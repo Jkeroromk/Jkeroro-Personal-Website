@@ -33,7 +33,7 @@ export default function BackgroundVideo() {
         className="absolute inset-0 w-full h-full object-cover gpu-accelerated"
         style={{
           minWidth: '100vw',
-          minHeight: '100vh',
+          minHeight: '100dvh',
           width: 'auto',
           height: 'auto',
           objectFit: 'cover',
