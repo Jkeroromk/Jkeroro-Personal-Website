@@ -5,7 +5,7 @@ import React from "react";
 export default function BackgroundVideo() {
 
   return (
-    <div className="fixed inset-0 -z-50 overflow-hidden">
+    <div className="fixed -z-50 overflow-hidden" style={{ top: '-50px', left: '-50px', right: '-50px', bottom: '-50px' }}>
       <video
         src="/background.mp4"
         autoPlay

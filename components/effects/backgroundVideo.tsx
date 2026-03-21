@@ -22,7 +22,7 @@ export default function BackgroundVideo() {
   }, []);
 
   return (
-    <div className="fixed inset-0 -z-50 overflow-hidden will-change-transform">
+    <div className="fixed -z-50 overflow-hidden will-change-transform" style={{ top: '-50px', left: '-50px', right: '-50px', bottom: '-50px' }}>
       <video
         ref={videoRef}
         autoPlay
