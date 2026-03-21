@@ -50,8 +50,8 @@ void main()
     gl_PointSize *= (1.0 / - viewPosition.z);
     gl_PointSize = max(1.0, gl_PointSize); // Prevent tiny particles
 
-    // Varyings with brightness control
-    vColor = vec3(pow(pictureIntensity, 2.0) * uBrightness);
+    // Varyings with brightness control (softer curve to avoid overly dark particles)
+    vColor = vec3(pow(pictureIntensity, 1.5) * uBrightness);
     pictureIntensity = max(pictureIntensity, 0.2);
 }
 `;
