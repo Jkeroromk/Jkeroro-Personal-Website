@@ -29,8 +29,8 @@ export const ControlPanelProvider = ({ children }) => {
     if (isMobile) {
       setGuiParams(prev => ({
         ...prev,
-        basePointSize: 0.7,
-        brightness: 1.0,
+        basePointSize: 0.9,
+        brightness: 2.0,
         displacementStrength: 3.0
       }))
     }

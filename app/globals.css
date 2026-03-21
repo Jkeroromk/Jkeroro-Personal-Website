@@ -13,6 +13,12 @@
   * {
     -webkit-touch-callout: none; /* 禁用移动端长按弹出菜单 */
   }
+
+  /* 移动端滚动性能优化 */
+  body {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
 }
 
 /* 减少重绘和重排 */
@@ -145,8 +151,10 @@
 }
 
 body, html {
-  scroll-behavior: auto; /* 改为 auto 减少警告 */
+  scroll-behavior: smooth;
   cursor: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
 }
 
 * {
