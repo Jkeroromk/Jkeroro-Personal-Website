@@ -62,13 +62,14 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
   const t = translations[language]
   
   const handleReset = () => {
+    const isMobile = window.innerWidth <= 768
     const defaultParams = {
-      basePointSize: window.innerWidth <= 768 ? 0.7 : 0.35,
-      brightness: window.innerWidth <= 768 ? 1.2 : 0.35,
-      displacementStrength: window.innerWidth <= 768 ? 3 : 3.0,
+      basePointSize: isMobile ? 0.9 : 0.35,
+      brightness: isMobile ? 1.2 : 0.35,
+      displacementStrength: 3.0,
       glowSize: 0.12,
       glowAlpha: 0.3,
-      decayRate: 0.015,
+      decayRate: 0.08,
       cameraZ: 20
     }
     

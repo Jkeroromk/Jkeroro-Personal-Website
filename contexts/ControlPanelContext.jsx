@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState } from 'react'
 
 const ControlPanelContext = createContext()
 
@@ -12,29 +12,21 @@ export const useControlPanel = () => {
   return context
 }
 
-export const ControlPanelProvider = ({ children }) => {
-  const [guiParams, setGuiParams] = useState({
-    basePointSize: 0.35,
-    brightness: 0.35,
+const getDefaultParams = () => {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+  return {
+    basePointSize: isMobile ? 0.9 : 0.35,
+    brightness: isMobile ? 1.2 : 0.35,
     displacementStrength: 3.0,
     glowSize: 0.12,
     glowAlpha: 0.3,
     decayRate: 0.08,
     cameraZ: 20
-  })
+  }
+}
 
-  // 在客户端挂载后根据屏幕尺寸调整参数
-  useEffect(() => {
-    const isMobile = window.innerWidth <= 768
-    if (isMobile) {
-      setGuiParams(prev => ({
-        ...prev,
-        basePointSize: 0.9,
-        brightness: 1.2,
-        displacementStrength: 3.0
-      }))
-    }
-  }, [])
+export const ControlPanelProvider = ({ children }) => {
+  const [guiParams, setGuiParams] = useState(getDefaultParams)
 
   const handleParamChange = (param, value) => {
     setGuiParams(prev => ({ ...prev, [param]: value }))
