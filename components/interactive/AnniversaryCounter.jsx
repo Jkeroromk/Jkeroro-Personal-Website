@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Heart } from 'lucide-react'
 import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useAnniversaryData } from '@/hooks/useAnniversaryData'
 
 const AnniversaryCounter = () => {
@@ -16,6 +16,7 @@ const AnniversaryCounter = () => {
   const [isHovered, setIsHovered] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const currentIndexRef = useRef(0)
+  const [imagesPreloaded, setImagesPreloaded] = useState(false)
 
   // 纪念日开始日期：2023年5月20日
   const anniversaryDate = new Date('2023-05-20T00:00:00')
@@ -35,6 +36,24 @@ const AnniversaryCounter = () => {
       setImageOffsetY(currentPosition.y)
     }
   }, [fetchedImages, fetchedPositions, currentImageIndex])
+
+  // 预加载所有图片，避免切换时闪烁
+  useEffect(() => {
+    if (backgroundImages.length === 0) return
+    let loaded = 0
+    backgroundImages.forEach((src) => {
+      const img = new window.Image()
+      img.src = src
+      img.onload = () => {
+        loaded++
+        if (loaded >= backgroundImages.length) setImagesPreloaded(true)
+      }
+      img.onerror = () => {
+        loaded++
+        if (loaded >= backgroundImages.length) setImagesPreloaded(true)
+      }
+    })
+  }, [backgroundImages])
 
   // 当图片索引或位置数据变化时，更新位置
   useEffect(() => {
@@ -131,44 +150,48 @@ const AnniversaryCounter = () => {
           {/* 背景图片区域 - 占满整个卡片 */}
           <div className="relative h-full w-full overflow-hidden">
             {/* 背景图片 - hover 时自动轮换 */}
-            <AnimatePresence>
-              {backgroundImages.length > 0 && currentImageIndex < backgroundImages.length ? (
-                <motion.div
-                  key={backgroundImages[currentImageIndex]}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{
-                    duration: 2,
-                    ease: [0.25, 0.46, 0.45, 0.94] // 平滑的缓动曲线
-                  }}
-                  className="absolute inset-0"
-                  style={{
-                    objectPosition: `${imageOffsetX}% ${imageOffsetY}%`,
-                  }}
-                >
-                  <Image
-                    src={backgroundImages[currentImageIndex]}
-                    alt="Anniversary background"
-                    fill
-                    className="object-cover"
-                    style={{
-                      objectPosition: `${imageOffsetX}% ${imageOffsetY}%`,
-                      filter: 'blur(4px)',
-                    }}
-                    unoptimized={backgroundImages[currentImageIndex].startsWith('/api/file/') || backgroundImages[currentImageIndex].startsWith('https://')}
-                  />
-                </motion.div>
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-pink-500/30 via-red-500/30 to-purple-500/30"></div>
-              )}
-            </AnimatePresence>
+            {backgroundImages.length > 0 && currentImageIndex < backgroundImages.length ? (
+              <>
+                {/* 预渲染所有图片，通过 opacity 控制显隐实现无缝切换 */}
+                {backgroundImages.map((imgSrc, index) => {
+                  const position = imagePositions[imgSrc] || { x: 50, y: 50 }
+                  return (
+                    <motion.div
+                      key={imgSrc}
+                      initial={false}
+                      animate={{ opacity: index === currentImageIndex ? 1 : 0 }}
+                      transition={{
+                        duration: 1.5,
+                        ease: [0.25, 0.46, 0.45, 0.94]
+                      }}
+                      className="absolute inset-0"
+                      style={{ zIndex: index === currentImageIndex ? 1 : 0 }}
+                    >
+                      <Image
+                        src={imgSrc}
+                        alt="Anniversary background"
+                        fill
+                        className="object-cover"
+                        style={{
+                          objectPosition: `${position.x}% ${position.y}%`,
+                          filter: 'blur(4px)',
+                        }}
+                        unoptimized={imgSrc.startsWith('/api/file/') || imgSrc.startsWith('https://')}
+                        priority={index === 0}
+                      />
+                    </motion.div>
+                  )
+                })}
+              </>
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-pink-500/30 via-red-500/30 to-purple-500/30"></div>
+            )}
             
             {/* 渐变遮罩 */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-[2]"></div>
             
             {/* 标题和天数 - 放在中间偏下 */}
-            <div className="absolute bottom-16 sm:bottom-20 left-0 right-0 flex flex-col items-center z-10">
+            <div className="absolute bottom-16 sm:bottom-20 left-0 right-0 flex flex-col items-center z-[3]">
               {/* 标题 */}
               <div className="flex items-center gap-2 mb-2 sm:mb-3">
                 <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-pink-400 fill-pink-400 animate-pulse" />
@@ -184,7 +207,7 @@ const AnniversaryCounter = () => {
             </div>
             
             {/* 开始日期和装饰线 - 绝对定位在图片最底部 */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col justify-center z-5">
+            <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col justify-center z-[3]">
               <div className="text-center mb-2">
                 {/* 开始日期 */}
                 <div className="text-xs sm:text-sm text-white/80 drop-shadow-md">
