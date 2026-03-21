@@ -188,10 +188,10 @@ const AnniversaryCounter = () => {
             )}
             
             {/* 渐变遮罩 */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent z-[2]"></div>
             
             {/* 标题和天数 - 放在中间偏下 */}
-            <div className="absolute bottom-16 sm:bottom-20 left-0 right-0 flex flex-col items-center z-10">
+            <div className="absolute bottom-16 sm:bottom-20 left-0 right-0 flex flex-col items-center z-[3]">
               {/* 标题 */}
               <div className="flex items-center gap-2 mb-2 sm:mb-3">
                 <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-pink-400 fill-pink-400 animate-pulse" />
@@ -207,7 +207,7 @@ const AnniversaryCounter = () => {
             </div>
             
             {/* 开始日期和装饰线 - 绝对定位在图片最底部 */}
-            <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col justify-center z-5">
+            <div className="absolute bottom-0 left-0 right-0 p-3 flex flex-col justify-center z-[3]">
               <div className="text-center mb-2">
                 {/* 开始日期 */}
                 <div className="text-xs sm:text-sm text-white/80 drop-shadow-md">
