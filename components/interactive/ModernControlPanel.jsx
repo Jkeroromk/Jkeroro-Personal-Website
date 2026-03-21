@@ -64,7 +64,7 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
   const handleReset = () => {
     const defaultParams = {
       basePointSize: window.innerWidth <= 768 ? 0.7 : 0.35,
-      brightness: window.innerWidth <= 768 ? 1.0 : 0.35,
+      brightness: window.innerWidth <= 768 ? 1.2 : 0.35,
       displacementStrength: window.innerWidth <= 768 ? 3 : 3.0,
       glowSize: 0.12,
       glowAlpha: 0.3,
@@ -148,13 +148,13 @@ const ModernControlPanel = ({ params, onParamChange, isVisible, onToggle }) => {
             <input
               type="range"
               min="0"
-              max="1"
+              max="2"
               step="0.05"
               value={localParams.brightness}
               onChange={(e) => handleParamChangeDebounced('brightness', parseFloat(e.target.value))}
               className="w-full h-1 bg-white/10 rounded-full appearance-none cursor-pointer slider"
               style={{
-                background: `linear-gradient(to right, #9ca3af 0%, #9ca3af ${params.brightness * 100}%, rgba(255,255,255,0.1) ${params.brightness * 100}%, rgba(255,255,255,0.1) 100%)`
+                background: `linear-gradient(to right, #9ca3af 0%, #9ca3af ${localParams.brightness / 2 * 100}%, rgba(255,255,255,0.1) ${localParams.brightness / 2 * 100}%, rgba(255,255,255,0.1) 100%)`
               }}
             />
             <div className="text-sm text-gray-300 mt-1">{localParams.brightness.toFixed(2)}</div>

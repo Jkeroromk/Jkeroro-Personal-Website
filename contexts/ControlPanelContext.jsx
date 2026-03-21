@@ -30,7 +30,7 @@ export const ControlPanelProvider = ({ children }) => {
       setGuiParams(prev => ({
         ...prev,
         basePointSize: 0.9,
-        brightness: 2.0,
+        brightness: 1.2,
         displacementStrength: 3.0
       }))
     }
