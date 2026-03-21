@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 // No longer using Firebase - using API instead
 import ReactECharts from "echarts-for-react";
 import { registerMap } from "echarts";
@@ -254,7 +255,12 @@ const WorldMapDialog = () => {
   return (
     <div className="w-full flex flex-col items-center">
       {mapLoaded ? (
-        <>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full"
+        >
           <div data-map-container className="w-full">
             <ReactECharts
               option={getMapOption()}
@@ -267,7 +273,7 @@ const WorldMapDialog = () => {
               }}
             />
           </div>
-          
+
           {/* 返回按钮 */}
           {isZoomed && (
             <button
@@ -277,9 +283,63 @@ const WorldMapDialog = () => {
               ← Back to World View
             </button>
           )}
-        </>
+        </motion.div>
       ) : (
-        <p className="text-gray-400 text-sm">Loading world map...</p>
+        <div className="flex flex-col items-center justify-center h-[300px] gap-4">
+          {/* 地球轮廓动画 */}
+          <motion.div
+            className="relative w-16 h-16"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+          >
+            {/* 外圈 */}
+            <div className="absolute inset-0 rounded-full border-2 border-gray-600" />
+            {/* 旋转的高亮弧 */}
+            <motion.div
+              className="absolute inset-0 rounded-full border-2 border-transparent"
+              style={{
+                borderTopColor: "white",
+                borderRightColor: "rgba(255,255,255,0.3)",
+              }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+            />
+            {/* 经线 */}
+            <div className="absolute inset-[6px] rounded-full border border-gray-700" style={{ borderRadius: "50% / 50%", transform: "scaleX(0.5)" }} />
+            <div className="absolute inset-[6px] rounded-full border border-gray-700" style={{ borderRadius: "50% / 50%", transform: "scaleX(0.8)" }} />
+            {/* 纬线 */}
+            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-gray-700" />
+            <div className="absolute left-1 right-1 top-[35%] h-px bg-gray-700/60" />
+            <div className="absolute left-1 right-1 top-[65%] h-px bg-gray-700/60" />
+          </motion.div>
+
+          {/* 文字 */}
+          <div className="text-center">
+            <motion.p
+              className="text-white/70 text-sm font-medium"
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              Loading World Map
+            </motion.p>
+            {/* 进度点 */}
+            <div className="flex justify-center gap-1 mt-2">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  className="w-1 h-1 rounded-full bg-white/60"
+                  animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
+                  transition={{
+                    duration: 1.2,
+                    repeat: Infinity,
+                    delay: i * 0.3,
+                    ease: "easeInOut",
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 选中国家的详细信息 */}
