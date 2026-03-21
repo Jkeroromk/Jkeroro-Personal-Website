@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 启用源映射
-  productionBrowserSourceMaps: true,
+  // 关闭生产环境源映射，减少打包体积（调试时可临时开启）
+  productionBrowserSourceMaps: false,
   
   // 压缩配置
   compress: true,
@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
     // 启用更详细的源映射
     esmExternals: true,
     // 优化包大小
-    optimizePackageImports: ['lucide-react', 'framer-motion', 'react-icons'],
+    optimizePackageImports: ['lucide-react', 'framer-motion', 'react-icons', 'echarts', '@radix-ui/react-dialog', '@radix-ui/react-accordion'],
   },
   
   // 优化图片
@@ -37,11 +37,6 @@ const nextConfig: NextConfig = {
   
   // Webpack 配置
   webpack: (config, { dev, isServer, webpack }) => {
-    // 在生产环境中生成源映射
-    if (!dev && !isServer) {
-      config.devtool = 'source-map';
-    }
-    
     // 优化包大小和压缩
     if (!dev) {
       config.optimization = {
@@ -102,6 +97,12 @@ const nextConfig: NextConfig = {
               name: 'react-icons',
               chunks: 'all',
               priority: 15,
+            },
+            echarts: {
+              test: /[\\/]node_modules[\\/](echarts|echarts-for-react|zrender)[\\/]/,
+              name: 'echarts',
+              chunks: 'all',
+              priority: 20,
             },
           },
         },

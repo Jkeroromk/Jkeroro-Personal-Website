@@ -1,17 +1,20 @@
 'use client'
 
 import React from 'react'
+import dynamic from 'next/dynamic'
 import LinkforBio from "@/components/interactive/linkforbio"
 import HomeSection from './HomeSection'
 
-// 直接导入组件，减少加载时间
+// 首屏组件直接导入
 import Stack from "@/components/media/stack"
 import MusicPlayer from "@/components/media/musicPlayer"
-import Tabs from "@/components/media/tabs"
-import PersonalStore from "@/components/interactive/personalStore"
-import Album from "@/components/media/album"
-import Footer from "@/components/layout/footer"
-import AnniversaryCounter from "@/components/interactive/AnniversaryCounter"
+
+// 折叠下方组件延迟加载，减少首屏 JS 体积
+const Tabs = dynamic(() => import("@/components/media/tabs"), { ssr: false })
+const PersonalStore = dynamic(() => import("@/components/interactive/personalStore"), { ssr: false })
+const Album = dynamic(() => import("@/components/media/album"), { ssr: false })
+const AnniversaryCounter = dynamic(() => import("@/components/interactive/AnniversaryCounter"), { ssr: false })
+const Footer = dynamic(() => import("@/components/layout/footer"), { ssr: false })
 
 
 const HomeContent = () => {
