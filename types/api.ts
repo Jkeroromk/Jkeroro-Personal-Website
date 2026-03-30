@@ -25,6 +25,11 @@ export interface Image {
   updatedAt: string
 }
 
+export interface LyricLine {
+  time: number
+  text: string
+}
+
 export interface Track {
   id: string
   title: string
