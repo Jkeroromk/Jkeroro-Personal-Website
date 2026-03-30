@@ -2,237 +2,181 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Edit, Trash2, Music, Plus, GripVertical } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Edit2, Trash2, Music2, Plus, GripVertical, AlertTriangle } from 'lucide-react'
 
 const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder }) => {
-  const [draggedIndex, setDraggedIndex] = React.useState(null);
-  const [dragOverIndex, setDragOverIndex] = React.useState(null);
+  const [draggedIndex, setDraggedIndex] = React.useState(null)
+  const [dragOverIndex, setDragOverIndex] = React.useState(null)
 
-  // 移除动态鼠标跟踪，避免掉帧
-
-  // 计算总文件大小（估算）
   const getFileSizeEstimate = (src) => {
-    // 简单的文件大小估算，实际大小可能不同
-    const fileName = src.split('/').pop() || '';
-    
-    // 检查常见的音乐文件大小模式
-    if (fileName.includes('Everybody')) return '4.9MB';
-    if (fileName.includes('Leessang')) return '5.4MB';
-    if (fileName.includes('ReawakeR')) return '4.5MB';
-    if (fileName.includes('SPECIALZ')) return '1.9MB';
-    if (fileName.includes('Work')) return '4.8MB';
-    if (fileName.includes('2hollis')) return '3.2MB';
-    if (fileName.includes('ICEDMANE')) return '4.1MB';
-    if (fileName.includes('Instruments_of_Retribution')) return '5.8MB';
-    
-    // 根据文件扩展名估算
-    if (fileName.endsWith('.mp3')) {
-      // MP3 文件通常 3-6MB
-      return '~4MB';
-    } else if (fileName.endsWith('.wav')) {
-      // WAV 文件通常更大
-      return '~8MB';
-    } else if (fileName.endsWith('.flac')) {
-      // FLAC 文件通常 5-10MB
-      return '~6MB';
-    }
-    
-    return '~3MB'; // 默认估算
-  };
+    const fileName = src.split('/').pop() || ''
+    if (fileName.includes('Everybody')) return '4.9 MB'
+    if (fileName.includes('Leessang')) return '5.4 MB'
+    if (fileName.includes('ReawakeR')) return '4.5 MB'
+    if (fileName.includes('SPECIALZ')) return '1.9 MB'
+    if (fileName.includes('Work')) return '4.8 MB'
+    if (fileName.includes('2hollis')) return '3.2 MB'
+    if (fileName.includes('ICEDMANE')) return '4.1 MB'
+    if (fileName.includes('Instruments_of_Retribution')) return '5.8 MB'
+    if (fileName.endsWith('.mp3')) return '~4 MB'
+    if (fileName.endsWith('.wav')) return '~8 MB'
+    if (fileName.endsWith('.flac')) return '~6 MB'
+    return '~3 MB'
+  }
 
-  const totalSizeEstimate = tracks.reduce((total, track) => {
-    const size = getFileSizeEstimate(track.src);
-    // 移除 ~ 符号和 MB 后缀，然后转换为数字
-    const sizeNum = parseFloat(size.replace(/[~MB]/g, ''));
-    return total + sizeNum;
-  }, 0);
+  const totalSize = tracks.reduce((t, track) => {
+    return t + parseFloat(getFileSizeEstimate(track.src).replace(/[~MB\s]/g, ''))
+  }, 0)
 
-  // 拖拽处理函数
   const handleDragStart = (e, index) => {
-    e.dataTransfer.setData('text/plain', index);
-    e.dataTransfer.effectAllowed = 'move';
-    // 移除拖拽虚影 - 使用原生HTMLImageElement而不是Next.js Image组件
-    const dragImage = document.createElement('img');
-    dragImage.style.display = 'none';
-    document.body.appendChild(dragImage);
-    e.dataTransfer.setDragImage(dragImage, 0, 0);
-    // 清理临时元素
-    setTimeout(() => {
-      if (document.body.contains(dragImage)) {
-        document.body.removeChild(dragImage);
-      }
-    }, 0);
-    
-    setDraggedIndex(index);
-  };
+    e.dataTransfer.setData('text/plain', index)
+    e.dataTransfer.effectAllowed = 'move'
+    const ghost = document.createElement('img')
+    ghost.style.display = 'none'
+    document.body.appendChild(ghost)
+    e.dataTransfer.setDragImage(ghost, 0, 0)
+    setTimeout(() => document.body.contains(ghost) && document.body.removeChild(ghost), 0)
+    setDraggedIndex(index)
+  }
 
-  const handleDragEnd = (e) => {
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-  };
+  const handleDragEnd = () => {
+    setDraggedIndex(null)
+    setDragOverIndex(null)
+  }
 
   const handleDragOver = (e, index) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    
-    // 设置拖拽悬停的索引
-    if (index !== draggedIndex) {
-      setDragOverIndex(index);
-    }
-  };
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (index !== draggedIndex) setDragOverIndex(index)
+  }
 
   const handleDragLeave = (e) => {
-    // 只有当鼠标真正离开元素时才清除拖拽悬停状态
-    if (!e.currentTarget.contains(e.relatedTarget)) {
-      setDragOverIndex(null);
-    }
-  };
+    if (!e.currentTarget.contains(e.relatedTarget)) setDragOverIndex(null)
+  }
 
   const handleDrop = (e, dropIndex) => {
-    e.preventDefault();
-    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
-    if (dragIndex !== dropIndex && onReorder) {
-      onReorder(dragIndex, dropIndex);
-    }
-    setDragOverIndex(null);
-  };
+    e.preventDefault()
+    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'))
+    if (dragIndex !== dropIndex && onReorder) onReorder(dragIndex, dropIndex)
+    setDragOverIndex(null)
+  }
 
   return (
-    <Card className="bg-gray-800 border-gray-600">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center justify-between">
-          <div className="flex items-center">
-            <Music className="w-5 h-5 mr-2" />
-            Music Tracks ({tracks.length})
-          </div>
-          <div className="flex items-center gap-2">
-            {tracks.length > 0 && (
-              <span className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
-                ~{totalSizeEstimate.toFixed(1)}MB total
-              </span>
-            )}
-            {tracks.length === 0 && (
-              <span className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
-                Empty Library
-              </span>
-            )}
-            <Button
-              size="sm"
-              onClick={onAdd}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Track
-            </Button>
-          </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {/* 性能警告 */}
-        {tracks.length > 8 && (
-          <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <p className="text-sm text-yellow-300">
-                <span className="font-medium">Performance Warning:</span> You have {tracks.length} tracks (~{totalSizeEstimate.toFixed(1)}MB). 
-                Consider keeping under 8 tracks for optimal loading speed.
-              </p>
-            </div>
-          </div>
-        )}
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-white">Music Library</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            {tracks.length} track{tracks.length !== 1 ? 's' : ''} · ~{totalSize.toFixed(1)} MB total
+          </p>
+        </div>
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Add Track
+        </button>
+      </div>
 
-        {tracks.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="mb-4">
-              <svg className="w-12 h-12 mx-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-white mb-2">No Music Tracks</h3>
-            <p className="text-sm text-gray-400 mb-4">
-              Start building your music library by uploading your first track!
-            </p>
-            <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700 max-w-md mx-auto">
-              <p className="text-xs text-gray-300 mb-2">Supported formats:</p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                <span className="text-xs bg-gray-700 px-2 py-1 rounded">MP3</span>
-                <span className="text-xs bg-gray-700 px-2 py-1 rounded">WAV</span>
-                <span className="text-xs bg-gray-700 px-2 py-1 rounded">OGG</span>
-                <span className="text-xs bg-gray-700 px-2 py-1 rounded">M4A</span>
-              </div>
-            </div>
+      {/* Warning */}
+      {tracks.length > 8 && (
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+          <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-300/80">
+            <span className="font-medium text-amber-300">Performance tip:</span> You have {tracks.length} tracks (~{totalSize.toFixed(1)} MB). Consider keeping under 8 for optimal load speed.
+          </p>
+        </div>
+      )}
+
+      {/* Track list */}
+      {tracks.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-white/10 bg-white/[0.02]">
+          <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
+            <Music2 className="w-5 h-5 text-zinc-500" />
           </div>
-        ) : (
-          <div className="space-y-4">
-            {(tracks || []).map((track, index) => (
+          <p className="text-sm font-medium text-white mb-1">No tracks yet</p>
+          <p className="text-xs text-zinc-500 mb-4">Upload MP3, WAV, OGG or M4A files</p>
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add first track
+          </button>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-white/5 bg-zinc-900 overflow-hidden">
+          {tracks.map((track, index) => {
+            const isDragging = draggedIndex === index
+            const isDragOver = dragOverIndex === index
+
+            return (
               <motion.div
                 key={track.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: index * 0.04 }}
                 draggable
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragEnd={handleDragEnd}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, index)}
-                className={`rounded-lg p-3 sm:p-4 flex items-center justify-between transition-colors duration-150 cursor-move group ${
-                  draggedIndex === index 
-                    ? 'bg-gray-600 border-2 border-gray-400' 
-                    : dragOverIndex === index 
-                      ? 'bg-gray-600 border-2 border-dashed border-gray-400' 
-                      : 'bg-gray-700 hover:bg-gray-600'
-                }`}
+                className={[
+                  'flex items-center gap-3 px-4 py-3 group cursor-grab active:cursor-grabbing transition-colors',
+                  index !== tracks.length - 1 ? 'border-b border-white/5' : '',
+                  isDragging  ? 'bg-indigo-500/10 opacity-60' :
+                  isDragOver  ? 'bg-white/5' :
+                                'hover:bg-white/[0.03]',
+                ].join(' ')}
               >
-                <div className="flex items-center flex-1 min-w-0">
-                  <div className="w-10 h-10 bg-gray-600 rounded-lg flex items-center justify-center mr-3 relative flex-shrink-0">
-                    <Music className="w-5 h-5 text-gray-400" />
-                    <GripVertical className="absolute -left-6 w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-white truncate">{track.title}</h3>
-                      <span className="text-xs text-gray-500 bg-gray-700 px-1 py-0.5 rounded flex-shrink-0">
-                        #{index + 1}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-400 truncate">{track.subtitle}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-gray-600 bg-gray-700 px-1 py-0.5 rounded flex-shrink-0">
-                        {getFileSizeEstimate(track.src)}
-                      </span>
-                    </div>
-                  </div>
+                {/* Drag handle */}
+                <GripVertical className="w-4 h-4 text-zinc-700 group-hover:text-zinc-500 flex-shrink-0 transition-colors" />
+
+                {/* Index */}
+                <span className="w-5 text-center text-xs font-mono text-zinc-600 flex-shrink-0">
+                  {index + 1}
+                </span>
+
+                {/* Icon */}
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                  <Music2 className="w-4 h-4 text-indigo-400" />
                 </div>
-                <div className="flex gap-1 sm:gap-2 flex-shrink-0">
-                  <Button
-                    size="sm"
-                    variant="secondary"
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{track.title}</p>
+                  <p className="text-xs text-zinc-500 truncate">{track.subtitle}</p>
+                </div>
+
+                {/* Size */}
+                <span className="text-xs text-zinc-600 flex-shrink-0 hidden sm:block">
+                  {getFileSizeEstimate(track.src)}
+                </span>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
                     onClick={() => onEdit(track, 'track')}
-                    className="hover:bg-gray-600 h-8 px-2 sm:px-3"
+                    className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
                   >
-                    <Edit className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Edit</span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
                     onClick={() => onDelete(track.id, 'track')}
-                    className="hover:bg-red-600 h-8 px-2 sm:px-3"
+                    className="p-1.5 rounded-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   >
-                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </Button>
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </motion.div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 

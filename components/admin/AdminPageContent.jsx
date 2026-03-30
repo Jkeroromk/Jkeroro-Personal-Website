@@ -9,7 +9,6 @@ import { useAdminData } from '../../hooks/useAdminData'
 import MouseTrail from '@/components/effects/mousetrail'
 import { AdminToaster } from '@/components/ui/admin-toaster'
 
-// Import admin components
 import AdminHeader from '@/components/admin/AdminHeader'
 import ImagesTab from '@/components/admin/ImagesTab'
 import MusicTab from '@/components/admin/MusicTab'
@@ -22,9 +21,8 @@ import EditModal from '@/components/admin/modals/EditModal'
 const AdminPageContent = () => {
   const { user, isAdmin, loading, logout, isOnline, lastActivity } = useAuth()
   const router = useRouter()
-  
+
   const {
-    // 状态
     activeTab,
     setActiveTab,
     images,
@@ -37,8 +35,6 @@ const AdminPageContent = () => {
     setUploadedFile,
     formData,
     setFormData,
-    
-    // 方法
     handleSave,
     handleEdit,
     handleDelete,
@@ -46,14 +42,16 @@ const AdminPageContent = () => {
     handleTrackReorder,
     handleImageReorder,
     handleProjectReorder,
-    handleAddTrack
+    handleAddTrack,
   } = useAdminData()
 
-  // 认证检查
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-zinc-400">
+          <div className="w-5 h-5 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin" />
+          <span className="text-sm">Loading...</span>
+        </div>
       </div>
     )
   }
@@ -66,93 +64,71 @@ const AdminPageContent = () => {
   return (
     <>
       <MouseTrail />
-      <div className="min-h-screen bg-black text-white flex">
+      <div className="min-h-screen bg-zinc-950 text-white flex">
+        {/* Left Sidebar */}
+        <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} onLogout={logout} />
+
         {/* Main Content */}
-        <div className="flex-1 flex flex-col">
-          <div className="lg:pt-0 pt-16">
-            <AdminHeader isOnline={isOnline} lastActivity={lastActivity} />
-          </div>
-          
-          <div className="flex-1 overflow-y-auto">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        <div className="flex-1 flex flex-col min-w-0">
+          <AdminHeader
+            activeTab={activeTab}
+            isOnline={isOnline}
+            lastActivity={lastActivity}
+          />
+
+          <main className="flex-1 overflow-y-auto">
+            <div className="px-6 lg:px-8 py-6 max-w-7xl">
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                key={activeTab}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="max-w-7xl mx-auto"
+                transition={{ duration: 0.2 }}
               >
-                {/* Tab Content */}
                 {activeTab === 'images' && (
-                  <div className="mt-6">
-                    <ImagesTab 
-                      images={images}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onAddNew={handleAddNew}
-                      onReorder={handleImageReorder}
-                    />
-                  </div>
+                  <ImagesTab
+                    images={images}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onAddNew={handleAddNew}
+                    onReorder={handleImageReorder}
+                  />
                 )}
-
                 {activeTab === 'music' && (
-                  <div className="mt-6">
-                    <MusicTab 
-                      tracks={tracks}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onAdd={handleAddTrack}
-                      onReorder={handleTrackReorder}
-                    />
-                  </div>
+                  <MusicTab
+                    tracks={tracks}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onAdd={handleAddTrack}
+                    onReorder={handleTrackReorder}
+                  />
                 )}
-
                 {activeTab === 'projects' && (
-                  <div className="mt-6">
-                    <ProjectsTab 
-                      projects={apiProjects}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onAddNew={handleAddNew}
-                      onReorder={handleProjectReorder}
-                    />
-                  </div>
+                  <ProjectsTab
+                    projects={apiProjects}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onAddNew={handleAddNew}
+                    onReorder={handleProjectReorder}
+                  />
                 )}
-
-                {activeTab === 'comments' && (
-                  <div className="mt-6">
-                    <CommentsTab />
-                  </div>
-                )}
-
-                {activeTab === 'anniversary' && (
-                  <div className="mt-6">
-                    <AnniversaryTab />
-                  </div>
-                )}
-
-                {activeTab === 'supabase' && (
-                  <div className="mt-6">
-                    <SupabaseDebugTab />
-                  </div>
-                )}
-
-                <EditModal
-                  editingItem={editingItem}
-                  activeTab={activeTab}
-                  formData={formData}
-                  setFormData={setFormData}
-                  onClose={() => setEditingItem(null)}
-                  onSave={handleSave}
-                  uploadedFile={uploadedFile}
-                  setUploadedFile={setUploadedFile}
-                />
+                {activeTab === 'comments'    && <CommentsTab />}
+                {activeTab === 'anniversary' && <AnniversaryTab />}
+                {activeTab === 'supabase'    && <SupabaseDebugTab />}
               </motion.div>
             </div>
-          </div>
+          </main>
         </div>
 
-        {/* Sidebar Navigation - Right Side */}
-        <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} onLogout={logout} />
+        <EditModal
+          editingItem={editingItem}
+          activeTab={activeTab}
+          formData={formData}
+          setFormData={setFormData}
+          onClose={() => setEditingItem(null)}
+          onSave={handleSave}
+          uploadedFile={uploadedFile}
+          setUploadedFile={setUploadedFile}
+        />
       </div>
       <AdminToaster />
     </>

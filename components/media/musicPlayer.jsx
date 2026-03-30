@@ -198,8 +198,8 @@ export default function MusicPlayer() {
         <PlayerControls
           isPlaying={isPlaying}
           onPlayPause={togglePlayPause}
-          onSkipBack={() => skipTrack(-1)}
-          onSkipForward={() => skipTrack(1)}
+          onSkipBack={() => skipTrack(-1, true)}
+          onSkipForward={() => skipTrack(1, true)}
         />
 
         <ProgressBar

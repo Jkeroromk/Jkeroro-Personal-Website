@@ -2,309 +2,218 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Edit, Trash2, MessageSquare, ThumbsUp, Flame, Heart, Laugh, Eye } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Edit2, Trash2, MessageSquare, ThumbsUp, Flame, Heart, Laugh, Eye, RefreshCw, Check, X } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
-// No longer using Firebase - using API instead
+
+const reactionIcons = {
+  likes:  { icon: ThumbsUp, color: 'text-blue-400' },
+  fires:  { icon: Flame,    color: 'text-orange-400' },
+  hearts: { icon: Heart,    color: 'text-pink-400' },
+  laughs: { icon: Laugh,    color: 'text-yellow-400' },
+  wows:   { icon: Eye,      color: 'text-purple-400' },
+}
 
 const CommentsTab = () => {
-  const [comments, setComments] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [comments, setComments]             = useState([])
+  const [loading, setLoading]               = useState(true)
   const [editingComment, setEditingComment] = useState(null)
-  const [editText, setEditText] = useState('')
+  const [editText, setEditText]             = useState('')
   const { toast } = useToast()
 
-  // 获取所有评论
   const fetchComments = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/comments')
-      if (!response.ok) throw new Error('Failed to fetch comments')
-      
-      const allComments = await response.json()
-      // 转换时间戳格式（如果需要）
-      const formattedComments = allComments.map(comment => ({
-        ...comment,
-        timestamp: comment.createdAt ? new Date(comment.createdAt).getTime() : Date.now()
-      }))
-      setComments(formattedComments)
-    } catch (error) {
-      console.error('Error fetching comments:', error)
-      toast({
-        title: "错误",
-        description: "获取评论失败: " + error.message,
-        variant: "destructive",
-      })
+      const res = await fetch('/api/comments')
+      if (!res.ok) throw new Error('Failed to fetch comments')
+      const data = await res.json()
+      setComments(data.map(c => ({
+        ...c,
+        timestamp: c.createdAt ? new Date(c.createdAt).getTime() : Date.now(),
+      })))
+    } catch (err) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    fetchComments()
-  }, [])
+  useEffect(() => { fetchComments() }, [])
 
-  // 删除评论
-  const handleDeleteComment = async (commentId) => {
-    if (!confirm('确定要删除这条评论吗？')) return
-    
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this comment?')) return
     try {
-      const response = await fetch(`/api/comments/${commentId}`, {
-        method: 'DELETE',
-      })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to delete comment')
-      }
-      
-      setComments(comments.filter(c => c.id !== commentId))
-      toast({
-        title: "成功",
-        description: "评论已删除",
-      })
-    } catch (error) {
-      console.error('Error deleting comment:', error)
-      toast({
-        title: "错误",
-        description: "删除评论失败: " + error.message,
-        variant: "destructive",
-      })
+      const res = await fetch(`/api/comments/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
+      setComments(c => c.filter(x => x.id !== id))
+      toast({ title: 'Deleted', description: 'Comment removed.' })
+    } catch (err) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' })
     }
   }
 
-  // 开始编辑评论
-  const handleStartEdit = (comment) => {
-    setEditingComment(comment.id)
-    setEditText(comment.text)
-  }
-
-  // 保存编辑
   const handleSaveEdit = async () => {
     if (!editText.trim()) {
-      toast({
-        title: "错误",
-        description: "评论内容不能为空",
-        variant: "destructive",
-      })
+      toast({ title: 'Error', description: 'Comment cannot be empty.', variant: 'destructive' })
       return
     }
-
     try {
-      const response = await fetch(`/api/comments/${editingComment}`, {
+      const res = await fetch(`/api/comments/${editingComment}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: editText.trim() }),
       })
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to update comment')
-      }
-      
-      setComments(comments.map(c => 
-        c.id === editingComment ? { ...c, text: editText.trim() } : c
-      ))
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
+      setComments(c => c.map(x => x.id === editingComment ? { ...x, text: editText.trim() } : x))
       setEditingComment(null)
-      setEditText('')
-      toast({
-        title: "成功",
-        description: "评论已更新",
-      })
-    } catch (error) {
-      console.error('Error updating comment:', error)
-      toast({
-        title: "错误",
-        description: "更新评论失败: " + error.message,
-        variant: "destructive",
-      })
+      toast({ title: 'Saved', description: 'Comment updated.' })
+    } catch (err) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' })
     }
   }
 
-  // 取消编辑
-  const handleCancelEdit = () => {
-    setEditingComment(null)
-    setEditText('')
+  const formatTime = (ts) => {
+    if (!ts) return 'Unknown'
+    const date = new Date(ts)
+    const diff = Date.now() - date
+    if (diff < 60000)     return 'Just now'
+    if (diff < 3600000)   return `${Math.floor(diff / 60000)}m ago`
+    if (diff < 86400000)  return `${Math.floor(diff / 3600000)}h ago`
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  // 格式化时间
-  const formatTime = (timestamp) => {
-    if (!timestamp) return '未知时间'
-    
-    // 处理数字时间戳或 ISO 字符串
-    const date = typeof timestamp === 'number' 
-      ? new Date(timestamp) 
-      : new Date(timestamp)
-    const now = new Date()
-    const diff = now - date
-    
-    if (diff < 60000) return '刚刚'
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
-    
-    return date.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  // 获取反应总数
-  const getTotalReactions = (comment) => {
-    const reactions = ['likes', 'fires', 'hearts', 'laughs', 'wows']
-    return reactions.reduce((total, reaction) => {
-      const count = comment[reaction]
-      return total + (typeof count === 'object' ? 0 : (count || 0))
-    }, 0)
-  }
+  const totalReactions = (c) =>
+    ['likes', 'fires', 'hearts', 'laughs', 'wows'].reduce(
+      (sum, k) => sum + (typeof c[k] === 'number' ? c[k] : 0), 0
+    )
 
   if (loading) {
     return (
-      <Card className="bg-gray-800 border-gray-600">
-        <CardContent className="p-8">
-          <div className="flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-gray-600 border-t-white rounded-full animate-spin"></div>
-            <span className="ml-3 text-white">加载评论中...</span>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center py-16">
+        <div className="flex items-center gap-3 text-zinc-400">
+          <div className="w-5 h-5 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin" />
+          <span className="text-sm">Loading comments...</span>
+        </div>
+      </div>
     )
   }
 
   return (
-    <Card className="bg-gray-800 border-gray-600">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-white flex items-center">
-            <MessageSquare className="w-5 h-5 mr-2" />
-            评论管理 ({comments.length})
-          </CardTitle>
-          <Button
-            onClick={fetchComments}
-            className="bg-white text-black hover:bg-gray-200"
-          >
-            刷新
-          </Button>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-white">Comments</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">{comments.length} comment{comments.length !== 1 ? 's' : ''}</p>
         </div>
-      </CardHeader>
-      <CardContent>
-        {comments.length === 0 ? (
-          <div className="text-center py-8">
-            <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-            <p className="text-gray-400">暂无评论</p>
+        <button
+          onClick={fetchComments}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-zinc-400 hover:text-white hover:border-white/20 text-sm transition-colors"
+        >
+          <RefreshCw className="w-3.5 h-3.5" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Empty state */}
+      {comments.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-white/10 bg-white/[0.02]">
+          <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
+            <MessageSquare className="w-5 h-5 text-zinc-500" />
           </div>
-        ) : (
-          <div className="space-y-4">
-            {comments.map((comment, index) => (
-              <motion.div
-                key={comment.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-                className="bg-gray-700/50 border border-gray-600 rounded-lg p-4 hover:bg-gray-700/70 transition-all duration-200"
-              >
-                {editingComment === comment.id ? (
-                  <div className="space-y-3">
-                    <Textarea
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      className="bg-gray-800 text-white border-gray-600 focus:border-gray-500"
-                      rows={3}
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleSaveEdit}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        size="sm"
+          <p className="text-sm font-medium text-white mb-1">No comments yet</p>
+          <p className="text-xs text-zinc-500">Comments from visitors will appear here</p>
+        </div>
+      )}
+
+      {/* Comment list */}
+      {comments.length > 0 && (
+        <div className="space-y-2">
+          {comments.map((comment, index) => (
+            <motion.div
+              key={comment.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: index * 0.04 }}
+              className="rounded-xl border border-white/5 bg-zinc-900 p-4 hover:border-white/10 transition-colors"
+            >
+              {editingComment === comment.id ? (
+                <div className="space-y-3">
+                  <Textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className="bg-zinc-800 text-white border-white/10 focus:border-indigo-500/50 resize-none text-sm"
+                    rows={3}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveEdit}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium transition-colors"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Save
+                    </button>
+                    <button
+                      onClick={() => { setEditingComment(null); setEditText('') }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 text-zinc-400 hover:text-white text-xs transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <p className="text-sm text-zinc-200 leading-relaxed flex-1">{comment.text}</p>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => { setEditingComment(comment.id); setEditText(comment.text) }}
+                        className="p-1.5 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
                       >
-                        保存
-                      </Button>
-                      <Button
-                        onClick={handleCancelEdit}
-                        variant="outline"
-                        className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
-                        size="sm"
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(comment.id)}
+                        className="p-1.5 rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                       >
-                        取消
-                      </Button>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="flex items-start justify-between mb-3">
-                      <p className="text-white text-sm leading-relaxed flex-1 mr-4">
-                        {comment.text}
-                      </p>
-                      <div className="flex gap-1">
-                        <Button
-                          onClick={() => handleStartEdit(comment)}
-                          variant="ghost"
-                          size="sm"
-                          className="text-gray-400 hover:text-white hover:bg-gray-600"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          onClick={() => handleDeleteComment(comment.id)}
-                          variant="ghost"
-                          size="sm"
-                          className="text-gray-400 hover:text-red-400 hover:bg-gray-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-zinc-600">{formatTime(comment.timestamp)}</span>
+
+                      {totalReactions(comment) > 0 && (
+                        <div className="flex items-center gap-2">
+                          {Object.entries(reactionIcons).map(([key, { icon: Icon, color }]) => {
+                            const count = comment[key]
+                            if (!count || count === 0) return null
+                            return (
+                              <span key={key} className={`flex items-center gap-1 text-xs ${color}`}>
+                                <Icon className="w-3 h-3" />
+                                {count}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <span className="text-gray-400 text-xs">
-                          {formatTime(comment.timestamp)}
-                        </span>
-                        
-                        {getTotalReactions(comment) > 0 && (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="bg-gray-600 text-gray-300">
-                              <ThumbsUp className="w-3 h-3 mr-1" />
-                              {comment.likes || 0}
-                            </Badge>
-                            <Badge variant="secondary" className="bg-gray-600 text-gray-300">
-                              <Flame className="w-3 h-3 mr-1" />
-                              {comment.fires || 0}
-                            </Badge>
-                            <Badge variant="secondary" className="bg-gray-600 text-gray-300">
-                              <Heart className="w-3 h-3 mr-1" />
-                              {comment.hearts || 0}
-                            </Badge>
-                            <Badge variant="secondary" className="bg-gray-600 text-gray-300">
-                              <Laugh className="w-3 h-3 mr-1" />
-                              {comment.laughs || 0}
-                            </Badge>
-                            <Badge variant="secondary" className="bg-gray-600 text-gray-300">
-                              <Eye className="w-3 h-3 mr-1" />
-                              {comment.wows || 0}
-                            </Badge>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <Badge variant="outline" className="border-gray-500 text-gray-400">
-                        ID: {comment.id.slice(-8)}
-                      </Badge>
-                    </div>
-                  </>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+                    <span className="text-[10px] font-mono text-zinc-700">
+                      {comment.id.slice(-8)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
