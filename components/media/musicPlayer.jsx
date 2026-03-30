@@ -9,10 +9,12 @@ import { useState, useEffect, useRef } from 'react'
 import { useTracks } from '@/hooks/useTracks'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { useVolume } from '@/hooks/useVolume'
+import { useLyrics } from '@/hooks/useLyrics'
 import TrackInfo from './musicPlayer/TrackInfo'
 import PlayerControls from './musicPlayer/PlayerControls'
 import ProgressBar from './musicPlayer/ProgressBar'
 import VolumeControl from './musicPlayer/VolumeControl'
+import LyricsDisplay from './musicPlayer/LyricsDisplay'
 
 export default function MusicPlayer() {
   const { tracks, loading } = useTracks()
@@ -40,6 +42,9 @@ export default function MusicPlayer() {
 
   const { volume, isMuted, changeVolume, toggleMute, initializeWebAudio, updateVolume } =
     useVolume()
+
+  const currentTrackForLyrics = tracks?.[currentTrackIndex] ?? null
+  const { lyrics } = useLyrics(currentTrackForLyrics)
 
   // 初始化 Web Audio API
   useEffect(() => {
@@ -163,11 +168,10 @@ export default function MusicPlayer() {
 
   const currentTrack = tracks[currentTrackIndex]
 
+  const hasLyrics = lyrics && lyrics.length > 0
+
   return (
-    <div
-      className="flex flex-col items-center justify-center mt-4 w-full"
-      style={{ height: '400px' }}
-    >
+    <div className="flex flex-col items-center justify-center mt-4 w-full">
       {currentTrack?.src && (
         <audio
           ref={audioRef}
@@ -189,11 +193,14 @@ export default function MusicPlayer() {
         />
       )}
 
-      <div
-        className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white"
-        style={{ height: '300px' }}
-      >
+      <div className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white">
         <TrackInfo track={currentTrack} />
+
+        {hasLyrics && (
+          <div className="w-full mt-3 mb-4">
+            <LyricsDisplay lyrics={lyrics} currentTime={currentTime} />
+          </div>
+        )}
 
         <PlayerControls
           isPlaying={isPlaying}

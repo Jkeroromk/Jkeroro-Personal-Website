@@ -1,20 +1,20 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import FileUpload from '@/components/ui/FileUpload'
 
-const MusicEditModal = ({ 
-  editingItem, 
-  formData, 
-  setFormData, 
-  onClose, 
+const MusicEditModal = ({
+  editingItem,
+  formData,
+  setFormData,
+  onClose,
   onSave,
   uploadedFile,
-  setUploadedFile 
+  setUploadedFile
 }) => {
   if (!editingItem) return null
 
@@ -56,7 +56,7 @@ const MusicEditModal = ({
               }}
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Track Title *
@@ -69,7 +69,7 @@ const MusicEditModal = ({
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Artist Name *
@@ -82,7 +82,7 @@ const MusicEditModal = ({
               required
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Audio Source (or manual path)

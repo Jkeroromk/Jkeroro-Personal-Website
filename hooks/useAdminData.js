@@ -32,7 +32,7 @@ export const useAdminData = () => {
     cropSize: 100,
     imageOffsetX: 0,
     imageOffsetY: 0,
-    scale: 1
+    scale: 1,
   })
 
   // 触发音乐数据变化事件的辅助函数
@@ -454,7 +454,7 @@ export const useAdminData = () => {
         cropSize: 100,
         imageOffsetX: 0,
         imageOffsetY: 0,
-        scale: 1
+        scale: 1,
       })
       setEditingItem(null)
       setUploadedFile(null)
@@ -545,7 +545,7 @@ export const useAdminData = () => {
         cropSize: 100,
         imageOffsetX: 0,
         imageOffsetY: 0,
-        scale: 1
+        scale: 1,
       })
     } else if (type === 'project') {
       setFormData({
