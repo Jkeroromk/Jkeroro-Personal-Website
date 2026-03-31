@@ -1,7 +1,8 @@
+// SSE 流式进度：边处理边推送进度到客户端
+// yt-dlp 提取 URL → 流式下载 → 上传到 Supabase Storage
+
 import { NextRequest, NextResponse } from 'next/server'
 import ytDlp from 'yt-dlp-exec'
-import { prisma } from '@/lib/prisma'
-import { createServerClient } from '@/supabase'
 
 export const maxDuration = 60
 
@@ -30,86 +31,130 @@ function parseVideoTitle(videoTitle: string, channelName: string) {
 }
 
 export async function POST(request: NextRequest) {
+  let videoId: string | null = null
   try {
-    const { url } = await request.json()
-    const videoId = url ? extractVideoId(url) : null
-    if (!videoId) {
-      return NextResponse.json({ error: '请输入有效的 YouTube 链接' }, { status: 400 })
-    }
-
-    // Use clean URL to avoid playlist params
-    const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
-
-    // 1. Get metadata via YouTube oEmbed
-    const oembedRes = await fetch(
-      `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
-    )
-    if (!oembedRes.ok) {
-      return NextResponse.json({ error: '无法获取视频信息，请检查链接是否有效' }, { status: 400 })
-    }
-    const oembed = await oembedRes.json()
-    const { title, artist } = parseVideoTitle(oembed.title, oembed.author_name)
-
-    // 2. Use yt-dlp to get the best audio stream URL (no ffmpeg needed, no temp file)
-    const info = await ytDlp(cleanUrl, {
-      dumpSingleJson: true,
-      format: 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio',
-      noPlaylist: true,
-      noCheckCertificate: true,
-    }) as { url: string; ext: string; http_headers?: Record<string, string> }
-
-    const audioUrl: string = info.url
-    const ext: string = info.ext || 'm4a'
-
-    if (!audioUrl) {
-      return NextResponse.json({ error: '未获取到音频地址' }, { status: 500 })
-    }
-
-    // 3. Download audio (strip Set-Cookie to prevent __cf_bm browser warnings)
-    const audioRes = await fetch(audioUrl, {
-      headers: {
-        'User-Agent': info.http_headers?.['User-Agent'] || 'Mozilla/5.0',
-        'Referer': 'https://www.youtube.com/',
-      },
-      signal: AbortSignal.timeout(45000),
-    })
-    if (!audioRes.ok) {
-      return NextResponse.json({ error: `音频下载失败 (${audioRes.status})` }, { status: 500 })
-    }
-    const audioBuffer = Buffer.from(await audioRes.arrayBuffer())
-
-    // 4. Upload to Supabase
-    const supabase = createServerClient()
-    const fileName = `${Date.now()}-${title.replace(/[^a-zA-Z0-9]/g, '_')}.${ext}`
-    const contentType = ext === 'm4a' ? 'audio/mp4' : 'audio/webm'
-
-    const { error: uploadError } = await supabase.storage
-      .from('audio')
-      .upload(fileName, audioBuffer, { contentType, upsert: false })
-
-    if (uploadError) {
-      return NextResponse.json({ error: `上传失败: ${uploadError.message}` }, { status: 500 })
-    }
-
-    const { data: urlData } = supabase.storage.from('audio').getPublicUrl(fileName)
-
-    // 5. Create track record
-    const maxOrder = await prisma.track.findFirst({ orderBy: { order: 'desc' }, select: { order: true } })
-    const track = await prisma.track.create({
-      data: {
-        title,
-        subtitle: artist,
-        src: urlData.publicUrl,
-        order: (maxOrder?.order ?? -1) + 1,
-      },
-    })
-
-    return NextResponse.json(track)
-  } catch (error) {
-    console.error('YouTube import error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '导入失败，请重试' },
-      { status: 500 }
-    )
+    const body = await request.json()
+    videoId = body.url ? extractVideoId(body.url) : null
+  } catch {
+    return NextResponse.json({ error: '请求格式错误' }, { status: 400 })
   }
+
+  if (!videoId) {
+    return NextResponse.json({ error: '请输入有效的 YouTube 链接' }, { status: 400 })
+  }
+
+  const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
+  const encoder = new TextEncoder()
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: object) => {
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        } catch {}
+      }
+
+      try {
+        // 1. 获取标题
+        send({ progress: 3, message: '获取视频信息...' })
+        const oembedRes = await fetch(
+          `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
+        )
+        if (!oembedRes.ok) throw new Error('无法获取视频信息，请检查链接是否有效')
+        const oembed = await oembedRes.json()
+        const { title, artist } = parseVideoTitle(oembed.title, oembed.author_name)
+
+        // 2. yt-dlp 解析音频 URL
+        send({ progress: 8, message: '解析音频地址...' })
+        const info = await ytDlp(cleanUrl, {
+          dumpSingleJson: true,
+          format: 'bestaudio[ext=webm][abr<=160]/bestaudio[ext=webm]/bestaudio[ext=m4a][abr<=160]/bestaudio[abr<=160]/bestaudio',
+          noPlaylist: true,
+          noCheckCertificate: true,
+        }) as { url: string; ext: string; http_headers?: Record<string, string> }
+
+        if (!info.url) throw new Error('未获取到音频地址')
+        const ext = info.ext || 'webm'
+
+        // 3. 下载音频（同 IP，不会 403）
+        send({ progress: 12, message: '开始下载...' })
+        const audioRes = await fetch(info.url, {
+          headers: {
+            ...(info.http_headers || {}),
+            'Referer': 'https://www.youtube.com/',
+          },
+        })
+        if (!audioRes.ok) throw new Error(`音频下载失败 (${audioRes.status})`)
+
+        const contentLength = parseInt(audioRes.headers.get('content-length') || '0')
+        const chunks: Uint8Array[] = []
+        let downloaded = 0
+        const reader = audioRes.body!.getReader()
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          chunks.push(value)
+          downloaded += value.length
+          const pct = contentLength > 0
+            ? Math.round(12 + (downloaded / contentLength) * 68)  // 12% → 80%
+            : Math.min(12 + Math.floor(downloaded / 80000), 79)
+          send({
+            progress: pct,
+            downloaded,
+            total: contentLength || 0,
+            message: contentLength > 0
+              ? `下载中 ${(downloaded / 1048576).toFixed(1)} / ${(contentLength / 1048576).toFixed(1)} MB`
+              : `下载中 ${(downloaded / 1048576).toFixed(1)} MB...`,
+          })
+        }
+
+        // 4. 上传到 Supabase Storage
+        send({ progress: 82, message: '上传音频...' })
+        const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 60)
+        const fileName = `${Date.now()}-${safeTitle}.${ext}`
+        const contentType = ext === 'm4a' ? 'audio/mp4' : ext === 'webm' ? 'audio/webm' : 'audio/mpeg'
+
+        const totalLen = chunks.reduce((s, c) => s + c.length, 0)
+        const bodyArr = new Uint8Array(totalLen)
+        let off = 0
+        for (const c of chunks) { bodyArr.set(c, off); off += c.length }
+
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+        const uploadRes = await fetch(
+          `${supabaseUrl}/storage/v1/object/audio/${fileName}`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${serviceRoleKey}`,
+              'Content-Type': contentType,
+            },
+            body: bodyArr,
+          }
+        )
+
+        if (!uploadRes.ok) {
+          const err = await uploadRes.json().catch(() => ({})) as { message?: string }
+          throw new Error(`上传失败: ${err.message || uploadRes.status}`)
+        }
+
+        const publicUrl = `${supabaseUrl}/storage/v1/object/public/audio/${fileName}`
+        send({ stage: 'done', progress: 100, publicUrl, title, artist, message: '导入完成！' })
+
+      } catch (error) {
+        send({ stage: 'error', error: error instanceof Error ? error.message : '导入失败' })
+      } finally {
+        controller.close()
+      }
+    },
+  })
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    },
+  })
 }

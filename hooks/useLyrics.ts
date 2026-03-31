@@ -47,6 +47,9 @@ export function useLyrics(track: Track | null) {
       return
     }
 
+    // 切歌时立刻清空旧歌词，防止上一首残留
+    setLyrics(null)
+
     const key = cacheKey(track)
     const cached = lyricsCache.get(key)
 

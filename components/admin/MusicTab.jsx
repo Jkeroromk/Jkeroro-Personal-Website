@@ -2,13 +2,62 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Edit2, Trash2, Music2, Plus, GripVertical, AlertTriangle, Youtube } from 'lucide-react'
+import { Edit2, Trash2, Music2, GripVertical, AlertTriangle, Youtube, AlignLeft } from 'lucide-react'
 import YoutubeImportModal from '@/components/admin/modals/YoutubeImportModal'
+
+const STORAGE_KEY = 'lyrics_offset'
+const STEP = 0.5
+
+function loadAllOffsets() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+
+function saveOffset(trackId, offset) {
+  try {
+    const map = loadAllOffsets()
+    if (offset === 0) delete map[trackId]
+    else map[trackId] = offset
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(map))
+    // notify LyricsDisplay in the player
+    window.dispatchEvent(new Event('storage'))
+  } catch {}
+}
 
 const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) => {
   const [draggedIndex, setDraggedIndex] = React.useState(null)
   const [dragOverIndex, setDragOverIndex] = React.useState(null)
   const [showYoutubeModal, setShowYoutubeModal] = React.useState(false)
+  const [offsets, setOffsets] = React.useState({})
+  const [expandedTrack, setExpandedTrack] = React.useState(null)
+
+  // Load offsets from localStorage on mount
+  React.useEffect(() => {
+    setOffsets(loadAllOffsets())
+  }, [])
+
+  const adjustOffset = (trackId, delta) => {
+    setOffsets(prev => {
+      const current = typeof prev[trackId] === 'number' ? prev[trackId] : 0
+      const next = Math.round((current + delta) * 10) / 10
+      saveOffset(trackId, next)
+      const updated = { ...prev }
+      if (next === 0) delete updated[trackId]
+      else updated[trackId] = next
+      return updated
+    })
+  }
+
+  const resetOffset = (trackId) => {
+    setOffsets(prev => {
+      const updated = { ...prev }
+      delete updated[trackId]
+      saveOffset(trackId, 0)
+      return updated
+    })
+  }
 
   const getFileSizeEstimate = (src) => {
     const fileName = src.split('/').pop() || ''
@@ -73,22 +122,13 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
             {tracks.length} track{tracks.length !== 1 ? 's' : ''} · ~{totalSize.toFixed(1)} MB total
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowYoutubeModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
-          >
-            <Youtube className="w-4 h-4" />
-            YouTube
-          </button>
-          <button
-            onClick={onAdd}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Track
-          </button>
-        </div>
+        <button
+          onClick={() => setShowYoutubeModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+        >
+          <Youtube className="w-4 h-4" />
+          从 YouTube 导入
+        </button>
       </div>
 
       {showYoutubeModal && (
@@ -118,14 +158,7 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
             <Music2 className="w-5 h-5 text-zinc-500" />
           </div>
           <p className="text-sm font-medium text-white mb-1">No tracks yet</p>
-          <p className="text-xs text-zinc-500 mb-4">Upload MP3, WAV, OGG or M4A files</p>
-          <button
-            onClick={onAdd}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add first track
-          </button>
+          <p className="text-xs text-zinc-500 mb-4">使用上方 YouTube 导入按钮添加曲目</p>
         </div>
       ) : (
         <div className="rounded-xl border border-white/5 bg-zinc-900 overflow-hidden">
@@ -139,59 +172,123 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: index * 0.04 }}
-                draggable
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragEnd={handleDragEnd}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, index)}
-                className={[
-                  'flex items-center gap-3 px-4 py-3 group cursor-grab active:cursor-grabbing transition-colors',
-                  index !== tracks.length - 1 ? 'border-b border-white/5' : '',
-                  isDragging  ? 'bg-indigo-500/10 opacity-60' :
-                  isDragOver  ? 'bg-white/5' :
-                                'hover:bg-white/[0.03]',
-                ].join(' ')}
               >
-                {/* Drag handle */}
-                <GripVertical className="w-4 h-4 text-zinc-700 group-hover:text-zinc-500 flex-shrink-0 transition-colors" />
+                {/* Main row */}
+                <div
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragEnd={handleDragEnd}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  className={[
+                    'flex items-center gap-3 px-4 py-3 group cursor-grab active:cursor-grabbing transition-colors',
+                    index !== tracks.length - 1 || expandedTrack === track.id ? 'border-b border-white/5' : '',
+                    isDragging ? 'bg-indigo-500/10 opacity-60' :
+                    isDragOver ? 'bg-white/5' :
+                                 'hover:bg-white/[0.03]',
+                  ].join(' ')}
+                >
+                  <GripVertical className="w-4 h-4 text-zinc-700 group-hover:text-zinc-500 flex-shrink-0 transition-colors" />
 
-                {/* Index */}
-                <span className="w-5 text-center text-xs font-mono text-zinc-600 flex-shrink-0">
-                  {index + 1}
-                </span>
+                  <span className="w-5 text-center text-xs font-mono text-zinc-600 flex-shrink-0">
+                    {index + 1}
+                  </span>
 
-                {/* Icon */}
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                  <Music2 className="w-4 h-4 text-indigo-400" />
-                </div>
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                    <Music2 className="w-4 h-4 text-indigo-400" />
+                  </div>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{track.title}</p>
-                  <p className="text-xs text-zinc-500 truncate">{track.subtitle}</p>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{track.title}</p>
+                    <p className="text-xs text-zinc-500 truncate">{track.subtitle}</p>
+                  </div>
 
-                {/* Size */}
-                <span className="text-xs text-zinc-600 flex-shrink-0 hidden sm:block">
-                  {getFileSizeEstimate(track.src)}
-                </span>
+                  <span className="text-xs text-zinc-600 flex-shrink-0 hidden sm:block">
+                    {getFileSizeEstimate(track.src)}
+                  </span>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => onEdit(track, 'track')}
-                    className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                  {/* Actions */}
+                  <div
+                    className="flex items-center gap-1 flex-shrink-0"
+                    onMouseDown={(e) => e.stopPropagation()}
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => onDelete(track.id, 'track')}
-                    className="p-1.5 rounded-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                    {/* 歌词校准按钮 */}
+                    <button
+                      onClick={() => setExpandedTrack(expandedTrack === track.id ? null : track.id)}
+                      className={`p-1.5 rounded-md transition-colors ${
+                        expandedTrack === track.id
+                          ? 'text-indigo-400 bg-indigo-500/10'
+                          : offsets[track.id]
+                            ? 'text-indigo-400 opacity-100'
+                            : 'text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-zinc-300 hover:bg-white/10'
+                      }`}
+                      title="歌词同步校准"
+                    >
+                      <AlignLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onEdit(track, 'track')}
+                      className="p-1.5 rounded-md text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10 transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => onDelete(track.id, 'track')}
+                      className="p-1.5 rounded-md text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* 歌词校准展开行 */}
+                {expandedTrack === track.id && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="px-4 pb-3 border-t border-white/5 bg-white/[0.02]"
+                  >
+                    <div className="pt-3 flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-medium text-white">歌词同步校准</p>
+                        <p className="text-[10px] text-zinc-500 mt-0.5">
+                          负值 = 歌词提前显示　正值 = 歌词延后显示
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => adjustOffset(track.id, -STEP)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-sm font-medium transition-colors"
+                        >
+                          −
+                        </button>
+                        <button
+                          onClick={() => offsets[track.id] && resetOffset(track.id)}
+                          className={`min-w-[52px] h-7 px-2 rounded-lg text-xs font-mono text-center transition-colors ${
+                            offsets[track.id]
+                              ? 'bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 cursor-pointer'
+                              : 'bg-white/5 text-zinc-600 cursor-default'
+                          }`}
+                          title={offsets[track.id] ? '点击归零' : '无偏移'}
+                        >
+                          {(() => {
+                            const v = offsets[track.id] || 0
+                            return v > 0 ? `+${v}s` : v < 0 ? `${v}s` : '0s'
+                          })()}
+                        </button>
+                        <button
+                          onClick={() => adjustOffset(track.id, STEP)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-sm font-medium transition-colors"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )
           })}

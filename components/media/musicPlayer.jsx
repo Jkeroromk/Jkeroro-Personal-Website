@@ -203,7 +203,7 @@ export default function MusicPlayer() {
 
         {hasLyrics && (
           <div className="w-full mt-3 mb-[52px]">
-            <LyricsDisplay lyrics={lyrics} currentTime={currentTime} loading={lyricsLoading} />
+            <LyricsDisplay lyrics={lyrics} currentTime={currentTime} loading={lyricsLoading} trackId={currentTrack?.id} />
           </div>
         )}
 

@@ -56,17 +56,23 @@ export const useAdminTracks = () => {
     if (!formData.src?.trim()) throw new Error('请上传音频文件')
 
     const isNew = !editingItem || editingItem === 'new'
-    await apiCall(
+    const res = await apiCall(
       isNew ? '/api/media/tracks' : `/api/media/tracks/${editingItem.id}`,
       isNew ? 'POST' : 'PATCH',
       { title: formData.title, subtitle: formData.subtitle, src: formData.src }
     )
-    setTimeout(async () => { await loadTracks(); triggerMusicDataChange() }, 300)
+    const saved = await res.json()
+    if (isNew) {
+      setTracks(prev => [...prev, saved])
+    } else {
+      setTracks(prev => prev.map(t => t.id === saved.id ? saved : t))
+    }
+    triggerMusicDataChange()
   }
 
   const handleDeleteTrack = async (id) => {
     await apiCall(`/api/media/tracks/${id}`, 'DELETE')
-    await loadTracks()
+    setTracks(prev => prev.filter(t => t.id !== id))
     triggerMusicDataChange()
   }
 
