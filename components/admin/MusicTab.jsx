@@ -2,11 +2,13 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Edit2, Trash2, Music2, Plus, GripVertical, AlertTriangle } from 'lucide-react'
+import { Edit2, Trash2, Music2, Plus, GripVertical, AlertTriangle, Youtube } from 'lucide-react'
+import YoutubeImportModal from '@/components/admin/modals/YoutubeImportModal'
 
-const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder }) => {
+const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) => {
   const [draggedIndex, setDraggedIndex] = React.useState(null)
   const [dragOverIndex, setDragOverIndex] = React.useState(null)
+  const [showYoutubeModal, setShowYoutubeModal] = React.useState(false)
 
   const getFileSizeEstimate = (src) => {
     const fileName = src.split('/').pop() || ''
@@ -71,14 +73,33 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder }) => {
             {tracks.length} track{tracks.length !== 1 ? 's' : ''} · ~{totalSize.toFixed(1)} MB total
           </p>
         </div>
-        <button
-          onClick={onAdd}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Track
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowYoutubeModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+          >
+            <Youtube className="w-4 h-4" />
+            YouTube
+          </button>
+          <button
+            onClick={onAdd}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Track
+          </button>
+        </div>
       </div>
+
+      {showYoutubeModal && (
+        <YoutubeImportModal
+          onClose={() => setShowYoutubeModal(false)}
+          onImported={(track) => {
+            setShowYoutubeModal(false)
+            onImported?.(track)
+          }}
+        />
+      )}
 
       {/* Warning */}
       {tracks.length > 8 && (

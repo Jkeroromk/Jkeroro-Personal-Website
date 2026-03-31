@@ -9,7 +9,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useTracks } from '@/hooks/useTracks'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { useVolume } from '@/hooks/useVolume'
-import { useLyrics } from '@/hooks/useLyrics'
+import { useLyrics, prefetchLyrics } from '@/hooks/useLyrics'
 import TrackInfo from './musicPlayer/TrackInfo'
 import PlayerControls from './musicPlayer/PlayerControls'
 import ProgressBar from './musicPlayer/ProgressBar'
@@ -44,7 +44,12 @@ export default function MusicPlayer() {
     useVolume()
 
   const currentTrackForLyrics = tracks?.[currentTrackIndex] ?? null
-  const { lyrics } = useLyrics(currentTrackForLyrics)
+  const { lyrics, loading: lyricsLoading } = useLyrics(currentTrackForLyrics)
+
+  // tracks 加载完后立即预取所有歌词
+  useEffect(() => {
+    if (tracks?.length) prefetchLyrics(tracks)
+  }, [tracks])
 
   // 初始化 Web Audio API
   useEffect(() => {
@@ -168,7 +173,7 @@ export default function MusicPlayer() {
 
   const currentTrack = tracks[currentTrackIndex]
 
-  const hasLyrics = lyrics && lyrics.length > 0
+  const hasLyrics = (lyrics && lyrics.length > 0) || lyricsLoading
 
   return (
     <div className="flex flex-col items-center justify-center mt-4 w-full">
@@ -197,8 +202,8 @@ export default function MusicPlayer() {
         <TrackInfo track={currentTrack} />
 
         {hasLyrics && (
-          <div className="w-full mt-3 mb-4">
-            <LyricsDisplay lyrics={lyrics} currentTime={currentTime} />
+          <div className="w-full mt-3 mb-[52px]">
+            <LyricsDisplay lyrics={lyrics} currentTime={currentTime} loading={lyricsLoading} />
           </div>
         )}
 

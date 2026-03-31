@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // 不打包含 __dirname 路径依赖的 Node 模块（yt-dlp-exec 依赖二进制文件路径）
+  serverExternalPackages: ['yt-dlp-exec'],
+
   // 关闭生产环境源映射，减少打包体积（调试时可临时开启）
   productionBrowserSourceMaps: false,
   
