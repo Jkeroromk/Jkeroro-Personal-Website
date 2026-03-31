@@ -3,7 +3,7 @@ import ytDlp from 'yt-dlp-exec'
 import { prisma } from '@/lib/prisma'
 import { createServerClient } from '@/supabase'
 
-export const maxDuration = 300
+export const maxDuration = 60
 
 function extractVideoId(url: string): string | null {
   const patterns = [
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         'User-Agent': info.http_headers?.['User-Agent'] || 'Mozilla/5.0',
         'Referer': 'https://www.youtube.com/',
       },
-      signal: AbortSignal.timeout(240000),
+      signal: AbortSignal.timeout(45000),
     })
     if (!audioRes.ok) {
       return NextResponse.json({ error: `音频下载失败 (${audioRes.status})` }, { status: 500 })
