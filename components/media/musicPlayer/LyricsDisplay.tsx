@@ -11,13 +11,15 @@ import { LyricLine } from '@/types/api'
 interface LyricsDisplayProps {
   lyrics: LyricLine[]
   currentTime: number
+  loading?: boolean
 }
 
-const CONTAINER_HEIGHT = 96 // px，显示约3行
+const CONTAINER_HEIGHT = 96
 
-export default function LyricsDisplay({ lyrics, currentTime }: LyricsDisplayProps) {
+export default function LyricsDisplay({ lyrics, currentTime, loading }: LyricsDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const activeRef = useRef<HTMLParagraphElement>(null)
+  const justLoadedRef = useRef(false)
 
   const activeIndex = useMemo(() => {
     if (!lyrics || lyrics.length === 0) return -1
@@ -29,15 +31,22 @@ export default function LyricsDisplay({ lyrics, currentTime }: LyricsDisplayProp
     return idx
   }, [lyrics, currentTime])
 
-  // 初始化：第一行居中（scrollTop = 0 时 padding 顶对齐，需要让第一行在中间）
+  // 歌词加载/切换时重置到顶部，并标记跳过下一次滚动
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
+    justLoadedRef.current = true
     container.scrollTop = 0
   }, [lyrics])
 
   // 滚动到当前行居中（只操作容器，不影响页面滚动）
   useEffect(() => {
+    // 歌词刚加载时跳过，避免直接跳到中间位置
+    if (justLoadedRef.current) {
+      justLoadedRef.current = false
+      return
+    }
+    if (activeIndex < 0) return
     const container = containerRef.current
     const active = activeRef.current
     if (!container || !active) return
@@ -47,6 +56,16 @@ export default function LyricsDisplay({ lyrics, currentTime }: LyricsDisplayProp
       activeRect.top - containerRect.top + container.scrollTop - CONTAINER_HEIGHT / 2 + active.clientHeight / 2
     container.scrollTo({ top: offset, behavior: 'smooth' })
   }, [activeIndex])
+
+  if (loading && (!lyrics || lyrics.length === 0)) {
+    return (
+      <div className="w-full flex flex-col items-center gap-2 py-3" style={{ height: `${CONTAINER_HEIGHT}px` }}>
+        {[40, 60, 45].map((w, i) => (
+          <div key={i} className="h-3 rounded-full bg-white/10 animate-pulse" style={{ width: `${w}%` }} />
+        ))}
+      </div>
+    )
+  }
 
   if (!lyrics || lyrics.length === 0) return null
 
@@ -61,7 +80,6 @@ export default function LyricsDisplay({ lyrics, currentTime }: LyricsDisplayProp
       }}
     >
       <style>{`.lyrics-scroll::-webkit-scrollbar { display: none; }`}</style>
-      {/* paddingTop = CONTAINER_HEIGHT/2 让第一行初始居中，paddingBottom 同理让最后一行能滚到中间 */}
       <div className="lyrics-scroll" style={{ paddingTop: `${CONTAINER_HEIGHT / 2}px`, paddingBottom: `${CONTAINER_HEIGHT / 2}px` }}>
         {lyrics.map((line, i) => {
           const isActive = i === activeIndex

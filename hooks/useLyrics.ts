@@ -7,10 +7,33 @@ import { useState, useEffect, useRef } from 'react'
 import { Track, LyricLine } from '@/types/api'
 
 // 模块级缓存，key = "title|||artist"
-const lyricsCache = new Map<string, LyricLine[] | null>()
+// null  = 已查无歌词
+// false = 查询中（防并发重复请求）
+const lyricsCache = new Map<string, LyricLine[] | null | false>()
 
-function cacheKey(track: Track) {
+function cacheKey(track: Pick<Track, 'title' | 'subtitle'>) {
   return `${track.title}|||${track.subtitle}`
+}
+
+async function fetchLyrics(title: string, artist: string): Promise<LyricLine[] | null> {
+  const params = new URLSearchParams({ title, artist })
+  const res = await fetch(`/api/lyrics/search?${params}`)
+  if (!res.ok) throw new Error('fetch_error')
+  const data = await res.json()
+  if (!data.syncedLyrics) return null
+  return parseLrc(data.syncedLyrics)
+}
+
+/** 预取一批歌词（在切歌前提前加载），fire-and-forget */
+export function prefetchLyrics(tracks: Pick<Track, 'title' | 'subtitle'>[]) {
+  for (const track of tracks) {
+    const key = cacheKey(track)
+    if (lyricsCache.has(key)) continue
+    lyricsCache.set(key, false) // 标记加载中
+    fetchLyrics(track.title, track.subtitle)
+      .then(parsed => lyricsCache.set(key, parsed))
+      .catch(() => lyricsCache.delete(key)) // 网络错误时删除，允许重试
+  }
 }
 
 export function useLyrics(track: Track | null) {
@@ -25,43 +48,50 @@ export function useLyrics(track: Track | null) {
     }
 
     const key = cacheKey(track)
+    const cached = lyricsCache.get(key)
 
-    // 命中缓存直接用
-    if (lyricsCache.has(key)) {
-      setLyrics(lyricsCache.get(key) ?? null)
+    // 命中缓存（已有结果或确认无歌词）
+    if (cached !== undefined && cached !== false) {
+      setLyrics(cached)
       return
     }
 
-    // 取消上一次请求
+    // 如果预取已在进行中，轮询等待结果
+    if (cached === false) {
+      let cancelled = false
+      const poll = setInterval(() => {
+        if (cancelled) return
+        const v = lyricsCache.get(key)
+        if (v !== false && v !== undefined) {
+          clearInterval(poll)
+          setLyrics(v ?? null)
+          setLoading(false)
+        }
+      }, 100)
+      setLoading(true)
+      return () => { cancelled = true; clearInterval(poll) }
+    }
+
+    // 未缓存，发起请求
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
+    lyricsCache.set(key, false) // 标记加载中
 
     setLyrics(null)
     setLoading(true)
 
     const params = new URLSearchParams({ title: track.title, artist: track.subtitle })
-
     fetch(`/api/lyrics/search?${params}`, { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error('fetch_error')
-        return res.json()
-      })
-      .then((data) => {
-        if (!data.syncedLyrics) {
-          // 没有歌词（found: false 或只有 plainLyrics）—— 静默处理
-          lyricsCache.set(key, null)
-          setLyrics(null)
-          return
-        }
-        const parsed = parseLrc(data.syncedLyrics)
+      .then(res => { if (!res.ok) throw new Error('fetch_error'); return res.json() })
+      .then(data => {
+        const parsed = data.syncedLyrics ? parseLrc(data.syncedLyrics) : null
         lyricsCache.set(key, parsed)
         setLyrics(parsed)
       })
-      .catch((err) => {
+      .catch(err => {
         if (err.name !== 'AbortError') {
-          // 网络错误或其他异常，缓存 null 避免重复请求
-          lyricsCache.set(key, null)
+          lyricsCache.delete(key) // 网络错误允许重试
           setLyrics(null)
         }
       })
