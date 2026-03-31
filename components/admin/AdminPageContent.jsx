@@ -43,6 +43,7 @@ const AdminPageContent = () => {
     handleImageReorder,
     handleProjectReorder,
     handleAddTrack,
+    handleTrackImported,
   } = useAdminData()
 
   if (loading) {
@@ -100,6 +101,7 @@ const AdminPageContent = () => {
                     onDelete={handleDelete}
                     onAdd={handleAddTrack}
                     onReorder={handleTrackReorder}
+                    onImported={handleTrackImported}
                   />
                 )}
                 {activeTab === 'projects' && (
