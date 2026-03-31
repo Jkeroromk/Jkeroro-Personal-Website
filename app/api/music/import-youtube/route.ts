@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       format: 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio',
       noPlaylist: true,
       noCheckCertificate: true,
-    }) as any
+    }) as { url: string; ext: string; http_headers?: Record<string, string> }
 
     const audioUrl: string = info.url
     const ext: string = info.ext || 'm4a'
