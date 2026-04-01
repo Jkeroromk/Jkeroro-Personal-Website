@@ -1,120 +1,60 @@
 /**
- * 实时数据客户端 - 使用 Server-Sent Events (SSE)
- * 所有数据都通过 SSE 轮询数据库获取更新
+ * 实时数据客户端 - 使用 Supabase Realtime WebSocket
+ * 监听数据库表变更事件，变更时重新拉取对应 API 数据推送给订阅者
  */
+
+import { createClient, RealtimeChannel } from '@supabase/supabase-js'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type EventCallback = (data: any) => void
 
+type SubscribeType = 'images' | 'tracks' | 'projects' | 'comments' | 'view_count'
+
+interface TableConfig {
+  /** 触发刷新的 PostgreSQL 表名（可多个，如 comments + comment_reactions 都触发评论刷新） */
+  dbTables: string[]
+  /** 变更后重新拉取数据的 API 路径 */
+  api: string
+}
+
+const TABLE_CONFIGS: Record<SubscribeType, TableConfig> = {
+  comments: {
+    dbTables: ['comments', 'comment_reactions'],
+    api: '/api/comments',
+  },
+  images: {
+    dbTables: ['images'],
+    api: '/api/media/images',
+  },
+  tracks: {
+    dbTables: ['tracks'],
+    api: '/api/media/tracks',
+  },
+  projects: {
+    dbTables: ['projects'],
+    api: '/api/media/projects',
+  },
+  view_count: {
+    dbTables: ['view_count'],
+    api: '/api/stats/view',
+  },
+}
+
 class RealtimeClient {
-  private eventSource: EventSource | null = null
-  private listeners: Map<string, Set<EventCallback>> = new Map()
-  private reconnectAttempts = 0
-  private maxReconnectAttempts = 5
-  private reconnectDelay = 3000
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private supabase: ReturnType<typeof createClient> | null = null
+  private listeners: Map<SubscribeType, Set<EventCallback>> = new Map()
+  private channels: Map<string, RealtimeChannel> = new Map()
 
   constructor() {
-    if (typeof window === 'undefined') {
-      return
-    }
-  }
+    if (typeof window === 'undefined') return
 
-  /**
-   * 连接到 SSE 服务器
-   */
-  connect() {
-    if (typeof window === 'undefined' || this.eventSource) {
-      return
-    }
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-    try {
-      this.eventSource = new EventSource('/api/realtime')
-
-      this.eventSource.onopen = () => {
-        this.reconnectAttempts = 0
-      }
-
-      this.eventSource.onmessage = (event) => {
-        // 通用消息处理（如果没有特定事件类型）
-        try {
-          const data = JSON.parse(event.data)
-          if (data.type) {
-            this.handleMessage({ type: data.type, data: data.data || data })
-          }
-        } catch {
-          // 静默处理解析错误
-        }
-      }
-
-      this.eventSource.onerror = () => {
-        if (this.eventSource?.readyState === EventSource.CLOSED) {
-          this.reconnect()
-        }
-      }
-
-      // 监听特定事件类型
-      this.eventSource.addEventListener('images', (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data)
-          this.handleMessage({ type: 'images', data })
-        } catch {
-          // 静默处理解析错误
-        }
-      })
-
-      this.eventSource.addEventListener('tracks', (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data)
-          this.handleMessage({ type: 'tracks', data })
-        } catch {
-          // 静默处理解析错误
-        }
-      })
-
-      this.eventSource.addEventListener('projects', (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data)
-          this.handleMessage({ type: 'projects', data })
-        } catch {
-          // 静默处理解析错误
-        }
-      })
-
-      this.eventSource.addEventListener('comments', (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data)
-          this.handleMessage({ type: 'comments', data })
-        } catch {
-          // 静默处理解析错误
-        }
-      })
-
-      this.eventSource.addEventListener('view_count', (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data)
-          this.handleMessage({ type: 'view_count', data })
-        } catch {
-          // 静默处理解析错误
-        }
-      })
-    } catch {
-      // 静默处理连接错误
-    }
-  }
-
-  /**
-   * 处理收到的消息
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private handleMessage(message: { type: string; data?: any }) {
-    const callbacks = this.listeners.get(message.type)
-    if (callbacks) {
-      callbacks.forEach((callback) => {
-        try {
-          callback(message.data)
-        } catch {
-          // 静默处理回调错误
-        }
+    if (url && key) {
+      this.supabase = createClient(url, key, {
+        realtime: { params: { eventsPerSecond: 10 } },
       })
     }
   }
@@ -122,71 +62,123 @@ class RealtimeClient {
   /**
    * 订阅特定类型的数据更新
    */
-  subscribe(type: 'images' | 'tracks' | 'projects' | 'comments' | 'view_count', callback: EventCallback) {
+  subscribe(type: SubscribeType, callback: EventCallback) {
     if (!this.listeners.has(type)) {
       this.listeners.set(type, new Set())
     }
     this.listeners.get(type)!.add(callback)
 
-    // 所有类型都使用 SSE
-    if (!this.eventSource) {
-      this.connect()
-    }
+    // 确保该类型的 Realtime channel 已建立
+    this.ensureChannels(type)
 
-    // 返回取消订阅的函数
-    return () => {
-      this.unsubscribe(type, callback)
+    return () => this.unsubscribe(type, callback)
+  }
+
+  /**
+   * 为指定订阅类型建立 Supabase Realtime channel（如已建立则跳过）
+   */
+  private ensureChannels(type: SubscribeType) {
+    if (!this.supabase) return
+
+    const config = TABLE_CONFIGS[type]
+
+    for (const tableName of config.dbTables) {
+      const channelKey = `${type}:${tableName}`
+      if (this.channels.has(channelKey)) continue
+
+      const channel = this.supabase
+        .channel(`realtime-${channelKey}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: tableName },
+          () => {
+            // 数据库发生变更时，重新拉取对应 API 数据并推送给订阅者
+            this.refetchAndEmit(type)
+          }
+        )
+        .subscribe()
+
+      this.channels.set(channelKey, channel)
     }
+  }
+
+  /**
+   * 拉取 API 数据并推送给该类型的所有订阅者
+   */
+  private async refetchAndEmit(type: SubscribeType) {
+    const config = TABLE_CONFIGS[type]
+
+    try {
+      const res = await fetch(config.api)
+      if (!res.ok) return
+
+      const data = await res.json()
+      this.emit(type, data)
+    } catch {
+      // 静默处理网络错误
+    }
+  }
+
+  /**
+   * 推送数据给订阅者
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private emit(type: SubscribeType, data: any) {
+    const callbacks = this.listeners.get(type)
+    callbacks?.forEach((cb) => {
+      try {
+        cb(data)
+      } catch {
+        // 静默处理回调错误
+      }
+    })
   }
 
   /**
    * 取消订阅
    */
-  unsubscribe(type: string, callback: EventCallback) {
+  unsubscribe(type: SubscribeType, callback: EventCallback) {
     const callbacks = this.listeners.get(type)
-    if (callbacks) {
-      callbacks.delete(callback)
-      if (callbacks.size === 0) {
-        this.listeners.delete(type)
+    if (!callbacks) return
+
+    callbacks.delete(callback)
+
+    // 如果该类型已无订阅者，清理 channel
+    if (callbacks.size === 0) {
+      this.listeners.delete(type)
+      const config = TABLE_CONFIGS[type]
+
+      for (const tableName of config.dbTables) {
+        const channelKey = `${type}:${tableName}`
+        const channel = this.channels.get(channelKey)
+        if (channel && this.supabase) {
+          this.supabase.removeChannel(channel)
+          this.channels.delete(channelKey)
+        }
       }
     }
   }
 
   /**
-   * 重新连接
-   */
-  private reconnect() {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      return
-    }
-
-    this.disconnect()
-    this.reconnectAttempts++
-
-    setTimeout(() => {
-      this.connect()
-    }, this.reconnectDelay)
-  }
-
-  /**
-   * 断开连接
+   * 断开所有 channel（兼容旧接口）
    */
   disconnect() {
-    if (this.eventSource) {
-      this.eventSource.close()
-      this.eventSource = null
+    if (this.supabase) {
+      this.channels.forEach((channel) => this.supabase!.removeChannel(channel))
+      this.channels.clear()
     }
+    this.listeners.clear()
   }
 
-  /**
-   * 检查连接状态
-   */
+  /** 兼容旧接口 */
+  connect() {}
+
   isConnected(): boolean {
-    return this.eventSource?.readyState === EventSource.OPEN
+    return this.supabase !== null
   }
 }
 
-// 单例模式
+// 单例
 let instance: RealtimeClient | null = null
 
 export function getRealtimeClient(): RealtimeClient {
@@ -202,4 +194,3 @@ export function getRealtimeClient(): RealtimeClient {
 }
 
 export default getRealtimeClient
-

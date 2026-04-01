@@ -123,7 +123,7 @@ export default function MusicPlayer() {
       />
 
       <div
-        className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white"
+        className="flex flex-col items-center backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl p-6 rounded-2xl w-72 text-white"
         style={{ height: '300px' }}
       >
         <TrackInfo track={currentTrack} />

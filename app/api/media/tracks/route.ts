@@ -51,7 +51,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { title, subtitle, src, order } = body
+    const { title, subtitle, src, cover, order } = body
 
     if (!title || !subtitle || !src) {
       return NextResponse.json(
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
         title,
         subtitle,
         src,
+        ...(cover !== undefined && { cover: cover || null }),
         order: finalOrder,
       },
     })

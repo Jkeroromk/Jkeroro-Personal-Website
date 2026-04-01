@@ -17,8 +17,40 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Jkeroro",
-  description: "Jkeroro - Unlock your productivity with AI, 3D creativity, and personal brand projects.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://jkeroro.vercel.app'),
+  title: {
+    default: "Jkeroro",
+    template: "%s | Jkeroro",
+  },
+  description: "Jkeroro — AI, 3D creativity, and personal projects. Welcome to my cozy corner of the internet.",
+  keywords: ["Jkeroro", "personal website", "AI", "3D", "portfolio", "developer", "music"],
+  authors: [{ name: "Jkeroro" }],
+  creator: "Jkeroro",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "Jkeroro",
+    title: "Jkeroro — Cozy Corner",
+    description: "AI, 3D creativity, and personal projects. Welcome to my cozy corner.",
+    images: [
+      {
+        url: "/pfp.webp",
+        width: 800,
+        height: 800,
+        alt: "Jkeroro",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Jkeroro",
+    description: "AI, 3D creativity, and personal projects.",
+    images: ["/pfp.webp"],
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/192.png",
+  },
 };
 
 export default function RootLayout({

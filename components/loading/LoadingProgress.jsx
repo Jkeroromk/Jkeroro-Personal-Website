@@ -1,138 +1,161 @@
 'use client'
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { motion } from 'framer-motion'
 
+const CIRCUMFERENCE = 2 * Math.PI * 44 // r=44
+
+// 静态粒子数据（固定种子，避免 hydration 不一致）
+const PARTICLES = Array.from({ length: 18 }, (_, i) => ({
+  id: i,
+  cx: 50 + 42 * Math.cos((i / 18) * Math.PI * 2),
+  cy: 50 + 42 * Math.sin((i / 18) * Math.PI * 2),
+  r: 1 + (i % 3) * 0.6,
+  delay: i * 0.12,
+}))
+
 const LoadingProgress = ({ progress, isFadingOut, loadingDescription }) => {
+  const dashOffset = useMemo(
+    () => CIRCUMFERENCE * (1 - Math.min(progress, 100) / 100),
+    [progress]
+  )
+
   return (
     <motion.div
       initial={{ opacity: 1 }}
       animate={{ opacity: isFadingOut ? 0 : 1 }}
-      transition={{ duration: 0.8, ease: "easeInOut" }}
-      className="fixed inset-0 bg-black flex items-center justify-center z-40"
+      transition={{ duration: 0.8, ease: 'easeInOut' }}
+      className="fixed inset-0 bg-black flex items-center justify-center z-40 overflow-hidden"
     >
+
       <motion.div
         initial={{ scale: 1 }}
-        animate={{ scale: isFadingOut ? 0.95 : 1 }}
-        transition={{ duration: 0.8, ease: "easeInOut" }}
-        className="text-center"
+        animate={{ scale: isFadingOut ? 0.92 : 1 }}
+        transition={{ duration: 0.8, ease: 'easeInOut' }}
+        className="relative flex flex-col items-center"
       >
-        <motion.h1 
-          className="text-4xl font-bold text-white mb-4"
+        {/* 圆形进度环 */}
+        <div className="relative w-40 h-40 mb-6">
+          <svg
+            viewBox="0 0 100 100"
+            className="w-full h-full -rotate-90"
+            aria-hidden="true"
+          >
+            {/* 轨道 */}
+            <circle
+              cx="50"
+              cy="50"
+              r="44"
+              fill="none"
+              stroke="rgba(255,255,255,0.07)"
+              strokeWidth="3"
+            />
+
+            {/* 进度弧 */}
+            <motion.circle
+              cx="50"
+              cy="50"
+              r="44"
+              fill="none"
+              stroke="white"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={CIRCUMFERENCE}
+              initial={{ strokeDashoffset: CIRCUMFERENCE }}
+              animate={{ strokeDashoffset: dashOffset }}
+              transition={{ duration: 1.0, ease: 'easeOut' }}
+            />
+
+            {/* 粒子点 */}
+            {PARTICLES.map((p) => (
+              <motion.circle
+                key={p.id}
+                cx={p.cx}
+                cy={p.cy}
+                r={p.r}
+                fill="rgba(255,255,255,0.25)"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.6, 0] }}
+                transition={{
+                  duration: 2.4,
+                  delay: p.delay,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                }}
+              />
+            ))}
+
+          </svg>
+
+          {/* 中心百分比 */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <motion.span
+              key={Math.round(progress)}
+              initial={{ scale: 1.15, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              className="text-2xl font-bold text-white font-mono leading-none"
+            >
+              {Math.round(progress)}
+            </motion.span>
+            <span className="text-white/40 text-xs mt-0.5 font-mono">%</span>
+          </div>
+        </div>
+
+        {/* 标题 — 字母逐一浮入 */}
+        <motion.h1
+          className="text-4xl font-bold text-white mb-3 tracking-wide"
           initial={{ y: 0 }}
           animate={{ y: isFadingOut ? -20 : 0 }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
+          transition={{ duration: 0.8, ease: 'easeInOut' }}
         >
-          {['J', 'k', 'e', 'r', 'o', 'r', 'o'].map((letter, index) => (
-            <motion.span 
-              key={index}
+          {['J', 'k', 'e', 'r', 'o', 'r', 'o'].map((letter, i) => (
+            <motion.span
+              key={i}
               className="inline-block"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ 
-                opacity: 1, 
-                y: 0,
-                y: [0, -15, 0]
+              initial={{ opacity: 0, y: 16 }}
+              animate={{
+                opacity: 1,
+                y: [0, -12, 0],
               }}
-              transition={{ 
-                duration: 0.5, 
-                delay: 0.2 + index * 0.1,
+              transition={{
+                opacity: { duration: 0.4, delay: 0.15 + i * 0.08 },
                 y: {
-                  duration: 1.5,
+                  duration: 1.8,
                   repeat: Infinity,
-                  repeatType: "reverse",
-                  ease: "easeInOut",
-                  delay: 1.5 + index * 0.2
-                }
+                  repeatType: 'reverse',
+                  ease: 'easeInOut',
+                  delay: 1.2 + i * 0.15,
+                },
+              }}
+              style={{
+                textShadow: '0 0 20px rgba(255,255,255,0.4)',
               }}
             >
               {letter}
             </motion.span>
           ))}
         </motion.h1>
-        
-        <motion.p 
-          className="text-white/80 text-lg mb-2"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: isFadingOut ? 0 : 1 }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
+
+        {/* 副标题 */}
+        <motion.p
+          className="text-white/60 text-sm mb-1 tracking-widest uppercase"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isFadingOut ? 0 : 0.6 }}
+          transition={{ duration: 1, delay: 0.8 }}
         >
           Welcome to my Cozy Place
         </motion.p>
-        
-        <motion.div 
-          className="text-white/50 text-sm mb-4"
+
+        {/* 加载描述 */}
+        <motion.div
+          className="text-white/40 text-xs mt-3 text-center"
           initial={{ opacity: 1 }}
           animate={{ opacity: isFadingOut ? 0 : 1 }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
+          transition={{ duration: 0.8 }}
         >
-          <div className="mb-1">{loadingDescription.en}</div>
-          <div className="text-xs">{loadingDescription.zh}</div>
-        </motion.div>
-        
-        <motion.div 
-          className="w-64 mx-auto mb-4"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: isFadingOut ? 0 : 1 }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
-        >
-          <div className="w-full h-2 bg-gray-800 rounded-full overflow-hidden relative">
-            {/* 背景渐变 */}
-            <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 rounded-full" />
-            
-            {/* 进度条主体 */}
-            <motion.div 
-              className="h-full bg-gradient-to-r from-white via-gray-200 to-white rounded-full relative overflow-hidden"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 1.2, ease: "easeOut" }}
-            >
-              {/* 动态光效 */}
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                animate={{
-                  x: ['-100%', '100%']
-                }}
-                transition={{
-                  duration: 3.5,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-              
-              {/* 脉冲效果 */}
-              <motion.div
-                className="absolute inset-0 bg-white/20"
-                animate={{
-                  opacity: [0.3, 0.8, 0.3]
-                }}
-                transition={{
-                  duration: 2.5,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-            </motion.div>
-            
-            {/* 边框高光 */}
-            <div className="absolute inset-0 border border-gray-600/50 rounded-full" />
-            <div className="absolute inset-0 border border-white/20 rounded-full" />
-          </div>
-        </motion.div>
-        
-        <motion.div 
-          className="text-white/80 text-sm font-mono"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: isFadingOut ? 0 : 1 }}
-          transition={{ duration: 0.8, ease: "easeInOut" }}
-        >
-          <motion.span
-            key={Math.round(progress)}
-            initial={{ scale: 1.2, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          >
-            {Math.round(progress)}%
-          </motion.span>
+          <div className="mb-0.5">{loadingDescription.en}</div>
+          <div className="text-white/25">{loadingDescription.zh}</div>
         </motion.div>
       </motion.div>
     </motion.div>

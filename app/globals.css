@@ -179,6 +179,21 @@ body {
   cursor: auto !important;
 }
 
+/* Hide custom cursor on touch/mobile devices */
+@media (hover: none) and (pointer: coarse) {
+  .cursor,
+  .circle {
+    display: none !important;
+  }
+  body,
+  html {
+    cursor: auto;
+  }
+  * {
+    cursor: auto !important;
+  }
+}
+
 
 /* 现代化滚动条样式 */
 .modern-scrollbar {

@@ -9,7 +9,7 @@ export async function PATCH(
   const { id } = await params
   try {
     const body = await request.json()
-    const { title, subtitle, src, order } = body
+    const { title, subtitle, src, cover, order } = body
 
     const track = await prisma.track.update({
       where: { id },
@@ -17,6 +17,7 @@ export async function PATCH(
         ...(title && { title }),
         ...(subtitle && { subtitle }),
         ...(src && { src }),
+        ...(cover !== undefined && { cover: cover || null }),
         ...(order !== undefined && { order }),
       },
     })
