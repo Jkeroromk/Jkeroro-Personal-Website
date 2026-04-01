@@ -35,6 +35,7 @@ export interface Track {
   title: string
   subtitle: string
   src: string
+  cover?: string | null
   order: number
   createdAt: string
   updatedAt: string

@@ -59,7 +59,7 @@ export const useAdminTracks = () => {
     const res = await apiCall(
       isNew ? '/api/media/tracks' : `/api/media/tracks/${editingItem.id}`,
       isNew ? 'POST' : 'PATCH',
-      { title: formData.title, subtitle: formData.subtitle, src: formData.src }
+      { title: formData.title, subtitle: formData.subtitle, src: formData.src, cover: formData.cover || null }
     )
     const saved = await res.json()
     if (isNew) {

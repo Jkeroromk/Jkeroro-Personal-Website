@@ -94,6 +94,48 @@ const MusicEditModal = ({
               className="bg-gray-800 border-gray-600 text-white"
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Cover Image
+            </label>
+            <FileUpload
+              type="image"
+              onFileSelect={(file, filePath) => {
+                setFormData({...formData, cover: filePath || `/uploads/${file.name}`})
+              }}
+            />
+            {formData.cover && (
+              <div className="mt-2 flex items-center gap-2">
+                <img
+                  src={formData.cover}
+                  alt="cover preview"
+                  className="w-10 h-10 rounded object-cover border border-gray-600"
+                />
+                <Input
+                  value={formData.cover}
+                  onChange={(e) => setFormData({...formData, cover: e.target.value})}
+                  placeholder="Cover image URL"
+                  className="bg-gray-800 border-gray-600 text-white text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => setFormData({...formData, cover: ''})}
+                  className="text-gray-400 hover:text-red-400 text-xs whitespace-nowrap"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            {!formData.cover && (
+              <Input
+                value={formData.cover}
+                onChange={(e) => setFormData({...formData, cover: e.target.value})}
+                placeholder="Or paste cover image URL"
+                className="bg-gray-800 border-gray-600 text-white mt-2"
+              />
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-6">

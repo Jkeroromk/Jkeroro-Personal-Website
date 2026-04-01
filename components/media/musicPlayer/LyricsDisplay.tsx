@@ -1,6 +1,7 @@
 /**
  * LyricsDisplay Component
  * 歌词同步显示组件（支持手动 offset 校准）
+ * 无歌词时展示专辑封面占位
  */
 
 'use client'
@@ -13,6 +14,8 @@ interface LyricsDisplayProps {
   currentTime: number
   loading?: boolean
   trackId?: string
+  trackTitle?: string
+  trackArtist?: string
 }
 
 const CONTAINER_HEIGHT = 96
@@ -29,30 +32,33 @@ function loadOffset(trackId: string): number {
   }
 }
 
-export default function LyricsDisplay({ lyrics, currentTime, loading, trackId }: LyricsDisplayProps) {
+export default function LyricsDisplay({
+  lyrics,
+  currentTime,
+  loading,
+  trackId,
+  trackTitle = '',
+  trackArtist = '',
+}: LyricsDisplayProps) {
   const lineRefs       = useRef<(HTMLParagraphElement | null)[]>([])
   const currentTimeRef = useRef(currentTime)
   const blockUntilRef  = useRef<number>(0)
-  const [offset, setOffset]       = useState(0)
+  const [offset, setOffset]         = useState(0)
   const [translateY, setTranslateY] = useState(CONTAINER_HEIGHT / 2)
 
-  // 实时更新 currentTimeRef（不触发 effect）
   useEffect(() => { currentTimeRef.current = currentTime }, [currentTime])
 
-  // 从 localStorage 读取 offset
   useEffect(() => {
     if (!trackId) { setOffset(0); return }
     setOffset(loadOffset(trackId))
   }, [trackId])
 
-  // admin 面板更新时同步
   useEffect(() => {
     const handler = () => { if (trackId) setOffset(loadOffset(trackId)) }
     window.addEventListener('storage', handler)
     return () => window.removeEventListener('storage', handler)
   }, [trackId])
 
-  // 当前高亮行（用 offset 调整）
   const activeIndex = useMemo(() => {
     if (!lyrics || lyrics.length === 0) return -1
     const t = currentTime - offset
@@ -64,9 +70,8 @@ export default function LyricsDisplay({ lyrics, currentTime, loading, trackId }:
     return idx
   }, [lyrics, currentTime, offset])
 
-  // 歌词加载/切换：若从头开始，锁定 2 秒不滚动
   useEffect(() => {
-    setTranslateY(CONTAINER_HEIGHT / 2) // 重置到顶部
+    setTranslateY(CONTAINER_HEIGHT / 2)
     if (currentTimeRef.current < 5) {
       blockUntilRef.current = Date.now() + 2000
     } else {
@@ -74,7 +79,6 @@ export default function LyricsDisplay({ lyrics, currentTime, loading, trackId }:
     }
   }, [lyrics])
 
-  // 用 transform 滚到当前行居中（用户无法手动干预）
   useEffect(() => {
     if (blockUntilRef.current > 0) {
       if (Date.now() < blockUntilRef.current) return
@@ -90,6 +94,7 @@ export default function LyricsDisplay({ lyrics, currentTime, loading, trackId }:
     setTranslateY(CONTAINER_HEIGHT / 2 - lineCenter)
   }, [activeIndex])
 
+  // ── 加载中 ──────────────────────────────────────────────
   if (loading && (!lyrics || lyrics.length === 0)) {
     return (
       <div className="w-full flex flex-col items-center gap-2 py-3" style={{ height: `${CONTAINER_HEIGHT}px` }}>
@@ -100,8 +105,58 @@ export default function LyricsDisplay({ lyrics, currentTime, loading, trackId }:
     )
   }
 
-  if (!lyrics || lyrics.length === 0) return null
+  // ── 无歌词：均衡器动画 ──────────────────────────────────
+  if (!lyrics || lyrics.length === 0) {
+    const bars = [
+      { height: 32, duration: 0.85, delay: 0.00 },
+      { height: 48, duration: 0.72, delay: 0.12 },
+      { height: 24, duration: 0.95, delay: 0.07 },
+      { height: 56, duration: 0.68, delay: 0.20 },
+      { height: 36, duration: 0.80, delay: 0.04 },
+      { height: 44, duration: 0.90, delay: 0.16 },
+      { height: 28, duration: 0.75, delay: 0.09 },
+    ]
+    return (
+      <div
+        className="w-full flex items-center gap-5 px-2"
+        style={{ height: `${CONTAINER_HEIGHT}px` }}
+      >
+        <style>{`
+          @keyframes eq-bounce {
+            0%, 100% { transform: scaleY(0.15); }
+            50%       { transform: scaleY(1); }
+          }
+        `}</style>
 
+        {/* 均衡器柱 */}
+        <div className="flex items-end gap-[3px] flex-shrink-0" style={{ height: '56px' }}>
+          {bars.map((bar, i) => (
+            <div
+              key={i}
+              className="w-[5px] rounded-full bg-white/40"
+              style={{
+                height: `${bar.height}px`,
+                transformOrigin: 'bottom',
+                animation: `eq-bounce ${bar.duration}s ease-in-out ${bar.delay}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* 曲目信息 */}
+        <div className="flex flex-col justify-center min-w-0">
+          <p className="text-white/70 text-sm font-medium truncate leading-tight">
+            {trackTitle || 'Unknown Title'}
+          </p>
+          {trackArtist && (
+            <p className="text-white/35 text-xs truncate mt-0.5">{trackArtist}</p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── 歌词正文 ────────────────────────────────────────────
   return (
     <div
       className="w-full overflow-hidden relative"

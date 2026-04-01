@@ -13,29 +13,55 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import { getRealtimeClient } from '@/lib/realtime-client';
 // No longer using Firebase - using API instead
 import { useAuth } from "../../auth";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
 import DataManager from "@/lib/data-manager";
 import Image from "next/image";
 import DonationButton from '@/components/interactive/DonationButton';
 
-// 简单卡片组件
+// 通用模糊占位 dataURL（灰色单像素 JPEG）
+const BLUR_DATA_URL =
+  "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAIBAAAQQCAgMAAAAAAAAAAAAAAQIDBAUREiExQf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwGq2JuQhsO5bMxjKmTKFe7YGfRtW6p0cXhAUHFFKlKJ3wBJJ9mvpSlApSlApSlB//2Q==";
+
+// 简单卡片组件（带鼠标跟踪 3D 倾斜）
 const Card3D = ({ children, className = "", href, target, rel, onMouseEnter, onMouseLeave }) => {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  const rotateX = useTransform(y, [-0.5, 0.5], [10, -10]);
+  const rotateY = useTransform(x, [-0.5, 0.5], [-10, 10]);
+
+  const springRotateX = useSpring(rotateX, { stiffness: 300, damping: 30 });
+  const springRotateY = useSpring(rotateY, { stiffness: 300, damping: 30 });
+
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
+    onMouseEnter?.(e);
+  };
+
+  const handleMouseLeave = (e) => {
+    x.set(0);
+    y.set(0);
+    onMouseLeave?.(e);
+  };
+
   const CardComponent = href ? motion.a : motion.div;
-  
+
   return (
     <CardComponent
       href={href}
       target={target}
       rel={rel}
       className={className}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
       style={{
-        transformOrigin: "center center"
+        rotateX: springRotateX,
+        rotateY: springRotateY,
+        transformStyle: "preserve-3d",
+        transformOrigin: "center center",
       }}
-      whileHover={{
-        transition: { duration: 0.2 }
-      }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
       {children}
     </CardComponent>
@@ -225,6 +251,8 @@ const Tabs = () => {
                               style={{
                                 objectPosition: `${item.cropX ?? 50}% ${item.cropY ?? 50}%`
                               }}
+                              placeholder="blur"
+                              blurDataURL={BLUR_DATA_URL}
                               unoptimized={item.image.startsWith('/api/file/') || item.image.startsWith('https://')}
                             />
                             {/* 渐变遮罩 */}

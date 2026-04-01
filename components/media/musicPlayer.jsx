@@ -173,7 +173,6 @@ export default function MusicPlayer() {
 
   const currentTrack = tracks[currentTrackIndex]
 
-  const hasLyrics = (lyrics && lyrics.length > 0) || lyricsLoading
 
   return (
     <div className="flex flex-col items-center justify-center mt-4 w-full">
@@ -201,11 +200,16 @@ export default function MusicPlayer() {
       <div className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white">
         <TrackInfo track={currentTrack} />
 
-        {hasLyrics && (
-          <div className="w-full mt-3 mb-[52px]">
-            <LyricsDisplay lyrics={lyrics} currentTime={currentTime} loading={lyricsLoading} trackId={currentTrack?.id} />
-          </div>
-        )}
+        <div className="w-full mt-3 mb-[52px]">
+          <LyricsDisplay
+            lyrics={lyrics}
+            currentTime={currentTime}
+            loading={lyricsLoading}
+            trackId={currentTrack?.id}
+            trackTitle={currentTrack?.title}
+            trackArtist={currentTrack?.subtitle}
+          />
+        </div>
 
         <PlayerControls
           isPlaying={isPlaying}

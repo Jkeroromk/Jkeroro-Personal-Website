@@ -181,6 +181,7 @@ const AnniversaryTab = () => {
                     selectedImageIndex={selectedImageIndex}
                     totalImages={backgroundImages.length}
                     onPositionChange={handlePositionUpdate}
+                    onPositionPreview={(x, y) => { setImageOffsetX(x); setImageOffsetY(y) }}
                   />
                 </div>
               )}

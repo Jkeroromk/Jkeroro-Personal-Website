@@ -65,7 +65,8 @@ export function useLyrics(track: Track | null) {
       const poll = setInterval(() => {
         if (cancelled) return
         const v = lyricsCache.get(key)
-        if (v !== false && v !== undefined) {
+        // 只要不是 false（加载中），无论是 null、LyricLine[] 还是 undefined（预取失败被删除）都应停止
+        if (v !== false) {
           clearInterval(poll)
           setLyrics(v ?? null)
           setLoading(false)
@@ -93,8 +94,9 @@ export function useLyrics(track: Track | null) {
         setLyrics(parsed)
       })
       .catch(err => {
+        // 无论是 abort 还是网络错误，都清理 false 标记，保证下次能重新请求
+        lyricsCache.delete(key)
         if (err.name !== 'AbortError') {
-          lyricsCache.delete(key) // 网络错误允许重试
           setLyrics(null)
         }
       })

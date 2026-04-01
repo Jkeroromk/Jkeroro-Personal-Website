@@ -5,7 +5,7 @@ import { useAdminImages } from './admin/useAdminImages'
 import { useAdminProjects } from './admin/useAdminProjects'
 
 const DEFAULT_FORM = {
-  title: '', subtitle: '', src: '', alt: '',
+  title: '', subtitle: '', src: '', alt: '', cover: '',
   width: 550, height: 384,
   description: '', link: '', category: 'personal',
   cropX: 50, cropY: 50, cropSize: 100,
@@ -58,7 +58,7 @@ export const useAdminData = () => {
         imageOffsetY: item.imageOffsetY ?? 50,
       })
     } else if (type === 'track') {
-      setFormData({ ...DEFAULT_FORM, title: item.title, subtitle: item.subtitle, src: item.src })
+      setFormData({ ...DEFAULT_FORM, title: item.title, subtitle: item.subtitle, src: item.src, cover: item.cover || '' })
     } else if (type === 'project') {
       setFormData({
         ...DEFAULT_FORM,
