@@ -1,8 +1,8 @@
 // SSE 流式进度：边处理边推送进度到客户端
-// yt-dlp 提取 URL → 流式下载 → 上传到 Supabase Storage
+// @distube/ytdl-core 提取 URL → 流式下载 → 上传到 Supabase Storage
 
 import { NextRequest, NextResponse } from 'next/server'
-import ytDlp from 'yt-dlp-exec'
+import ytdl from '@distube/ytdl-core'
 
 export const maxDuration = 60
 
@@ -55,32 +55,28 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // 1. 获取标题
+        // 1. 获取视频信息及音频格式
         send({ progress: 3, message: '获取视频信息...' })
-        const oembedRes = await fetch(
-          `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
-        )
-        if (!oembedRes.ok) throw new Error('无法获取视频信息，请检查链接是否有效')
-        const oembed = await oembedRes.json()
-        const { title, artist } = parseVideoTitle(oembed.title, oembed.author_name)
+        const info = await ytdl.getInfo(cleanUrl)
+        const videoTitle = info.videoDetails.title
+        const channelName = info.videoDetails.author?.name ?? ''
+        const { title, artist } = parseVideoTitle(videoTitle, channelName)
 
-        // 2. yt-dlp 解析音频 URL
+        // 2. 选择最佳音频格式
         send({ progress: 8, message: '解析音频地址...' })
-        const info = await ytDlp(cleanUrl, {
-          dumpSingleJson: true,
-          format: 'bestaudio[ext=webm][abr<=160]/bestaudio[ext=webm]/bestaudio[ext=m4a][abr<=160]/bestaudio[abr<=160]/bestaudio',
-          noPlaylist: true,
-          noCheckCertificate: true,
-        }) as { url: string; ext: string; http_headers?: Record<string, string> }
+        const format = ytdl.chooseFormat(info.formats, {
+          quality: 'highestaudio',
+          filter: 'audioonly',
+        })
 
-        if (!info.url) throw new Error('未获取到音频地址')
-        const ext = info.ext || 'webm'
+        if (!format?.url) throw new Error('未获取到音频地址')
+        const ext: string = format.container || 'webm'
 
-        // 3. 下载音频（同 IP，不会 403）
+        // 3. 下载音频
         send({ progress: 12, message: '开始下载...' })
-        const audioRes = await fetch(info.url, {
+        const audioRes = await fetch(format.url, {
           headers: {
-            ...(info.http_headers || {}),
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Referer': 'https://www.youtube.com/',
           },
         })
@@ -113,7 +109,7 @@ export async function POST(request: NextRequest) {
         send({ progress: 82, message: '上传音频...' })
         const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 60)
         const fileName = `${Date.now()}-${safeTitle}.${ext}`
-        const contentType = ext === 'm4a' ? 'audio/mp4' : ext === 'webm' ? 'audio/webm' : 'audio/mpeg'
+        const contentType = ext === 'webm' ? 'audio/webm' : ext === 'mp4' ? 'audio/mp4' : 'audio/mpeg'
 
         const totalLen = chunks.reduce((s, c) => s + c.length, 0)
         const bodyArr = new Uint8Array(totalLen)
