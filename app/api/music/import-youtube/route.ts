@@ -1,8 +1,8 @@
 // SSE 流式进度：边处理边推送进度到客户端
-// @distube/ytdl-core 提取 URL → 流式下载 → 上传到 Supabase Storage
+// youtubei.js (Innertube) 提取 URL → 流式下载 → 上传到 Supabase Storage
 
 import { NextRequest, NextResponse } from 'next/server'
-import ytdl from '@distube/ytdl-core'
+import { Innertube } from 'youtubei.js'
 
 export const maxDuration = 60
 
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '请输入有效的 YouTube 链接' }, { status: 400 })
   }
 
-  const cleanUrl = `https://www.youtube.com/watch?v=${videoId}`
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
@@ -55,28 +54,34 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        // 1. 获取视频信息及音频格式
+        // 1. 获取视频信息（用 ANDROID 客户端获取不加密的直链）
         send({ progress: 3, message: '获取视频信息...' })
-        const info = await ytdl.getInfo(cleanUrl)
-        const videoTitle = info.videoDetails.title
-        const channelName = info.videoDetails.author?.name ?? ''
+        const yt = await Innertube.create({ retrieve_player: false })
+        const info = await yt.getBasicInfo(videoId!, { client: 'ANDROID' })
+
+        const videoTitle = info.basic_info.title ?? ''
+        const channelName = info.basic_info.author ?? ''
         const { title, artist } = parseVideoTitle(videoTitle, channelName)
 
         // 2. 选择最佳音频格式
         send({ progress: 8, message: '解析音频地址...' })
-        const format = ytdl.chooseFormat(info.formats, {
-          quality: 'highestaudio',
-          filter: 'audioonly',
-        })
+        const formats = info.streaming_data?.adaptive_formats ?? []
+        const audioFormats = formats
+          .filter((f) => f.has_audio && !f.has_video)
+          .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0))
 
+        const format = audioFormats[0]
         if (!format?.url) throw new Error('未获取到音频地址')
-        const ext: string = format.container || 'webm'
+
+        const mimeType = format.mime_type ?? 'audio/webm'
+        const ext = mimeType.includes('mp4') ? 'm4a' : 'webm'
+        const contentType = mimeType.split(';')[0]
 
         // 3. 下载音频
         send({ progress: 12, message: '开始下载...' })
         const audioRes = await fetch(format.url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36',
             'Referer': 'https://www.youtube.com/',
           },
         })
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
           chunks.push(value)
           downloaded += value.length
           const pct = contentLength > 0
-            ? Math.round(12 + (downloaded / contentLength) * 68)  // 12% → 80%
+            ? Math.round(12 + (downloaded / contentLength) * 68)
             : Math.min(12 + Math.floor(downloaded / 80000), 79)
           send({
             progress: pct,
@@ -109,7 +114,6 @@ export async function POST(request: NextRequest) {
         send({ progress: 82, message: '上传音频...' })
         const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 60)
         const fileName = `${Date.now()}-${safeTitle}.${ext}`
-        const contentType = ext === 'webm' ? 'audio/webm' : ext === 'mp4' ? 'audio/mp4' : 'audio/mpeg'
 
         const totalLen = chunks.reduce((s, c) => s + c.length, 0)
         const bodyArr = new Uint8Array(totalLen)
