@@ -13,6 +13,7 @@ import { getRealtimeClient } from '@/lib/realtime-client'
 function convertToTrack(musicTrack: MusicTrack): Track {
   return {
     ...musicTrack,
+    lyricsOffset: 0,
     order: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
