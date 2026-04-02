@@ -41,8 +41,9 @@ model Track {
   title     String
   subtitle  String
   src       String
-  cover     String?
-  order     Int      @default(0)
+  cover         String?
+  lyricsOffset  Float    @default(0) @map("lyrics_offset")
+  order         Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

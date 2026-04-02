@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "tracks" ADD COLUMN "lyrics_offset" DOUBLE PRECISION NOT NULL DEFAULT 0;

@@ -4,14 +4,13 @@
  */
 
 import { useState, useCallback, useRef } from 'react'
-import DataManager from '@/lib/data-manager'
 
 export interface LoadingProgress {
   resources: number // 0-40
-  scripts: number // 0-20
-  music: number // 0-20
-  database: number // 0-20
-  total: number // 0-100
+  scripts: number   // 0-20
+  music: number     // 0-20
+  database: number  // 0-20
+  total: number     // 0-100
 }
 
 export function useLoadingStages() {
@@ -22,29 +21,25 @@ export function useLoadingStages() {
     database: 0,
     total: 0,
   })
-  const [musicReady, setMusicReady] = useState(false)
-  const [isCompleted, setIsCompleted] = useState(false)
-  const progressRef = useRef<LoadingProgress>(progress)
+  const [musicReady, setMusicReady]     = useState(false)
+  const [isCompleted, setIsCompleted]   = useState(false)
+
+  // 用 ref 避免 stale closure：updateProgress 不依赖 state，直接读 ref
+  const progressRef    = useRef<Omit<LoadingProgress, 'total'>>({ resources: 0, scripts: 0, music: 0, database: 0 })
+  const musicReadyRef  = useRef(false)
+  const isCompletedRef = useRef(false)
 
   const updateProgress = useCallback(() => {
-    const total = Math.min(
-      100,
-      progressRef.current.resources +
-        progressRef.current.scripts +
-        progressRef.current.music +
-        progressRef.current.database
-    )
+    const { resources, scripts, music, database } = progressRef.current
+    const total = Math.min(100, resources + scripts + music + database)
 
-    setProgress({
-      ...progressRef.current,
-      total,
-    })
+    setProgress({ ...progressRef.current, total })
 
-    // 检查是否完成（需要音乐加载完成）
-    if (total >= 80 && musicReady && !isCompleted) {
+    if (total >= 80 && musicReadyRef.current && !isCompletedRef.current) {
+      isCompletedRef.current = true
       setIsCompleted(true)
     }
-  }, [musicReady, isCompleted])
+  }, [])
 
   const setResourceProgress = useCallback((value: number) => {
     progressRef.current.resources = Math.min(40, Math.max(0, value))
@@ -59,6 +54,7 @@ export function useLoadingStages() {
   const setMusicProgress = useCallback((value: number) => {
     progressRef.current.music = Math.min(20, Math.max(0, value))
     if (value >= 20) {
+      musicReadyRef.current = true
       setMusicReady(true)
     }
     updateProgress()
@@ -79,4 +75,3 @@ export function useLoadingStages() {
     setDatabaseProgress,
   }
 }
-

@@ -73,7 +73,7 @@ const YoutubeImportModal = ({ onClose, onImported }) => {
       const trackRes = await fetch('/api/media/tracks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: importResult.title, subtitle: importResult.artist, src: importResult.publicUrl }),
+        body: JSON.stringify({ title: importResult.title, subtitle: importResult.artist, src: importResult.publicUrl, cover: importResult.cover }),
       })
       const track = await trackRes.json()
       if (!trackRes.ok) throw new Error(track.error || '保存曲目失败')

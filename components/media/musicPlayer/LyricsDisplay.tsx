@@ -1,7 +1,7 @@
 /**
  * LyricsDisplay Component
- * 歌词同步显示组件（支持手动 offset 校准）
- * 无歌词时展示专辑封面占位
+ * 歌词同步显示组件（offset 由父组件传入，存储在数据库）
+ * 无歌词时展示均衡器动画
  */
 
 'use client'
@@ -12,63 +12,37 @@ import { LyricLine } from '@/types/api'
 interface LyricsDisplayProps {
   lyrics: LyricLine[]
   currentTime: number
-  loading?: boolean
-  trackId?: string
+  lyricsOffset?: number
   trackTitle?: string
   trackArtist?: string
 }
 
 const CONTAINER_HEIGHT = 96
-const STORAGE_KEY = 'lyrics_offset'
-
-function loadOffset(trackId: string): number {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return 0
-    const map = JSON.parse(raw)
-    return typeof map[trackId] === 'number' ? map[trackId] : 0
-  } catch {
-    return 0
-  }
-}
 
 export default function LyricsDisplay({
   lyrics,
   currentTime,
-  loading,
-  trackId,
+  lyricsOffset = 0,
   trackTitle = '',
   trackArtist = '',
 }: LyricsDisplayProps) {
   const lineRefs       = useRef<(HTMLParagraphElement | null)[]>([])
   const currentTimeRef = useRef(currentTime)
   const blockUntilRef  = useRef<number>(0)
-  const [offset, setOffset]         = useState(0)
   const [translateY, setTranslateY] = useState(CONTAINER_HEIGHT / 2)
 
   useEffect(() => { currentTimeRef.current = currentTime }, [currentTime])
 
-  useEffect(() => {
-    if (!trackId) { setOffset(0); return }
-    setOffset(loadOffset(trackId))
-  }, [trackId])
-
-  useEffect(() => {
-    const handler = () => { if (trackId) setOffset(loadOffset(trackId)) }
-    window.addEventListener('storage', handler)
-    return () => window.removeEventListener('storage', handler)
-  }, [trackId])
-
   const activeIndex = useMemo(() => {
     if (!lyrics || lyrics.length === 0) return -1
-    const t = currentTime - offset
+    const t = currentTime - lyricsOffset
     let idx = -1
     for (let i = 0; i < lyrics.length; i++) {
       if (lyrics[i].time <= t) idx = i
       else break
     }
     return idx
-  }, [lyrics, currentTime, offset])
+  }, [lyrics, currentTime, lyricsOffset])
 
   useEffect(() => {
     setTranslateY(CONTAINER_HEIGHT / 2)
@@ -94,17 +68,6 @@ export default function LyricsDisplay({
     setTranslateY(CONTAINER_HEIGHT / 2 - lineCenter)
   }, [activeIndex])
 
-  // ── 加载中 ──────────────────────────────────────────────
-  if (loading && (!lyrics || lyrics.length === 0)) {
-    return (
-      <div className="w-full flex flex-col items-center gap-2 py-3" style={{ height: `${CONTAINER_HEIGHT}px` }}>
-        {[40, 60, 45].map((w, i) => (
-          <div key={i} className="h-3 rounded-full bg-white/10 animate-pulse" style={{ width: `${w}%` }} />
-        ))}
-      </div>
-    )
-  }
-
   // ── 无歌词：均衡器动画 ──────────────────────────────────
   if (!lyrics || lyrics.length === 0) {
     const bars = [
@@ -127,8 +90,6 @@ export default function LyricsDisplay({
             50%       { transform: scaleY(1); }
           }
         `}</style>
-
-        {/* 均衡器柱 */}
         <div className="flex items-end gap-[3px] flex-shrink-0" style={{ height: '56px' }}>
           {bars.map((bar, i) => (
             <div
@@ -142,8 +103,6 @@ export default function LyricsDisplay({
             />
           ))}
         </div>
-
-        {/* 曲目信息 */}
         <div className="flex flex-col justify-center min-w-0">
           <p className="text-white/70 text-sm font-medium truncate leading-tight">
             {trackTitle || 'Unknown Title'}

@@ -36,6 +36,7 @@ export interface Track {
   subtitle: string
   src: string
   cover?: string | null
+  lyricsOffset: number
   order: number
   createdAt: string
   updatedAt: string
