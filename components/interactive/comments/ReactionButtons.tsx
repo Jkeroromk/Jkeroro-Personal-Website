@@ -69,7 +69,7 @@ export default function ReactionButtons({
                 title={reaction.type}
               >
                 <span className="text-sm">{reaction.emoji}</span>
-                <span className="text-black font-bold text-xs">{displayCount}</span>
+                <span className="text-white font-bold text-xs">{displayCount}</span>
               </button>
             )
           })}

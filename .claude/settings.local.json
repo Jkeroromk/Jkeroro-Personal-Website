@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr:*)",
+      "Bash(where gh:*)",
+      "Bash(winget list:*)",
+      "Bash(winget install:*)",
+      "Bash(gh auth:*)",
+      "Bash(cmd /c \"gh auth status 2>&1\")",
+      "Bash(cmd /c \"where gh\")",
+      "Bash(cmd /c \"C:\\\\Users\\\\zzou2\\\\AppData\\\\Local\\\\Microsoft\\\\WinGet\\\\Packages\\\\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\\\\gh.exe auth status 2>&1\")",
+      "Bash(powershell -Command \"Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Bash(powershell -Command \"Get-Command gh -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source; \\(Get-Item ''C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe'' -ErrorAction SilentlyContinue\\)?.FullName\")",
+      "Bash(powershell -Command \"Get-ChildItem ''C:\\\\Program Files\\\\GitHub CLI\\\\'' -ErrorAction SilentlyContinue\")",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth status)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" pr list)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" pr merge 6 --squash --delete-branch)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" pr merge 7 --squash --delete-branch)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npx dotenv:*)",
+      "Bash(DIRECT_URL=\"postgresql://postgres:JASON123KEROROa@db.abiovzwxewgabshbkuyh.supabase.co:5432/postgres\" DATABASE_URL=\"prisma://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19vQUlPS2ZYWXdmeDhVTE9DbkNTcjciLCJhcGlfa2V5IjoiMDFLOUpFUVoxOE1ETkNSRFgwOVpDUlpSUEYiLCJ0ZW5hbnRfaWQiOiJiY2I0OTIyNmE4YzVmY2ZkZDdjZWRjNWE2ODRkYjY5M2UyZTc2ZDk3ZmY2NzMxYTI3YzAyOWM3YWZkMjMzNzVlIiwiaW50ZXJuYWxfc2VjcmV0IjoiZGU0Mzc4MmQtN2NlYS00MjkwLTk2MGQtNzIzYWUxMzE4NmI4In0.XcwaSan9WvfNvPAuh6me1dUYU0ZJ8MArIMD6ioTvVHM\" npx prisma migrate resolve --applied \"20260402000000_add_track_cover\")",
+      "Bash(xargs grep:*)",
+      "Bash(git -C /z/Programmming/Jkeroro-Personal-Website log --oneline -20)",
+      "Bash(xargs wc:*)"
+    ]
+  }
+}
