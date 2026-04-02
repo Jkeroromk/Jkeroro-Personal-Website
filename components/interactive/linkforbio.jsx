@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import { useAuth } from "../../auth";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import ViewerStats from "./ViewerStats";
-import CommentSystem from "./CommentSystem";
 import SocialLinks from "./SocialLinks";
 
 const Car = dynamic(() => import("../media/car"), { ssr: false, loading: () => <p>Loading...</p> });
@@ -34,10 +33,6 @@ export default function LinkforBio() {
     <>
       <div className="relative flex flex-col items-center mt-8 mx-4">
         <Car />
-        <div className="absolute top-0 flex gap-[120px] scale-[0.85] sm:gap-80 sm:scale-[1.0] mt-3">
-          <ViewerStats />
-          <CommentSystem />
-        </div>
 
         {/* 个人资料显示 */}
         <div className="absolute bottom-[-45px] flex flex-col gap-y-1 items-center">
@@ -61,6 +56,9 @@ export default function LinkforBio() {
         <h2 className="text-white font-semibold text-sm">
           CN <span className="mx-1">✈️</span> HK <span className="mx-1">✈️</span> US
         </h2>
+        <div className="mt-3">
+          <ViewerStats />
+        </div>
       </div>
 
       {/* Social Links */}

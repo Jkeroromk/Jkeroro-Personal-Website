@@ -1,11 +1,11 @@
 /**
  * NavigationBarAI Component
- * AI助手对话框组件
+ * AI助手对话框组件，支持对话历史持久化
  */
 
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { sseIterator } from '@/lib/ai/sse'
 
 interface Message {
@@ -15,6 +15,11 @@ interface Message {
   timestamp: Date
 }
 
+interface Conversation {
+  id: string
+  name: string
+}
+
 interface NavigationBarAIProps {
   isOpen: boolean
   onClose: () => void
@@ -22,6 +27,39 @@ interface NavigationBarAIProps {
   position: { x: number; y: number }
   onPositionChange: (position: { x: number; y: number }) => void
   onMouseDown: (e: React.MouseEvent, type: string) => void
+}
+
+const SYSTEM_PROMPT = `你是 Jkeroro 的个人网站 AI 助手，代表 Jkeroro 与访客对话。
+
+关于 Jkeroro：
+- 一名热爱创意与技术的前端开发者，专注于构建有温度的交互体验
+- 技术栈：Next.js、React、TypeScript、Tailwind CSS、Three.js、GSAP、Framer Motion
+- 热爱音乐（会在网站上分享自己喜欢的歌曲）、摄影、设计
+- 双语（中文/英文），来自中国
+- 网站功能包括：音乐播放器（带歌词同步）、相册、项目展示、纪念日计时器、实时访客地图等
+- 个人风格：细腻、有美感，追求极致的用户体验细节
+
+你的职责：
+- 热情、简洁地回答关于 Jkeroro 或网站的问题
+- 帮助访客了解网站功能
+- 如果不确定某些私人信息，诚实说不知道，不要编造
+- 如遇技术问题可给出建议，但保持对话轻松
+- 自然切换中英文（跟随用户语言习惯）`
+
+/** 从 localStorage 获取或生成用户 ID */
+function getUserId(): string {
+  try {
+    const stored = localStorage.getItem('ai_user_id')
+    if (stored) return stored
+    const id =
+      Math.random().toString(36).slice(2) +
+      Date.now().toString(36) +
+      Math.random().toString(36).slice(2)
+    localStorage.setItem('ai_user_id', id)
+    return id
+  } catch {
+    return 'anonymous'
+  }
 }
 
 export default function NavigationBarAI({
@@ -35,28 +73,79 @@ export default function NavigationBarAI({
 }: NavigationBarAIProps) {
   const [assistantInput, setAssistantInput] = useState('')
   const [assistantMessages, setAssistantMessages] = useState<Message[]>([])
+  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [activeConversationId, setActiveConversationId] = useState<string>('default')
+  const [conversationMessages, setConversationMessages] = useState<Record<string, Message[]>>({})
   const [isAssistantLoading, setIsAssistantLoading] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const messageIdCounterRef = useRef(1) // 使用计数器而不是 Date.now()，避免潜在问题
-
-  // 初始化欢迎消息
-  useEffect(() => {
-    if (isOpen && assistantMessages.length === 0) {
-      setAssistantMessages([
-        {
-          id: 1,
-          role: 'assistant',
-          content: '你好！我是 Jkeroro 的 AI 助手。有什么可以帮助您的吗？',
-          timestamp: new Date(),
-        },
-      ])
-    }
-  }, [isOpen, assistantMessages.length])
+  const messageIdCounterRef = useRef(1)
 
   // 自动滚动到最新消息
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [assistantMessages])
+
+  /** 保存一条消息到数据库 */
+  const saveMessage = useCallback(async (role: 'user' | 'assistant', content: string, conversationId = 'default') => {
+    try {
+      const userId = getUserId()
+      await fetch('/api/chat/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role, content, conversationId }),
+      })
+    } catch {
+      // 静默失败，不影响对话体验
+    }
+  }, [])
+
+  const persistConversations = useCallback(() => {
+    try {
+      localStorage.setItem('ai_conversations', JSON.stringify(conversations))
+      localStorage.setItem('ai_active_conversation', activeConversationId)
+    } catch {
+      // ignore storage errors
+    }
+  }, [conversations, activeConversationId])
+
+  useEffect(() => {
+    persistConversations()
+  }, [conversations, activeConversationId, persistConversations])
+
+  const loadHistoryForConversation = useCallback(async (conversationId: string) => {
+    setIsLoadingHistory(true)
+    try {
+      const userId = getUserId()
+      const res = await fetch(`/api/chat/history?userId=${userId}&conversationId=${conversationId}`)
+      if (!res.ok) throw new Error('failed')
+      const history: { role: string; content: string; createdAt: string }[] = await res.json()
+
+      const msgs: Message[] = history.map((h) => ({
+        id: messageIdCounterRef.current++,
+        role: h.role as 'user' | 'assistant',
+        content: h.content,
+        timestamp: new Date(h.createdAt),
+      }))
+
+      setConversationMessages((prev) => ({
+        ...prev,
+        [conversationId]: msgs,
+      }))
+      setAssistantMessages(msgs)
+    } catch {
+      setAssistantMessages([
+        {
+          id: messageIdCounterRef.current++,
+          role: 'assistant',
+          content: '你好！我是 Jkeroro 的 AI 助手。有什么可以帮助你的吗？',
+          timestamp: new Date(),
+        },
+      ])
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }, [])
 
   // AI助手消息发送处理
   const handleAssistantSend = async () => {
@@ -70,35 +159,36 @@ export default function NavigationBarAI({
       timestamp: new Date(),
     }
 
-    // 添加用户消息到对话列表
-    setAssistantMessages((prev) => [...prev, userMessage])
+    setAssistantMessages((prev) => {
+      const newMessages = [...prev, userMessage]
+      setConversationMessages((s) => ({
+        ...s,
+        [activeConversationId]: newMessages,
+      }))
+      return newMessages
+    })
+    setConversationMessages((prev) => ({
+      ...prev,
+      [activeConversationId]: [...(prev[activeConversationId] || []), userMessage],
+    }))
     setAssistantInput('')
     setIsAssistantLoading(true)
 
+    // 保存用户消息
+    saveMessage('user', userMessage.content, activeConversationId)
+
     try {
-      // 准备消息历史（包含系统提示词）
+      // 准备消息历史（系统提示 + 最近20条对话 + 本次用户消息）
+      const recentMessages = (conversationMessages[activeConversationId] || assistantMessages).slice(-20)
       const messageHistory = [
-        {
-          role: 'system',
-          content:
-            "You are Jkeroro's helpful AI assistant. Answer concisely, bilingual (中文/English) if user mixes languages.",
-        },
-        ...assistantMessages.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
-        {
-          role: 'user',
-          content: userMessage.content,
-        },
+        { role: 'system', content: SYSTEM_PROMPT },
+        ...recentMessages.map((msg) => ({ role: msg.role, content: msg.content })),
+        { role: 'user', content: userMessage.content },
       ]
 
-      // 调用 AI API (流式响应，直接使用 fetch)
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: messageHistory }),
       })
 
@@ -106,51 +196,73 @@ export default function NavigationBarAI({
         throw new Error(`HTTP ${response.status}`)
       }
 
-      // 创建空的助手消息，用于流式更新
       const assistantMessageId = messageIdCounterRef.current++
-      setAssistantMessages((prev) => [
-        ...prev,
-        {
+      setAssistantMessages((prev) => {
+        const placeholderMessage: Message = {
           id: assistantMessageId,
           role: 'assistant',
           content: '',
           timestamp: new Date(),
-        },
-      ])
+        }
+        const newMessages = [...prev, placeholderMessage]
+        setConversationMessages((s) => ({ ...s, [activeConversationId]: newMessages }))
+        return newMessages
+      })
 
-      // 使用 SSE 解析器处理流式响应
       let fullContent = ''
       for await (const token of sseIterator(response)) {
         if (token) {
           fullContent += token
-          // 更新最后一条消息的内容
           setAssistantMessages((prev) => {
             const newMessages = [...prev]
             const lastMessage = newMessages[newMessages.length - 1]
             if (lastMessage && lastMessage.id === assistantMessageId) {
               lastMessage.content = fullContent
             }
+            setConversationMessages((s) => ({ ...s, [activeConversationId]: newMessages }))
             return newMessages
           })
         }
       }
+
+      // 保存 AI 回复
+      if (fullContent) {
+        saveMessage('assistant', fullContent, activeConversationId)
+      }
     } catch (error) {
-      console.error('AI请求错误:', error)
-      setAssistantMessages((prev) => [
-        ...prev,
-        {
+      setAssistantMessages((prev) => {
+        const errorMessage: Message = {
           id: messageIdCounterRef.current++,
           role: 'assistant',
           content: `发生错误：${error instanceof Error ? error.message : 'Unknown error'}`,
           timestamp: new Date(),
-        },
-      ])
+        }
+        const newMessages = [...prev, errorMessage]
+        setConversationMessages((s) => ({ ...s, [activeConversationId]: newMessages }))
+        return newMessages
+      })
     } finally {
       setIsAssistantLoading(false)
     }
   }
 
-  // 处理回车键发送
+  const createConversation = () => {
+    const newId = `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    const newConversation: Conversation = { id: newId, name: `会话 ${conversations.length + 1}` }
+
+    const welcomeMessage: Message = {
+      id: messageIdCounterRef.current++,
+      role: 'assistant',
+      content: '这是新的会话。请开始提问。',
+      timestamp: new Date(),
+    }
+
+    setConversations((prev) => [...prev, newConversation])
+    setActiveConversationId(newId)
+    setAssistantMessages([welcomeMessage])
+    setConversationMessages((prev) => ({ ...prev, [newId]: [welcomeMessage] }))
+  }
+
   const handleAssistantKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleAssistantSend()
@@ -199,25 +311,61 @@ export default function NavigationBarAI({
           </button>
         </div>
 
-        {/* 消息区域 */}
-        <div className="flex-1 p-2 overflow-y-auto space-y-2 min-h-0">
-          {assistantMessages.map((message) => (
-            <div
-              key={message.id}
-              className={`rounded-lg p-2 ${
-                message.role === 'user'
-                  ? 'bg-blue-600/20 ml-8'
-                  : 'bg-white/10 mr-8'
+        {/* 会话标签 */}
+        <div className="flex items-center gap-1 p-2 border-b border-white/10 overflow-x-auto">
+          {conversations.map((conv) => (
+            <button
+              key={conv.id}
+              onClick={() => {
+                setActiveConversationId(conv.id)
+                if (conversationMessages[conv.id]) {
+                  setAssistantMessages(conversationMessages[conv.id])
+                } else {
+                  loadHistoryForConversation(conv.id)
+                }
+              }}
+              className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+                activeConversationId === conv.id
+                  ? 'bg-white/20 text-white'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20'
               }`}
             >
-              <p className="text-white text-xs leading-relaxed">
-                {message.content}
-              </p>
-              <p className="text-white/40 text-xs mt-1">
-                {message.timestamp.toLocaleTimeString()}
-              </p>
-            </div>
+              {conv.name}
+            </button>
           ))}
+          <button
+            onClick={createConversation}
+            className="ml-auto px-2 py-1 rounded-md text-xs bg-indigo-500 text-white hover:bg-indigo-400"
+          >
+            + 新会话
+          </button>
+        </div>
+
+        {/* 消息区域 */}
+        <div className="flex-1 p-2 overflow-y-auto space-y-2 min-h-0">
+          {isLoadingHistory ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-white/40 text-xs">加载历史记录...</div>
+            </div>
+          ) : (
+            assistantMessages.map((message) => (
+              <div
+                key={message.id}
+                className={`rounded-lg p-2 ${
+                  message.role === 'user'
+                    ? 'bg-blue-600/20 ml-8'
+                    : 'bg-white/10 mr-8'
+                }`}
+              >
+                <p className="text-white text-xs leading-relaxed">
+                  {message.content}
+                </p>
+                <p className="text-white/40 text-xs mt-1">
+                  {message.timestamp.toLocaleTimeString()}
+                </p>
+              </div>
+            ))
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -246,4 +394,3 @@ export default function NavigationBarAI({
     </>
   )
 }
-

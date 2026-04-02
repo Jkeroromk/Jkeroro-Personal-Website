@@ -44,7 +44,7 @@ export default function MusicPlayer() {
     useVolume()
 
   const currentTrackForLyrics = tracks?.[currentTrackIndex] ?? null
-  const { lyrics, loading: lyricsLoading } = useLyrics(currentTrackForLyrics)
+  const { lyrics } = useLyrics(currentTrackForLyrics)
 
   // tracks 加载完后立即预取所有歌词
   useEffect(() => {
@@ -204,8 +204,7 @@ export default function MusicPlayer() {
           <LyricsDisplay
             lyrics={lyrics}
             currentTime={currentTime}
-            loading={lyricsLoading}
-            trackId={currentTrack?.id}
+            lyricsOffset={currentTrack?.lyricsOffset ?? 0}
             trackTitle={currentTrack?.title}
             trackArtist={currentTrack?.subtitle}
           />

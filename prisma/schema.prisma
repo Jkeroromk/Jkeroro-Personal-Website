@@ -41,8 +41,9 @@ model Track {
   title     String
   subtitle  String
   src       String
-  cover     String?
-  order     Int      @default(0)
+  cover         String?
+  lyricsOffset  Float    @default(0) @map("lyrics_offset")
+  order         Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -79,11 +80,12 @@ model Comment {
   hearts    Int               @default(0)
   laughs    Int               @default(0)
   wows      Int               @default(0)
+  pinned    Boolean           @default(false)
   createdAt DateTime          @default(now()) @map("created_at")
   updatedAt DateTime          @updatedAt @map("updated_at")
   reactions CommentReaction[]
 
-  @@index([createdAt])
+  @@index([pinned, createdAt])
   @@map("comments")
 }
 
@@ -137,4 +139,27 @@ model AnniversarySettings {
   imagePositions   Json?    @default("{}") @map("image_positions")
 
   @@map("anniversary_settings")
+}
+
+model ChatMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id")
+  conversationId String   @default("default") @map("conversation_id")
+  role           String   // 'user' | 'assistant'
+  content        String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([userId, conversationId, createdAt])
+  @@map("chat_messages")
+}
+
+model Guestbook {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  message   String
+  emoji     String   @default("👋")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("guestbook")
 }

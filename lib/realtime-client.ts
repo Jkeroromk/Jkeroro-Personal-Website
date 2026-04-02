@@ -41,7 +41,6 @@ const TABLE_CONFIGS: Record<SubscribeType, TableConfig> = {
 }
 
 class RealtimeClient {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private supabase: ReturnType<typeof createClient> | null = null
   private listeners: Map<SubscribeType, Set<EventCallback>> = new Map()
   private channels: Map<string, RealtimeChannel> = new Map()

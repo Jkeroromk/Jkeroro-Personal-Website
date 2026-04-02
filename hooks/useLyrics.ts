@@ -36,6 +36,43 @@ export function prefetchLyrics(tracks: Pick<Track, 'title' | 'subtitle'>[]) {
   }
 }
 
+/** 预取所有歌词并等待完成（用于 loading 阶段，单首超时 6s）
+ *  onProgress(loaded, total) 每首完成时回调，用于更新进度条
+ */
+export async function preloadAllLyrics(
+  tracks: Pick<Track, 'title' | 'subtitle'>[],
+  onProgress?: (loaded: number, total: number) => void
+): Promise<void> {
+  let loaded = 0
+  await Promise.allSettled(
+    tracks.map(async (track) => {
+      const key = cacheKey(track)
+      if (lyricsCache.has(key)) {
+        loaded++
+        onProgress?.(loaded, tracks.length)
+        return
+      }
+      lyricsCache.set(key, false)
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 6000)
+        const params = new URLSearchParams({ title: track.title, artist: track.subtitle })
+        const res = await fetch(`/api/lyrics/search?${params}`, { signal: controller.signal })
+        clearTimeout(timer)
+        if (!res.ok) throw new Error('fetch_error')
+        const data = await res.json()
+        const parsed = data.syncedLyrics ? parseLrc(data.syncedLyrics) : null
+        lyricsCache.set(key, parsed)
+      } catch {
+        lyricsCache.delete(key)
+      } finally {
+        loaded++
+        onProgress?.(loaded, tracks.length)
+      }
+    })
+  )
+}
+
 export function useLyrics(track: Track | null) {
   const [lyrics, setLyrics] = useState<LyricLine[] | null>(null)
   const [loading, setLoading] = useState(false)

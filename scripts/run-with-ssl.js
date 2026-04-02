@@ -3,6 +3,14 @@
 // 包装脚本：确保 DATABASE_URL 包含 SSL 配置后运行命令
 const { spawn } = require('child_process')
 
+// 尝试加载 .env.local 或 .env 文件（用于本地构建时设置 DATABASE_URL）
+try {
+  require('dotenv').config({ path: '.env.local' })
+  require('dotenv').config({ path: '.env' })
+} catch (e) {
+  // 忽略加载失败，后续将使用 process.env 中已有变量
+}
+
 // 根据环境自动切换数据库连接
 // - 本地开发：使用 direct 连接（5432端口）
 // - Vercel 部署：使用 pooler 连接（6543端口 + pgbouncer=true）

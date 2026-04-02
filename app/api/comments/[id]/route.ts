@@ -8,18 +8,31 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const { text } = await request.json()
+    const { text, pinned } = await request.json()
 
-    if (!text || !text.trim()) {
+    interface UpdateCommentData {
+      text?: string
+      pinned?: boolean
+    }
+
+    const data: UpdateCommentData = {}
+    if (typeof text === 'string' && text.trim()) {
+      data.text = text.trim()
+    }
+    if (typeof pinned === 'boolean') {
+      data.pinned = pinned
+    }
+
+    if (Object.keys(data).length === 0) {
       return NextResponse.json(
-        { error: 'Comment text is required' },
+        { error: 'No valid fields to update' },
         { status: 400 }
       )
     }
 
     const comment = await prisma.comment.update({
       where: { id },
-      data: { text: text.trim() },
+      data,
     })
 
     return NextResponse.json(comment)

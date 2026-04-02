@@ -5,6 +5,7 @@
 
 import { useEffect } from 'react'
 import DataManager from '@/lib/data-manager'
+import { preloadAllLyrics } from '@/hooks/useLyrics'
 
 interface DatabaseLoaderProps {
   onProgress: (progress: number) => void
@@ -16,13 +17,14 @@ export default function DatabaseLoader({ onProgress }: DatabaseLoaderProps) {
       try {
         const dataManager = DataManager.getInstance()
 
-        // 并行加载所有数据库数据
-        const [imagesResponse, projectsResponse, countriesResponse, viewCountResponse] =
+        // 并行加载所有数据库数据（含 tracks）
+        const [imagesResponse, projectsResponse, countriesResponse, viewCountResponse, tracksResponse] =
           await Promise.allSettled([
             fetch('/api/media/images').catch(() => ({ ok: false, json: () => [] })),
             fetch('/api/media/projects').catch(() => ({ ok: false, json: () => [] })),
             fetch('/api/stats/countries').catch(() => ({ ok: false, json: () => [] })),
             fetch('/api/stats/view').catch(() => ({ ok: false, json: () => ({ count: 0 }) })),
+            fetch('/api/media/tracks').catch(() => ({ ok: false, json: () => [] })),
           ])
 
         let loadedCount = 0
@@ -75,6 +77,21 @@ export default function DatabaseLoader({ onProgress }: DatabaseLoaderProps) {
             }
           } catch {
             // 静默处理错误
+          }
+        }
+
+        // 预取所有歌词，每首完成时更新进度（10 → 20）
+        if (tracksResponse.status === 'fulfilled' && tracksResponse.value.ok) {
+          try {
+            const tracks = await tracksResponse.value.json()
+            if (Array.isArray(tracks) && tracks.length > 0) {
+              await preloadAllLyrics(tracks, (loaded, total) => {
+                const lyricsProgress = Math.round(10 + (loaded / total) * 10)
+                onProgress(lyricsProgress)
+              })
+            }
+          } catch {
+            // 静默处理，不阻塞加载
           }
         }
 

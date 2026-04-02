@@ -2,47 +2,43 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Edit2, Trash2, Music2, GripVertical, AlertTriangle, Youtube, AlignLeft } from 'lucide-react'
-import YoutubeImportModal from '@/components/admin/modals/YoutubeImportModal'
+import { Edit2, Trash2, Music2, GripVertical, AlertTriangle, Upload, AlignLeft } from 'lucide-react'
+import FileUploadModal from '@/components/admin/modals/FileUploadModal'
 
-const STORAGE_KEY = 'lyrics_offset'
 const STEP = 0.5
-
-function loadAllOffsets() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch { return {} }
-}
-
-function saveOffset(trackId, offset) {
-  try {
-    const map = loadAllOffsets()
-    if (offset === 0) delete map[trackId]
-    else map[trackId] = offset
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(map))
-    // notify LyricsDisplay in the player
-    window.dispatchEvent(new Event('storage'))
-  } catch {}
-}
 
 const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) => {
   const [draggedIndex, setDraggedIndex] = React.useState(null)
   const [dragOverIndex, setDragOverIndex] = React.useState(null)
-  const [showYoutubeModal, setShowYoutubeModal] = React.useState(false)
+  const [showUploadModal, setShowUploadModal] = React.useState(false)
   const [offsets, setOffsets] = React.useState({})
   const [expandedTrack, setExpandedTrack] = React.useState(null)
+  const debounceTimers = React.useRef({})
 
-  // Load offsets from localStorage on mount
+  // 初始化 offsets 从 tracks 数据（DB）
   React.useEffect(() => {
-    setOffsets(loadAllOffsets())
+    if (!tracks?.length) return
+    const map = {}
+    tracks.forEach(t => { if (t.lyricsOffset) map[t.id] = t.lyricsOffset })
+    setOffsets(map)
+  }, [tracks])
+
+  const saveOffsetToDb = React.useCallback((trackId, offset) => {
+    clearTimeout(debounceTimers.current[trackId])
+    debounceTimers.current[trackId] = setTimeout(() => {
+      fetch(`/api/media/tracks/${trackId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lyricsOffset: offset }),
+      }).catch(() => {})
+    }, 600)
   }, [])
 
   const adjustOffset = (trackId, delta) => {
     setOffsets(prev => {
       const current = typeof prev[trackId] === 'number' ? prev[trackId] : 0
       const next = Math.round((current + delta) * 10) / 10
-      saveOffset(trackId, next)
+      saveOffsetToDb(trackId, next)
       const updated = { ...prev }
       if (next === 0) delete updated[trackId]
       else updated[trackId] = next
@@ -54,7 +50,7 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
     setOffsets(prev => {
       const updated = { ...prev }
       delete updated[trackId]
-      saveOffset(trackId, 0)
+      saveOffsetToDb(trackId, 0)
       return updated
     })
   }
@@ -123,19 +119,19 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
           </p>
         </div>
         <button
-          onClick={() => setShowYoutubeModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+          onClick={() => setShowUploadModal(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
         >
-          <Youtube className="w-4 h-4" />
-          从 YouTube 导入
+          <Upload className="w-4 h-4" />
+          上传音频
         </button>
       </div>
 
-      {showYoutubeModal && (
-        <YoutubeImportModal
-          onClose={() => setShowYoutubeModal(false)}
+      {showUploadModal && (
+        <FileUploadModal
+          onClose={() => setShowUploadModal(false)}
           onImported={(track) => {
-            setShowYoutubeModal(false)
+            setShowUploadModal(false)
             onImported?.(track)
           }}
         />

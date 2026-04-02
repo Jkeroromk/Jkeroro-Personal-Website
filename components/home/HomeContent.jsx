@@ -11,6 +11,7 @@ import MusicPlayer from "@/components/media/musicPlayer"
 
 // 折叠下方组件延迟加载，减少首屏 JS 体积
 const Tabs = dynamic(() => import("@/components/media/tabs"), { ssr: false })
+const GuestbookWall = dynamic(() => import("@/components/interactive/GuestbookWall"), { ssr: false })
 const PersonalStore = dynamic(() => import("@/components/interactive/personalStore"), { ssr: false })
 const Album = dynamic(() => import("@/components/media/album"), { ssr: false })
 const AnniversaryCounter = dynamic(() => import("@/components/interactive/AnniversaryCounter"), { ssr: false })
@@ -31,7 +32,11 @@ const HomeContent = () => {
       <HomeSection delay={0.3}>
         <MusicPlayer />
       </HomeSection>
-      
+
+      <HomeSection delay={0.35}>
+        <GuestbookWall />
+      </HomeSection>
+
       <HomeSection delay={0.4}>
         <Tabs />
       </HomeSection>
@@ -47,7 +52,7 @@ const HomeContent = () => {
       <HomeSection delay={0.6}>
         <Album />
       </HomeSection>
-      
+
       <HomeSection delay={0.7}>
         <Footer />
       </HomeSection>
