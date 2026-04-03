@@ -80,6 +80,7 @@ export default function NavigationBarAI({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageIdCounterRef = useRef(1)
+  const hasInitializedRef = useRef(false)
 
   // 自动滚动到最新消息
   useEffect(() => {
@@ -146,6 +147,102 @@ export default function NavigationBarAI({
       setIsLoadingHistory(false)
     }
   }, [])
+
+  /** 首次打开时自动初始化：从 localStorage 恢复或新建第一个会话 */
+  useEffect(() => {
+    if (!isOpen || hasInitializedRef.current) return
+    hasInitializedRef.current = true
+
+    try {
+      const stored = localStorage.getItem('ai_conversations')
+      const storedActive = localStorage.getItem('ai_active_conversation')
+      const parsed: Conversation[] = stored ? JSON.parse(stored) : []
+
+      if (parsed.length > 0) {
+        setConversations(parsed)
+        const activeId =
+          storedActive && parsed.some((c) => c.id === storedActive)
+            ? storedActive
+            : parsed[0].id
+        setActiveConversationId(activeId)
+        loadHistoryForConversation(activeId)
+        return
+      }
+    } catch {
+      // fall through to auto-create
+    }
+
+    // 没有历史记录，自动创建第一个会话
+    const newId = `conv_${Date.now()}`
+    const newConv: Conversation = { id: newId, name: '会话 1' }
+    const welcomeMsg: Message = {
+      id: messageIdCounterRef.current++,
+      role: 'assistant',
+      content: '你好！我是 Jkeroro 的 AI 助手，有什么可以帮助你的吗？',
+      timestamp: new Date(),
+    }
+    setConversations([newConv])
+    setActiveConversationId(newId)
+    setAssistantMessages([welcomeMsg])
+    setConversationMessages({ [newId]: [welcomeMsg] })
+  }, [isOpen, loadHistoryForConversation])
+
+  /** 删除会话（本地 + 数据库） */
+  const deleteConversation = useCallback(
+    async (id: string, e: React.MouseEvent) => {
+      e.stopPropagation()
+
+      // 删除 DB 历史
+      try {
+        const userId = getUserId()
+        await fetch(`/api/chat/history?userId=${userId}&conversationId=${id}`, {
+          method: 'DELETE',
+        })
+      } catch {
+        // 静默失败
+      }
+
+      setConversationMessages((prev) => {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
+
+      setConversations((prev) => {
+        const remaining = prev.filter((c) => c.id !== id)
+
+        if (remaining.length === 0) {
+          // 删完了，自动新建一个
+          const newId = `conv_${Date.now()}`
+          const newConv: Conversation = { id: newId, name: '会话 1' }
+          const welcomeMsg: Message = {
+            id: messageIdCounterRef.current++,
+            role: 'assistant',
+            content: '你好！我是 Jkeroro 的 AI 助手，有什么可以帮助你的吗？',
+            timestamp: new Date(),
+          }
+          setActiveConversationId(newId)
+          setAssistantMessages([welcomeMsg])
+          setConversationMessages({ [newId]: [welcomeMsg] })
+          return [newConv]
+        }
+
+        // 如果删掉的是当前激活的会话，切换到第一个剩余会话
+        if (id === activeConversationId) {
+          const nextId = remaining[0].id
+          setActiveConversationId(nextId)
+          setConversationMessages((s) => {
+            setAssistantMessages(s[nextId] || [])
+            if (!s[nextId]) loadHistoryForConversation(nextId)
+            return s
+          })
+        }
+
+        return remaining
+      })
+    },
+    [activeConversationId, loadHistoryForConversation]
+  )
 
   // AI助手消息发送处理
   const handleAssistantSend = async () => {
@@ -314,30 +411,42 @@ export default function NavigationBarAI({
         {/* 会话标签 */}
         <div className="flex items-center gap-1 p-2 border-b border-white/10 overflow-x-auto">
           {conversations.map((conv) => (
-            <button
+            <div
               key={conv.id}
-              onClick={() => {
-                setActiveConversationId(conv.id)
-                if (conversationMessages[conv.id]) {
-                  setAssistantMessages(conversationMessages[conv.id])
-                } else {
-                  loadHistoryForConversation(conv.id)
-                }
-              }}
-              className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+              className={`flex items-center rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
                 activeConversationId === conv.id
                   ? 'bg-white/20 text-white'
                   : 'bg-white/10 text-white/70 hover:bg-white/20'
               }`}
             >
-              {conv.name}
-            </button>
+              <button
+                onClick={() => {
+                  setActiveConversationId(conv.id)
+                  if (conversationMessages[conv.id]) {
+                    setAssistantMessages(conversationMessages[conv.id])
+                  } else {
+                    loadHistoryForConversation(conv.id)
+                  }
+                }}
+                className="px-2 py-1"
+              >
+                {conv.name}
+              </button>
+              <button
+                onClick={(e) => deleteConversation(conv.id, e)}
+                className="pr-1.5 py-1 text-white/30 hover:text-white/80 transition-colors"
+                title="关闭会话"
+              >
+                ✕
+              </button>
+            </div>
           ))}
           <button
             onClick={createConversation}
-            className="ml-auto px-2 py-1 rounded-md text-xs bg-indigo-500 text-white hover:bg-indigo-400"
+            className="ml-auto px-2 py-1 rounded-md text-xs bg-indigo-500 text-white hover:bg-indigo-400 flex-shrink-0"
+            title="新建会话"
           >
-            + 新会话
+            +
           </button>
         </div>
 

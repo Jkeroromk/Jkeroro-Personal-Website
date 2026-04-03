@@ -75,6 +75,8 @@ model Project {
 model Comment {
   id        String            @id @default(uuid()) @db.Uuid
   text      String
+  name      String?
+  emoji     String?
   likes     Int               @default(0)
   fires     Int               @default(0)
   hearts    Int               @default(0)

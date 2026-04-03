@@ -3,16 +3,19 @@ import { prisma } from '@/lib/prisma'
 
 /**
  * GET /api/guestbook
- * 获取留言墙所有留言（最新50条）
+ * 返回有名字的留言（即留言墙提交的条目）
  */
 export async function GET() {
   try {
-    const entries = await prisma.guestbook.findMany({
-      orderBy: { createdAt: 'desc' },
+    const entries = await prisma.comment.findMany({
+      where: { name: { not: null } },
+      orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
       take: 50,
-      select: { id: true, name: true, message: true, emoji: true, createdAt: true },
+      select: { id: true, name: true, text: true, emoji: true, createdAt: true },
     })
-    return NextResponse.json(entries)
+    return NextResponse.json(
+      entries.map((e) => ({ ...e, message: e.text }))
+    )
   } catch {
     return NextResponse.json([], { status: 200 })
   }
@@ -24,8 +27,7 @@ const MAX_MESSAGE_LEN = 150
 
 /**
  * POST /api/guestbook
- * 新增一条留言
- * Body: { name, message, emoji }
+ * 新增留言 → 写入 comments 表（带 name/emoji）
  */
 export async function POST(req: NextRequest) {
   try {
@@ -46,16 +48,24 @@ export async function POST(req: NextRequest) {
 
     const safeEmoji = ALLOWED_EMOJIS.includes(emoji) ? emoji : '👋'
 
-    const entry = await prisma.guestbook.create({
+    const entry = await prisma.comment.create({
       data: {
+        text: message.trim(),
         name: name.trim(),
-        message: message.trim(),
         emoji: safeEmoji,
+        likes: 0,
+        fires: 0,
+        hearts: 0,
+        laughs: 0,
+        wows: 0,
       },
-      select: { id: true, name: true, message: true, emoji: true, createdAt: true },
+      select: { id: true, name: true, text: true, emoji: true, createdAt: true },
     })
 
-    return NextResponse.json(entry, { status: 201 })
+    return NextResponse.json(
+      { ...entry, message: entry.text },
+      { status: 201 }
+    )
   } catch {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

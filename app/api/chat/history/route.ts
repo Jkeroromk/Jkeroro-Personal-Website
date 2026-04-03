@@ -28,6 +28,24 @@ export async function GET(req: NextRequest) {
 }
 
 /**
+ * DELETE /api/chat/history?userId=xxx&conversationId=yyy
+ * 删除指定会话的所有消息
+ */
+export async function DELETE(req: NextRequest) {
+  const userId = req.nextUrl.searchParams.get('userId')
+  const conversationId = req.nextUrl.searchParams.get('conversationId')
+  if (!userId || !conversationId) {
+    return NextResponse.json({ error: 'Missing userId or conversationId' }, { status: 400 })
+  }
+  try {
+    await prisma.chatMessage.deleteMany({ where: { userId, conversationId } })
+    return NextResponse.json({ ok: true })
+  } catch {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+/**
  * POST /api/chat/history
  * 保存一条对话消息
  * Body: { userId, role, content, conversationId }

@@ -188,13 +188,21 @@ const CommentsTab = () => {
               ) : (
                 <>
                   <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="flex items-center gap-2 flex-1">
-                      {comment.pinned && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider text-amber-100 bg-amber-500/20">
-                          <Pin className="w-3 h-3 mr-1" /> 置顶
-                        </span>
-                      )}
-                      <p className="text-sm text-zinc-200 leading-relaxed flex-1">{comment.text}</p>
+                    <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {comment.pinned && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider text-amber-100 bg-amber-500/20 flex-shrink-0">
+                            <Pin className="w-3 h-3 mr-1" /> 置顶
+                          </span>
+                        )}
+                        {comment.name && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] text-zinc-300 bg-white/5 border border-white/10 flex-shrink-0">
+                            <span>{comment.emoji ?? '👋'}</span>
+                            <span>{comment.name}</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-200 leading-relaxed">{comment.text}</p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button

@@ -64,11 +64,14 @@ export interface Project {
 export interface Comment {
   id: string
   text: string
+  name?: string | null
+  emoji?: string | null
   likes: number
   fires: number
   hearts: number
   laughs: number
   wows: number
+  pinned?: boolean
   createdAt: string
   updatedAt: string
 }
