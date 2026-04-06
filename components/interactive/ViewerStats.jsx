@@ -61,21 +61,18 @@ const ViewerStats = () => {
     
     const trackAndIncrement = async () => {
       try {
-        // Track visitor location
-        await fetch('/api/stats/countries', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        })
+        // 并行执行：记录访客位置 + 增加访问计数
+        const [, viewResponse] = await Promise.all([
+          fetch('/api/stats/countries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          }),
+          fetch('/api/stats/view', { method: 'POST' }),
+        ])
 
-        // Increment view count
-        const response = await fetch('/api/stats/view', {
-          method: 'POST',
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
+        if (viewResponse.ok) {
+          const data = await viewResponse.json()
           setViewerCount(data.count)
-          // Mark as tracked with current timestamp
           localStorage.setItem('viewerTrackedTime', now.toString())
         }
       } catch (error) {

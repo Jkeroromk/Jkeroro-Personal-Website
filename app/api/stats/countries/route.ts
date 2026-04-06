@@ -1,54 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import axios from 'axios'
 import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
+
+// ISO 3166-1 alpha-2 国家代码 → ECharts 世界地图国家名称映射
+const CODE_TO_NAME: Record<string, string> = {
+  AF: 'Afghanistan', AL: 'Albania', DZ: 'Algeria', AO: 'Angola', AR: 'Argentina',
+  AM: 'Armenia', AU: 'Australia', AT: 'Austria', AZ: 'Azerbaijan', BD: 'Bangladesh',
+  BY: 'Belarus', BE: 'Belgium', BJ: 'Benin', BO: 'Bolivia', BA: 'Bosnia and Herzegovina',
+  BW: 'Botswana', BR: 'Brazil', BN: 'Brunei', BG: 'Bulgaria', KH: 'Cambodia',
+  CM: 'Cameroon', CA: 'Canada', CF: 'Central African Republic', TD: 'Chad', CL: 'Chile',
+  CN: 'China', CO: 'Colombia', CG: 'Congo', CR: 'Costa Rica', HR: 'Croatia',
+  CU: 'Cuba', CZ: 'Czech Republic', DK: 'Denmark', DO: 'Dominican Republic', EC: 'Ecuador',
+  EG: 'Egypt', SV: 'El Salvador', ET: 'Ethiopia', FI: 'Finland', FR: 'France',
+  GA: 'Gabon', GE: 'Georgia', DE: 'Germany', GH: 'Ghana', GR: 'Greece',
+  GT: 'Guatemala', GN: 'Guinea', HT: 'Haiti', HN: 'Honduras', HK: 'Hong Kong',
+  HU: 'Hungary', IS: 'Iceland', IN: 'India', ID: 'Indonesia', IR: 'Iran',
+  IQ: 'Iraq', IE: 'Ireland', IL: 'Israel', IT: 'Italy', JM: 'Jamaica',
+  JP: 'Japan', JO: 'Jordan', KZ: 'Kazakhstan', KE: 'Kenya', KW: 'Kuwait',
+  KG: 'Kyrgyzstan', LA: 'Laos', LB: 'Lebanon', LY: 'Libya', LT: 'Lithuania',
+  LU: 'Luxembourg', MK: 'Macedonia', MG: 'Madagascar', MW: 'Malawi', MY: 'Malaysia',
+  ML: 'Mali', MR: 'Mauritania', MX: 'Mexico', MD: 'Moldova', MN: 'Mongolia',
+  MA: 'Morocco', MZ: 'Mozambique', MM: 'Myanmar', NA: 'Namibia', NP: 'Nepal',
+  NL: 'Netherlands', NZ: 'New Zealand', NI: 'Nicaragua', NE: 'Niger', NG: 'Nigeria',
+  NO: 'Norway', OM: 'Oman', PK: 'Pakistan', PA: 'Panama', PY: 'Paraguay',
+  PE: 'Peru', PH: 'Philippines', PL: 'Poland', PT: 'Portugal', PR: 'Puerto Rico',
+  QA: 'Qatar', RO: 'Romania', RU: 'Russia', RW: 'Rwanda', SA: 'Saudi Arabia',
+  SN: 'Senegal', RS: 'Serbia', SL: 'Sierra Leone', SK: 'Slovakia', SO: 'Somalia',
+  ZA: 'South Africa', KR: 'South Korea', SS: 'South Sudan', ES: 'Spain', LK: 'Sri Lanka',
+  SD: 'Sudan', SE: 'Sweden', CH: 'Switzerland', SY: 'Syria', TW: 'Taiwan',
+  TJ: 'Tajikistan', TZ: 'Tanzania', TH: 'Thailand', TG: 'Togo', TN: 'Tunisia',
+  TR: 'Turkey', TM: 'Turkmenistan', UG: 'Uganda', UA: 'Ukraine', AE: 'United Arab Emirates',
+  GB: 'United Kingdom', US: 'United States', UY: 'Uruguay', UZ: 'Uzbekistan',
+  VE: 'Venezuela', VN: 'Vietnam', YE: 'Yemen', ZM: 'Zambia', ZW: 'Zimbabwe',
+}
 
 // 记录访客位置
 export async function POST(request: NextRequest) {
   try {
-    // 尝试从请求中获取国家信息，如果没有则从 IP 获取
     let country: string | null = null
 
     const body = await request.json().catch(() => ({}))
     if (body.country) {
       country = body.country
     } else {
-      // 从 IP 获取国家信息
-      try {
-        const response = await axios.get('https://ipapi.co/json/')
-        const countryCode = response.data.country
-        const countryName = response.data.country_name
-
-        // 标准化国家名称
-        const codeToNameMap: Record<string, string> = {
-          US: 'United States',
-          PH: 'Philippines',
-          UK: 'United Kingdom',
-          AU: 'Australia',
-          BR: 'Brazil',
-          CA: 'Canada',
-          CL: 'Chile',
-          FR: 'France',
-          DE: 'Germany',
-          IN: 'India',
-          KW: 'Kuwait',
-          LB: 'Lebanon',
-          KR: 'South Korea',
-          SE: 'Sweden',
-          CH: 'Switzerland',
-          TH: 'Thailand',
-          NL: 'The Netherlands',
-        }
-
-        country = countryName && countryName.trim() !== ''
-          ? countryName
-          : codeToNameMap[countryCode.toUpperCase()] || 'Unknown'
-      } catch (ipError) {
-        console.error('Error fetching country from IP:', ipError)
-        return NextResponse.json(
-          { error: 'Failed to get country information' },
-          { status: 500 }
-        )
+      // 直接从 Vercel 注入的请求头读取国家代码，零延迟
+      const countryCode = request.headers.get('x-vercel-ip-country')
+      if (countryCode) {
+        country = CODE_TO_NAME[countryCode.toUpperCase()] ?? null
       }
     }
 
