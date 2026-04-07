@@ -1,7 +1,7 @@
 /**
  * LyricsDisplay Component
- * 歌词同步显示组件（offset 由父组件传入，存储在数据库）
- * 无歌词时展示均衡器动画
+ * 歌词同步显示组件 - 转盘选择器效果
+ * hasCoverInLayout: 父层已展示封面时，歌词区高度收窄匹配封面高度
  */
 
 'use client'
@@ -13,28 +13,33 @@ interface LyricsDisplayProps {
   lyrics: LyricLine[]
   currentTime: number
   lyricsOffset?: number
-  trackTitle?: string
-  trackArtist?: string
+  hasCover?: boolean
 }
 
-const CONTAINER_HEIGHT = 96
+const HEIGHT_WITHOUT_COVER = 130
+
+const FADE_MASK = 'linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%)'
 
 export default function LyricsDisplay({
   lyrics,
   currentTime,
   lyricsOffset = 0,
-  trackTitle = '',
-  trackArtist = '',
+  hasCover = false,
 }: LyricsDisplayProps) {
   const lineRefs       = useRef<(HTMLParagraphElement | null)[]>([])
   const currentTimeRef = useRef(currentTime)
   const blockUntilRef  = useRef<number>(0)
-  const [translateY, setTranslateY] = useState(CONTAINER_HEIGHT / 2)
+
+  const hasLyrics    = !!(lyrics && lyrics.length > 0)
+  const lyricsHeight = HEIGHT_WITHOUT_COVER
+  const lyricsCenter = lyricsHeight / 2
+
+  const [translateY, setTranslateY] = useState(lyricsCenter)
 
   useEffect(() => { currentTimeRef.current = currentTime }, [currentTime])
 
   const activeIndex = useMemo(() => {
-    if (!lyrics || lyrics.length === 0) return -1
+    if (!hasLyrics) return -1
     const t = currentTime - lyricsOffset
     let idx = -1
     for (let i = 0; i < lyrics.length; i++) {
@@ -42,16 +47,16 @@ export default function LyricsDisplay({
       else break
     }
     return idx
-  }, [lyrics, currentTime, lyricsOffset])
+  }, [lyrics, currentTime, lyricsOffset, hasLyrics])
 
   useEffect(() => {
-    setTranslateY(CONTAINER_HEIGHT / 2)
+    setTranslateY(lyricsCenter)
     if (currentTimeRef.current < 5) {
       blockUntilRef.current = Date.now() + 2000
     } else {
       blockUntilRef.current = 0
     }
-  }, [lyrics])
+  }, [lyrics, lyricsCenter])
 
   useEffect(() => {
     if (blockUntilRef.current > 0) {
@@ -59,17 +64,30 @@ export default function LyricsDisplay({
       blockUntilRef.current = 0
     }
     if (activeIndex < 0) {
-      setTranslateY(CONTAINER_HEIGHT / 2)
+      setTranslateY(lyricsCenter)
       return
     }
     const el = lineRefs.current[activeIndex]
     if (!el) return
     const lineCenter = el.offsetTop + el.offsetHeight / 2
-    setTranslateY(CONTAINER_HEIGHT / 2 - lineCenter)
-  }, [activeIndex])
+    setTranslateY(lyricsCenter - lineCenter)
+  }, [activeIndex, lyricsCenter])
 
-  // ── 无歌词：均衡器动画 ──────────────────────────────────
-  if (!lyrics || lyrics.length === 0) {
+  // 转盘效果：距当前行越远越小越淡
+  const getLyricStyle = (i: number) => {
+    const dist       = activeIndex < 0 ? Math.abs(i) : Math.abs(i - activeIndex)
+    const scales     = [1.12, 0.82, 0.65, 0.52]
+    const scale      = scales[Math.min(dist, scales.length - 1)]
+    const colors     = ['#ffffff', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0.15)', 'rgba(255,255,255,0.06)']
+    const color      = colors[Math.min(dist, colors.length - 1)]
+    const fontWeight = dist === 0 ? 700 : 400
+    return { color, fontWeight, transform: `scale(${scale})`, transformOrigin: 'center' as const }
+  }
+
+  // ── 无歌词：有封面时留白（背景已表达），无封面时显示均衡器 ──
+  if (!hasLyrics) {
+    if (hasCover) return <div style={{ height: `${lyricsHeight}px` }} />
+
     const bars = [
       { height: 32, duration: 0.85, delay: 0.00 },
       { height: 48, duration: 0.72, delay: 0.12 },
@@ -81,8 +99,8 @@ export default function LyricsDisplay({
     ]
     return (
       <div
-        className="w-full flex items-center gap-5 px-2"
-        style={{ height: `${CONTAINER_HEIGHT}px` }}
+        className="w-full flex items-center justify-center"
+        style={{ height: `${lyricsHeight}px` }}
       >
         <style>{`
           @keyframes eq-bounce {
@@ -90,7 +108,7 @@ export default function LyricsDisplay({
             50%       { transform: scaleY(1); }
           }
         `}</style>
-        <div className="flex items-end gap-[3px] flex-shrink-0" style={{ height: '56px' }}>
+        <div className="flex items-end gap-[3px]" style={{ height: '56px' }}>
           {bars.map((bar, i) => (
             <div
               key={i}
@@ -103,52 +121,39 @@ export default function LyricsDisplay({
             />
           ))}
         </div>
-        <div className="flex flex-col justify-center min-w-0">
-          <p className="text-white/70 text-sm font-medium truncate leading-tight">
-            {trackTitle || 'Unknown Title'}
-          </p>
-          {trackArtist && (
-            <p className="text-white/35 text-xs truncate mt-0.5">{trackArtist}</p>
-          )}
-        </div>
       </div>
     )
   }
 
-  // ── 歌词正文 ────────────────────────────────────────────
+  // ── 有歌词：转盘滚动 ────────────────────────────────────
   return (
     <div
       className="w-full overflow-hidden relative"
-      style={{ height: `${CONTAINER_HEIGHT}px` }}
+      style={{
+        height: `${lyricsHeight}px`,
+        maskImage: FADE_MASK,
+        WebkitMaskImage: FADE_MASK,
+      }}
     >
       <div
         className="text-center px-2"
         style={{
           transform: `translateY(${translateY}px)`,
           transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-          paddingBottom: `${CONTAINER_HEIGHT / 2}px`,
+          paddingBottom: `${lyricsHeight / 2}px`,
           willChange: 'transform',
         }}
       >
-        {lyrics.map((line, i) => {
-          const isActive = i === activeIndex
-          const isPast   = i < activeIndex
-          return (
-            <p
-              key={i}
-              ref={el => { lineRefs.current[i] = el }}
-              className="transition-all duration-300 leading-6 py-1 text-sm select-none"
-              style={{
-                color:           isActive ? '#ffffff' : isPast ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.25)',
-                fontWeight:      isActive ? 600 : 400,
-                transform:       isActive ? 'scale(1.05)' : 'scale(1)',
-                transformOrigin: 'center',
-              }}
-            >
-              {line.text}
-            </p>
-          )
-        })}
+        {lyrics.map((line, i) => (
+          <p
+            key={i}
+            ref={el => { lineRefs.current[i] = el }}
+            className="transition-all duration-300 leading-6 py-1 text-sm select-none"
+            style={getLyricStyle(i)}
+          >
+            {line.text}
+          </p>
+        ))}
       </div>
     </div>
   )

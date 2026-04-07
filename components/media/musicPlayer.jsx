@@ -5,7 +5,8 @@
 
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Play, Pause, SkipBack, SkipForward } from 'lucide-react'
 import { useTracks } from '@/hooks/useTracks'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { useVolume } from '@/hooks/useVolume'
@@ -20,6 +21,7 @@ export default function MusicPlayer() {
   const { tracks, loading } = useTracks()
   const [isLooping, setIsLooping] = useState(false)
   const [isShuffled, setIsShuffled] = useState(false)
+  const [showMiniPlayer, setShowMiniPlayer] = useState(false)
   const audioRef = useRef(null)
 
   const {
@@ -64,6 +66,20 @@ export default function MusicPlayer() {
       updateVolume(volume, audioRef.current)
     }
   }, [volume, isMuted, updateVolume])
+
+  // callback ref 模式：节点就绪时才挂 IntersectionObserver
+  const [playerNode, setPlayerNode] = useState(null)
+  const playerRef = useCallback((node) => setPlayerNode(node), [])
+
+  useEffect(() => {
+    if (!playerNode) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowMiniPlayer(!entry.isIntersecting),
+      { threshold: 0.2 }
+    )
+    observer.observe(playerNode)
+    return () => observer.disconnect()
+  }, [playerNode])
 
   // 检查localStorage中的音频权限设置并自动播放
   useEffect(() => {
@@ -175,7 +191,7 @@ export default function MusicPlayer() {
 
 
   return (
-    <div className="flex flex-col items-center justify-center mt-4 w-full">
+    <div className="flex flex-col items-center justify-center py-14 w-full">
       {currentTrack?.src && (
         <audio
           ref={audioRef}
@@ -197,44 +213,162 @@ export default function MusicPlayer() {
         />
       )}
 
-      <div className="flex flex-col items-center bg-opacity-70 p-6 rounded-lg w-72 text-white">
-        <TrackInfo track={currentTrack} />
+      <div ref={playerRef} className="relative w-full sm:w-[550px] rounded-2xl text-white overflow-hidden">
 
-        <div className="w-full mt-3 mb-[52px]">
-          <LyricsDisplay
-            lyrics={lyrics}
-            currentTime={currentTime}
-            lyricsOffset={currentTrack?.lyricsOffset ?? 0}
-            trackTitle={currentTrack?.title}
-            trackArtist={currentTrack?.subtitle}
-          />
+        <style>{`
+          @keyframes cover-fadein {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+          }
+        `}</style>
+
+
+        {/* 内容层 */}
+        <div className="relative z-10 p-6 flex flex-col gap-5">
+
+          {/* 上半：标题 + 歌词/封面 */}
+          <div className="flex flex-col items-center w-full">
+            <TrackInfo track={currentTrack} />
+            <div className="w-full mt-2">
+              {/* 无歌词 + 有封面：在控制栏宽度内展示专辑封面 */}
+              {(!lyrics || lyrics.length === 0) && currentTrack?.cover ? (
+                <div className="w-full max-w-[300px] mx-auto" style={{ height: '130px' }}>
+                  <img
+                    key={currentTrack.cover}
+                    src={currentTrack.cover}
+                    alt="Album Cover"
+                    className="w-full h-full object-cover rounded-xl shadow-lg"
+                    style={{ animation: 'cover-fadein 0.6s ease forwards' }}
+                  />
+                </div>
+              ) : (
+                <LyricsDisplay
+                  lyrics={lyrics}
+                  currentTime={currentTime}
+                  lyricsOffset={currentTrack?.lyricsOffset ?? 0}
+                  hasCover={!!currentTrack?.cover}
+                />
+              )}
+            </div>
+          </div>
+
+          {/* 下半：控制栏 */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="w-full max-w-[300px]">
+              <PlayerControls
+                isPlaying={isPlaying}
+                onPlayPause={togglePlayPause}
+                onSkipBack={() => skipTrack(-1, true)}
+                onSkipForward={() => skipTrack(1, true)}
+              />
+              <ProgressBar
+                currentTime={currentTime}
+                duration={duration}
+                onSeek={setCurrentTimeValue}
+                formatTime={formatTime}
+              />
+            </div>
+            <VolumeControl
+              volume={volume}
+              isMuted={isMuted}
+              isLooping={isLooping}
+              isShuffled={isShuffled}
+              onVolumeChange={(delta) => changeVolume(delta, audioRef.current)}
+              onToggleMute={() => toggleMute(audioRef.current)}
+              onToggleLoop={() => setIsLooping(!isLooping)}
+              onToggleShuffle={() => setIsShuffled(!isShuffled)}
+            />
+          </div>
         </div>
-
-        <PlayerControls
-          isPlaying={isPlaying}
-          onPlayPause={togglePlayPause}
-          onSkipBack={() => skipTrack(-1, true)}
-          onSkipForward={() => skipTrack(1, true)}
-        />
-
-        <ProgressBar
-          currentTime={currentTime}
-          duration={duration}
-          onSeek={setCurrentTimeValue}
-          formatTime={formatTime}
-        />
-
-        <VolumeControl
-          volume={volume}
-          isMuted={isMuted}
-          isLooping={isLooping}
-          isShuffled={isShuffled}
-          onVolumeChange={(delta) => changeVolume(delta, audioRef.current)}
-          onToggleMute={() => toggleMute(audioRef.current)}
-          onToggleLoop={() => setIsLooping(!isLooping)}
-          onToggleShuffle={() => setIsShuffled(!isShuffled)}
-        />
       </div>
+
+      {/* ── Mini Player ── */}
+      <style>{`
+        @keyframes mini-slidein {
+          from { transform: translateY(100%); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+        @keyframes mini-slideout {
+          from { transform: translateY(0);    opacity: 1; }
+          to   { transform: translateY(100%); opacity: 0; }
+        }
+      `}</style>
+
+      {showMiniPlayer && (
+        <div
+          className="fixed bottom-4 right-4 z-50 w-72 rounded-2xl overflow-hidden text-white shadow-2xl"
+          style={{ animation: 'mini-slidein 0.3s ease forwards' }}
+        >
+          {/* 模糊封面背景 */}
+          {currentTrack?.cover && (
+            <div
+              className="absolute inset-0 z-0"
+              style={{
+                backgroundImage: `url(${currentTrack.cover})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'blur(28px)',
+                transform: 'scale(1.4)',
+              }}
+            />
+          )}
+          <div
+            className="absolute inset-0 z-0"
+            style={{
+              background: currentTrack?.cover
+                ? 'rgba(0,0,0,0.55)'
+                : 'rgba(20,20,20,0.85)',
+              backdropFilter: currentTrack?.cover ? 'none' : 'blur(20px)',
+              WebkitBackdropFilter: currentTrack?.cover ? 'none' : 'blur(20px)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 'inherit',
+            }}
+          />
+
+          {/* 内容 */}
+          <div className="relative z-10 flex items-center px-4 py-3 gap-3">
+            {/* 歌名 + 歌手 */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate leading-tight">
+                {currentTrack?.title || 'No Track'}
+              </p>
+              {currentTrack?.subtitle && (
+                <p className="text-xs text-white/50 truncate mt-0.5">
+                  {currentTrack.subtitle}
+                </p>
+              )}
+            </div>
+
+            {/* 控制按钮 */}
+            <div className="flex items-center gap-4 flex-shrink-0">
+              <SkipBack
+                size={18}
+                className="cursor-pointer text-white/70 hover:text-white hover:scale-110 transition-all duration-200"
+                onClick={() => skipTrack(-1, true)}
+              />
+              <button
+                onClick={togglePlayPause}
+                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all duration-200 hover:scale-110"
+              >
+                {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+              </button>
+              <SkipForward
+                size={18}
+                className="cursor-pointer text-white/70 hover:text-white hover:scale-110 transition-all duration-200"
+                onClick={() => skipTrack(1, true)}
+              />
+            </div>
+          </div>
+
+          {/* 细进度条 */}
+          <div className="relative z-10 h-[3px] bg-white/10 mx-4 mb-3 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-white/60 rounded-full transition-all duration-300"
+              style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
