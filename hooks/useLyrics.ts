@@ -84,61 +84,63 @@ export function useLyrics(track: Track | null) {
       return
     }
 
-    // 切歌时立刻清空旧歌词，防止上一首残留
     setLyrics(null)
 
     const key = cacheKey(track)
+
+    const doFetch = (controller: AbortController) => {
+      lyricsCache.set(key, false)
+      setLoading(true)
+      const params = new URLSearchParams({ title: track.title, artist: track.subtitle })
+      fetch(`/api/lyrics/search?${params}`, { signal: controller.signal })
+        .then(res => { if (!res.ok) throw new Error('fetch_error'); return res.json() })
+        .then(data => {
+          const parsed = data.syncedLyrics ? parseLrc(data.syncedLyrics) : null
+          lyricsCache.set(key, parsed)
+          setLyrics(parsed)
+        })
+        .catch(err => {
+          lyricsCache.delete(key)
+          if (err.name !== 'AbortError') setLyrics(null)
+        })
+        .finally(() => setLoading(false))
+    }
+
     const cached = lyricsCache.get(key)
 
-    // 命中缓存（已有结果或确认无歌词）
+    // 命中缓存
     if (cached !== undefined && cached !== false) {
       setLyrics(cached)
       return
     }
 
-    // 如果预取已在进行中，轮询等待结果
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    // 预取进行中，轮询等待；若预取失败（key 被删除）则自己重新请求
     if (cached === false) {
       let cancelled = false
       const poll = setInterval(() => {
         if (cancelled) return
         const v = lyricsCache.get(key)
-        // 只要不是 false（加载中），无论是 null、LyricLine[] 还是 undefined（预取失败被删除）都应停止
-        if (v !== false) {
-          clearInterval(poll)
-          setLyrics(v ?? null)
+        if (v === false) return
+        clearInterval(poll)
+        if (v !== undefined) {
+          // 预取成功
+          setLyrics(v)
           setLoading(false)
+        } else {
+          // 预取失败，自己重新请求
+          if (!cancelled) doFetch(controller)
         }
       }, 100)
       setLoading(true)
-      return () => { cancelled = true; clearInterval(poll) }
+      return () => { cancelled = true; clearInterval(poll); controller.abort() }
     }
 
-    // 未缓存，发起请求
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-    lyricsCache.set(key, false) // 标记加载中
-
-    setLyrics(null)
-    setLoading(true)
-
-    const params = new URLSearchParams({ title: track.title, artist: track.subtitle })
-    fetch(`/api/lyrics/search?${params}`, { signal: controller.signal })
-      .then(res => { if (!res.ok) throw new Error('fetch_error'); return res.json() })
-      .then(data => {
-        const parsed = data.syncedLyrics ? parseLrc(data.syncedLyrics) : null
-        lyricsCache.set(key, parsed)
-        setLyrics(parsed)
-      })
-      .catch(err => {
-        // 无论是 abort 还是网络错误，都清理 false 标记，保证下次能重新请求
-        lyricsCache.delete(key)
-        if (err.name !== 'AbortError') {
-          setLyrics(null)
-        }
-      })
-      .finally(() => setLoading(false))
-
+    // 未缓存，直接请求
+    doFetch(controller)
     return () => controller.abort()
   }, [track?.id])
 
