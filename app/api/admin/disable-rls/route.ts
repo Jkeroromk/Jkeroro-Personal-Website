@@ -1,11 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/requireAuth'
 
 /**
  * 禁用 comments 表的行级安全（RLS）
  * 访问: POST /api/admin/disable-rls
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request)
+  if (authError) return authError
   try {
     // 使用原始 SQL 执行 ALTER TABLE 命令
     await prisma.$executeRaw`ALTER TABLE "comments" DISABLE ROW LEVEL SECURITY`

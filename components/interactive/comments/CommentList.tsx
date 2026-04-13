@@ -3,6 +3,7 @@
  * 评论列表组件
  */
 
+import { memo } from 'react'
 import { Comment } from '@/types/api'
 import CommentItem from './CommentItem'
 
@@ -15,7 +16,7 @@ interface CommentListProps {
   loadingMore?: boolean
 }
 
-export default function CommentList({
+const CommentList = memo(function CommentList({
   comments,
   onReaction,
   hasUserReaction,
@@ -58,5 +59,6 @@ export default function CommentList({
       )}
     </div>
   )
-}
+})
 
+export default CommentList

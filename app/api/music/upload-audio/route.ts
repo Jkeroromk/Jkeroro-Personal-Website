@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/requireAuth'
+import { uploadToSupabase, generateFileName } from '@/lib/upload-to-supabase'
 
 export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request)
+  if (authError) return authError
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -14,36 +18,11 @@ export async function POST(request: NextRequest) {
     }
 
     const contentType = file.type || 'audio/mpeg'
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'mp3'
-    const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 60)
-    const fileName = `${Date.now()}-${safeTitle}.${ext}`
+    const fileName = generateFileName(file.name, title)
+    const buffer = Buffer.from(await file.arrayBuffer())
 
-    const arrayBuffer = await file.arrayBuffer()
-    const bodyArr = new Uint8Array(arrayBuffer)
+    const { publicUrl } = await uploadToSupabase(buffer, fileName, contentType, 'audio')
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    const uploadRes = await fetch(
-      `${supabaseUrl}/storage/v1/object/audio/${fileName}`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${serviceRoleKey}`,
-          'Content-Type': contentType,
-        },
-        body: bodyArr,
-      }
-    )
-
-    if (!uploadRes.ok) {
-      const err = await uploadRes.json().catch(() => ({})) as { message?: string }
-      return NextResponse.json({ error: `上传失败: ${err.message || uploadRes.status}` }, { status: 500 })
-    }
-
-    const publicUrl = `${supabaseUrl}/storage/v1/object/public/audio/${fileName}`
-
-    // 保存到数据库
     const { prisma } = await import('@/lib/prisma')
     const maxOrder = await prisma.track.findFirst({
       orderBy: { order: 'desc' },

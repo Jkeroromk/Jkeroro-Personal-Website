@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { X, Upload, Music, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { getAuthHeaders } from '@/lib/auth-client'
 
 function titleFromFilename(filename) {
   return filename
@@ -52,9 +53,11 @@ const FileUploadModal = ({ onClose, onImported }) => {
       formData.append('artist', artist.trim() || 'Unknown')
 
       // 用 XMLHttpRequest 显示上传进度
+      const authHeaders = await getAuthHeaders()
       const track = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest()
         xhr.open('POST', '/api/music/upload-audio')
+        Object.entries(authHeaders).forEach(([k, v]) => xhr.setRequestHeader(k, v))
 
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {

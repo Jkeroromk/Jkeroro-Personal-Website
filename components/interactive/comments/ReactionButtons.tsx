@@ -3,7 +3,7 @@
  * 评论反应按钮组件
  */
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { Smile, X } from 'lucide-react'
 import { Comment } from '@/types/api'
 
@@ -23,7 +23,7 @@ const reactionEmojis = {
 
 const reactionTypes = ['likes', 'fires', 'hearts', 'laughs', 'wows'] as const
 
-export default function ReactionButtons({
+const ReactionButtons = memo(function ReactionButtons({
   comment,
   onReaction,
   hasUserReaction,
@@ -110,5 +110,6 @@ export default function ReactionButtons({
       )}
     </div>
   )
-}
+})
 
+export default ReactionButtons

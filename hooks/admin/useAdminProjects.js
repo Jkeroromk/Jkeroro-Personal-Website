@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import DataManager from '@/lib/data-manager'
+import { getAuthHeaders } from '@/lib/auth-client'
 
 const filterDefined = (obj) =>
   Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null))
 
 const apiCall = async (url, method, body) => {
+  const authHeaders = await getAuthHeaders()
   const res = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: body ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {

@@ -3,6 +3,7 @@ import { Fredoka } from "next/font/google";
 import "./globals.css";
 import { ConditionalToaster } from "@/components/ui/conditional-toaster";
 import ClientScripts from "@/components/ClientScripts";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const fredoka = Fredoka({
   weight: ["400", "500", "600"],
@@ -78,7 +79,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/192.png" />
       </head>
       <body className={`${fredoka.className} antialiased bg-black`} suppressHydrationWarning>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
         <ConditionalToaster/>
       </body>
     </html>

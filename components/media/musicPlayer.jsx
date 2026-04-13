@@ -296,19 +296,22 @@ export default function MusicPlayer() {
 
       {showMiniPlayer && (
         <div
-          className="fixed bottom-4 right-4 z-50 w-72 rounded-2xl overflow-hidden text-white shadow-2xl"
+          className="fixed z-50 text-white shadow-2xl
+            bottom-0 left-0 right-0 rounded-t-2xl
+            sm:bottom-4 sm:left-auto sm:right-4 sm:w-72 sm:rounded-2xl"
           style={{ animation: 'mini-slidein 0.3s ease forwards' }}
         >
           {/* 模糊封面背景 */}
           {currentTrack?.cover && (
             <div
-              className="absolute inset-0 z-0"
+              className="absolute inset-0 z-0 hidden sm:block"
               style={{
                 backgroundImage: `url(${currentTrack.cover})`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 filter: 'blur(28px)',
                 transform: 'scale(1.4)',
+                borderRadius: 'inherit',
               }}
             />
           )}
@@ -316,17 +319,29 @@ export default function MusicPlayer() {
             className="absolute inset-0 z-0"
             style={{
               background: currentTrack?.cover
-                ? 'rgba(0,0,0,0.55)'
-                : 'rgba(20,20,20,0.85)',
-              backdropFilter: currentTrack?.cover ? 'none' : 'blur(20px)',
-              WebkitBackdropFilter: currentTrack?.cover ? 'none' : 'blur(20px)',
+                ? 'rgba(0,0,0,0.6)'
+                : 'rgba(20,20,20,0.92)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
               border: '1px solid rgba(255,255,255,0.1)',
               borderRadius: 'inherit',
             }}
           />
 
           {/* 内容 */}
-          <div className="relative z-10 flex items-center px-4 py-3 gap-3">
+          <div
+            className="relative z-10 flex items-center gap-3 px-4 py-3"
+            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+          >
+            {/* 移动端封面缩略图 */}
+            {currentTrack?.cover && (
+              <img
+                src={currentTrack.cover}
+                alt=""
+                className="w-10 h-10 rounded-lg object-cover flex-shrink-0 sm:hidden"
+              />
+            )}
+
             {/* 歌名 + 歌手 */}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate leading-tight">
@@ -340,27 +355,29 @@ export default function MusicPlayer() {
             </div>
 
             {/* 控制按钮 */}
-            <div className="flex items-center gap-4 flex-shrink-0">
-              <SkipBack
-                size={18}
-                className="cursor-pointer text-white/70 hover:text-white hover:scale-110 transition-all duration-200"
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+              <button
                 onClick={() => skipTrack(-1, true)}
-              />
+                className="w-10 h-10 sm:w-auto sm:h-auto flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all duration-200"
+              >
+                <SkipBack size={18} />
+              </button>
               <button
                 onClick={togglePlayPause}
-                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all duration-200 hover:scale-110"
+                className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 flex items-center justify-center transition-all duration-200 active:scale-90"
               >
-                {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                {isPlaying ? <Pause size={18} /> : <Play size={18} />}
               </button>
-              <SkipForward
-                size={18}
-                className="cursor-pointer text-white/70 hover:text-white hover:scale-110 transition-all duration-200"
+              <button
                 onClick={() => skipTrack(1, true)}
-              />
+                className="w-10 h-10 sm:w-auto sm:h-auto flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all duration-200"
+              >
+                <SkipForward size={18} />
+              </button>
             </div>
           </div>
 
-          {/* 细进度条 */}
+          {/* 进度条 */}
           <div className="relative z-10 h-[3px] bg-white/10 mx-4 mb-3 rounded-full overflow-hidden">
             <div
               className="h-full bg-white/60 rounded-full transition-all duration-300"

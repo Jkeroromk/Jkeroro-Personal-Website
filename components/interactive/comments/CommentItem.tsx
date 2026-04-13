@@ -3,6 +3,7 @@
  * 单个评论项组件
  */
 
+import { memo } from 'react'
 import { Comment } from '@/types/api'
 import ClientTimeDisplay from '@/components/layout/ClientTimeDisplay'
 import ReactionButtons from './ReactionButtons'
@@ -13,7 +14,7 @@ interface CommentItemProps {
   hasUserReaction: (commentId: string, reactionType: string) => boolean
 }
 
-export default function CommentItem({
+const CommentItem = memo(function CommentItem({
   comment,
   onReaction,
   hasUserReaction,
@@ -41,5 +42,6 @@ export default function CommentItem({
       </div>
     </div>
   )
-}
+})
 
+export default CommentItem
