@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
+import { requireAuth } from '@/lib/requireAuth'
 
 // 获取所有音乐轨道
 export async function GET() {
@@ -49,6 +50,8 @@ export async function GET() {
 
 // 创建新音乐轨道
 export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request)
+  if (authError) return authError
   try {
     const body = await request.json()
     const { title, subtitle, src, cover, order } = body

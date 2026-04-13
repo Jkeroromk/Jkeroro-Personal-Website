@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/requireAuth'
 
 // 更新音乐轨道
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = await requireAuth(request)
+  if (authError) return authError
   const { id } = await params
   try {
     const body = await request.json()
@@ -54,6 +57,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = await requireAuth(request)
+  if (authError) return authError
   try {
     const { id } = await params
     

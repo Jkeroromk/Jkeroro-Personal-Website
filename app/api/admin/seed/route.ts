@@ -1,15 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAuth } from '@/lib/requireAuth'
 
 // 生产环境 seed 数据端点（仅管理员使用）
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const authError = await requireAuth(request)
+  if (authError) return authError
   try {
-    // 这里可以添加管理员验证
-    // const session = await getServerSession()
-    // if (!session?.user?.isAdmin) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    // }
-
     console.log('🌱 开始填充生产环境数据库...\n')
 
     // 创建示例图片

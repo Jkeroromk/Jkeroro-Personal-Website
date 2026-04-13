@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import DataManager from '@/lib/data-manager'
+import { getAuthHeaders } from '@/lib/auth-client'
 
 const apiCall = async (url, method, body) => {
+  const authHeaders = await getAuthHeaders()
   const res = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders },
     body: body ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
@@ -81,11 +83,12 @@ export const useAdminTracks = () => {
     const [dragged] = newTracks.splice(dragIndex, 1)
     newTracks.splice(dropIndex, 0, dragged)
     setTracks(newTracks)
+    const authHeaders = await getAuthHeaders()
     await Promise.all(
       newTracks.map((track, i) =>
         fetch(`/api/media/tracks/${track.id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({ order: i }),
         })
       )

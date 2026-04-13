@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, memo } from 'react'
 import { useCommentReactions } from '@/hooks/useCommentReactions'
 import ReactionButtons from './comments/ReactionButtons'
 import { Comment } from '@/types/api'
@@ -181,7 +181,7 @@ const ALLOWED_EMOJIS = ['👋', '❤️', '🔥', '✨', '😊', '🎵', '🌟',
 
 // ── EntryCard ─────────────────────────────────────────────────────────────────
 
-function EntryCard({
+const EntryCard = memo(function EntryCard({
   entry,
   t,
   onReaction,
@@ -234,7 +234,7 @@ function EntryCard({
       </div>
     </div>
   )
-}
+})
 
 // ── GuestbookWall ─────────────────────────────────────────────────────────────
 
