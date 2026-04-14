@@ -22,6 +22,7 @@ export default function MusicPlayer() {
   const [isLooping, setIsLooping] = useState(false)
   const [isShuffled, setIsShuffled] = useState(false)
   const [showMiniPlayer, setShowMiniPlayer] = useState(false)
+  const [showMiniModal, setShowMiniModal] = useState(false)
   const audioRef = useRef(null)
 
   const {
@@ -288,103 +289,183 @@ export default function MusicPlayer() {
           from { transform: translateY(100%); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
         }
-        @keyframes mini-slideout {
-          from { transform: translateY(0);    opacity: 1; }
-          to   { transform: translateY(100%); opacity: 0; }
+        @keyframes ball-popin {
+          from { transform: scale(0.4); opacity: 0; }
+          to   { transform: scale(1);   opacity: 1; }
+        }
+        @keyframes modal-slidein {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
         }
       `}</style>
 
       {showMiniPlayer && (
-        <div
-          className="fixed z-50 text-white shadow-2xl
-            bottom-0 left-0 right-0 rounded-t-2xl
-            sm:bottom-4 sm:left-auto sm:right-4 sm:w-72 sm:rounded-2xl"
-          style={{ animation: 'mini-slidein 0.3s ease forwards' }}
-        >
-          {/* 模糊封面背景 */}
-          {currentTrack?.cover && (
+        <>
+          {/* ── 桌面：右下角胶囊 ── */}
+          <div
+            className="hidden sm:block fixed bottom-4 right-4 z-50 w-72 rounded-2xl overflow-hidden text-white shadow-2xl"
+            style={{ animation: 'mini-slidein 0.3s ease forwards' }}
+          >
+            {currentTrack?.cover && (
+              <div
+                className="absolute inset-0 z-0"
+                style={{
+                  backgroundImage: `url(${currentTrack.cover})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: 'blur(28px)',
+                  transform: 'scale(1.4)',
+                }}
+              />
+            )}
             <div
-              className="absolute inset-0 z-0 hidden sm:block"
+              className="absolute inset-0 z-0"
               style={{
-                backgroundImage: `url(${currentTrack.cover})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: 'blur(28px)',
-                transform: 'scale(1.4)',
+                background: currentTrack?.cover ? 'rgba(0,0,0,0.55)' : 'rgba(20,20,20,0.85)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.1)',
                 borderRadius: 'inherit',
               }}
             />
-          )}
-          <div
-            className="absolute inset-0 z-0"
-            style={{
-              background: currentTrack?.cover
-                ? 'rgba(0,0,0,0.6)'
-                : 'rgba(20,20,20,0.92)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 'inherit',
-            }}
-          />
+            <div className="relative z-10 flex items-center px-4 py-3 gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate leading-tight">{currentTrack?.title || 'No Track'}</p>
+                {currentTrack?.subtitle && (
+                  <p className="text-xs text-white/50 truncate mt-0.5">{currentTrack.subtitle}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-4 flex-shrink-0">
+                <SkipBack size={18} className="cursor-pointer text-white/70 hover:text-white transition-all" onClick={() => skipTrack(-1, true)} />
+                <button onClick={togglePlayPause} className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all">
+                  {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                </button>
+                <SkipForward size={18} className="cursor-pointer text-white/70 hover:text-white transition-all" onClick={() => skipTrack(1, true)} />
+              </div>
+            </div>
+            <div className="relative z-10 h-[3px] bg-white/10 mx-4 mb-3 rounded-full overflow-hidden">
+              <div className="h-full bg-white/60 rounded-full transition-all duration-300" style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }} />
+            </div>
+          </div>
 
-          {/* 内容 */}
-          <div
-            className="relative z-10 flex items-center gap-3 px-4 py-3"
-            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+          {/* ── 移动端：浮动球 ── */}
+          <button
+            className="sm:hidden fixed top-[72px] right-4 z-50 w-11 h-11 rounded-full shadow-2xl overflow-hidden text-white"
+            style={{ animation: 'ball-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards' }}
+            onClick={() => setShowMiniModal(true)}
           >
-            {/* 移动端封面缩略图 */}
-            {currentTrack?.cover && (
-              <img
-                src={currentTrack.cover}
-                alt=""
-                className="w-10 h-10 rounded-lg object-cover flex-shrink-0 sm:hidden"
-              />
+            {/* 封面或纯色背景 */}
+            {currentTrack?.cover ? (
+              <img src={currentTrack.cover} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 bg-zinc-800" />
             )}
-
-            {/* 歌名 + 歌手 */}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate leading-tight">
-                {currentTrack?.title || 'No Track'}
-              </p>
-              {currentTrack?.subtitle && (
-                <p className="text-xs text-white/50 truncate mt-0.5">
-                  {currentTrack.subtitle}
-                </p>
-              )}
+            {/* 暗色遮罩 */}
+            <div className="absolute inset-0 bg-black/40" />
+            {/* 播放/暂停图标 */}
+            <div className="relative z-10 flex items-center justify-center w-full h-full">
+              {isPlaying ? <Pause size={15} /> : <Play size={15} />}
             </div>
+            {/* 圆形进度环 — viewBox matches w-11=44px */}
+            <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 44 44">
+              <circle cx="22" cy="22" r="20" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />
+              <circle
+                cx="22" cy="22" r="20" fill="none"
+                stroke="rgba(255,255,255,0.8)" strokeWidth="2"
+                strokeDasharray={`${2 * Math.PI * 20}`}
+                strokeDashoffset={`${2 * Math.PI * 20 * (1 - (duration > 0 ? currentTime / duration : 0))}`}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 0.3s linear' }}
+              />
+            </svg>
+          </button>
 
-            {/* 控制按钮 */}
-            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-              <button
-                onClick={() => skipTrack(-1, true)}
-                className="w-10 h-10 sm:w-auto sm:h-auto flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all duration-200"
+          {/* ── 移动端：展开 Modal ── */}
+          {showMiniModal && (
+            <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
+              {/* 遮罩 */}
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMiniModal(false)} />
+
+              {/* 面板 */}
+              <div
+                className="relative rounded-t-3xl overflow-hidden text-white"
+                style={{ animation: 'modal-slidein 0.32s cubic-bezier(0.32,0.72,0,1) forwards', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
-                <SkipBack size={18} />
-              </button>
-              <button
-                onClick={togglePlayPause}
-                className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 flex items-center justify-center transition-all duration-200 active:scale-90"
-              >
-                {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-              </button>
-              <button
-                onClick={() => skipTrack(1, true)}
-                className="w-10 h-10 sm:w-auto sm:h-auto flex items-center justify-center text-white/70 hover:text-white active:scale-90 transition-all duration-200"
-              >
-                <SkipForward size={18} />
-              </button>
+                {/* 封面模糊背景 */}
+                {currentTrack?.cover && (
+                  <div
+                    className="absolute inset-0 z-0"
+                    style={{
+                      backgroundImage: `url(${currentTrack.cover})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      filter: 'blur(40px)',
+                      transform: 'scale(1.5)',
+                    }}
+                  />
+                )}
+                <div className="absolute inset-0 z-0 bg-black/65" />
+
+                <div className="relative z-10 px-6 pt-4 pb-6">
+                  {/* 拖拽把手 */}
+                  <div className="w-10 h-1 bg-white/30 rounded-full mx-auto mb-5" />
+
+                  {/* 封面大图 */}
+                  {currentTrack?.cover && (
+                    <div className="w-40 h-40 mx-auto mb-5 rounded-2xl overflow-hidden shadow-2xl">
+                      <img src={currentTrack.cover} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+
+                  {/* 歌名 + 歌手 */}
+                  <div className="text-center mb-6">
+                    <p className="text-lg font-semibold truncate">{currentTrack?.title || 'No Track'}</p>
+                    {currentTrack?.subtitle && (
+                      <p className="text-sm text-white/50 mt-0.5 truncate">{currentTrack.subtitle}</p>
+                    )}
+                  </div>
+
+                  {/* 进度条 */}
+                  <div className="mb-1">
+                    <div
+                      className="w-full h-1 bg-white/15 rounded-full overflow-hidden cursor-pointer"
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const pct = (e.clientX - rect.left) / rect.width
+                        setCurrentTimeValue(pct * duration)
+                      }}
+                    >
+                      <div
+                        className="h-full bg-white/80 rounded-full transition-all duration-300"
+                        style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-white/40 mt-1">
+                      <span>{formatTime(currentTime)}</span>
+                      <span>{formatTime(duration)}</span>
+                    </div>
+                  </div>
+
+                  {/* 控制按钮 */}
+                  <div className="flex items-center justify-center gap-8 mt-4">
+                    <button onClick={() => skipTrack(-1, true)} className="w-12 h-12 flex items-center justify-center text-white/70 active:scale-90 transition-all">
+                      <SkipBack size={26} />
+                    </button>
+                    <button
+                      onClick={togglePlayPause}
+                      className="w-16 h-16 rounded-full bg-white flex items-center justify-center active:scale-90 transition-all shadow-lg"
+                    >
+                      {isPlaying ? <Pause size={28} className="text-black" /> : <Play size={28} className="text-black" />}
+                    </button>
+                    <button onClick={() => skipTrack(1, true)} className="w-12 h-12 flex items-center justify-center text-white/70 active:scale-90 transition-all">
+                      <SkipForward size={26} />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-
-          {/* 进度条 */}
-          <div className="relative z-10 h-[3px] bg-white/10 mx-4 mb-3 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-white/60 rounded-full transition-all duration-300"
-              style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }}
-            />
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -158,7 +158,7 @@ export default function NavigationBar() {
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             aria-label={isExpanded ? '收起菜单' : '展开菜单'}
-            className={`flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+            className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
               isExpanded
                 ? 'bg-white/20 border-white/40'
                 : 'bg-white/5 border-white/20 hover:bg-white/10'
@@ -166,7 +166,7 @@ export default function NavigationBar() {
             style={{ backdropFilter: 'blur(20px)' }}
           >
             <svg
-              className={`w-4 h-4 sm:w-5 sm:h-5 relative z-10 text-white transition-all duration-300 ${
+              className={`w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white transition-all duration-300 ${
                 isExpanded ? 'rotate-90' : 'rotate-0'
               }`}
               fill="none"
@@ -207,14 +207,14 @@ export default function NavigationBar() {
                 setIsExpanded(false)
               }}
               aria-label={showAssistant ? '关闭AI助手' : '打开AI助手'}
-              className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showAssistant
                   ? 'bg-white/20 border-white/40'
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-xs sm:text-sm font-bold text-white relative z-10 animate-pulse">
+              <span className="text-sm sm:text-base font-bold text-white relative z-10 animate-pulse">
                 J
               </span>
               <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
@@ -244,14 +244,14 @@ export default function NavigationBar() {
                     ? '关闭登录'
                     : '打开登录'
               }
-              className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showLogin
                   ? 'bg-white/20 border-white/40'
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-xs sm:text-sm font-bold text-white relative z-10 animate-pulse">
+              <span className="text-sm sm:text-base font-bold text-white relative z-10 animate-pulse">
                 L
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-white/10 animate-pulse opacity-50"></div>
@@ -272,7 +272,7 @@ export default function NavigationBar() {
               aria-label={
                 showControlPanel ? '关闭控制面板' : '打开控制面板'
               }
-              className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showControlPanel
                   ? 'bg-white/20 border-white/40'
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
@@ -280,7 +280,7 @@ export default function NavigationBar() {
               style={{ backdropFilter: 'blur(20px)' }}
             >
               <svg
-                className="w-4 h-4 sm:w-5 sm:h-5 relative z-10 text-white"
+                className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
