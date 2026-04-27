@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react'
 import { X, File, Image, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
+import { getAuthHeaders } from '@/lib/auth-client'
 
 interface FileUploadProps {
   onFileSelect: (file: File, filePath?: string) => void
@@ -87,8 +88,10 @@ const FileUpload: React.FC<FileUploadProps> = ({
         const formData = new FormData()
         formData.append('file', file)
         
+        const authHeaders = await getAuthHeaders()
         const response = await fetch('/api/upload', {
           method: 'POST',
+          headers: authHeaders,
           body: formData,
         })
         
