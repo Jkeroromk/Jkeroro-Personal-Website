@@ -91,14 +91,14 @@ if (typeof window === 'undefined') {
 }
 
 // 创建 Prisma 客户端实例
-let prismaClient = new PrismaClient({
+// 只有在 DATABASE_URL 有值时才显式传入，避免 build 阶段因 undefined 报错
+const prismaOptions: ConstructorParameters<typeof PrismaClient>[0] = {
   log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-    },
-  },
-})
+}
+if (process.env.DATABASE_URL) {
+  prismaOptions.datasources = { db: { url: process.env.DATABASE_URL } }
+}
+let prismaClient = new PrismaClient(prismaOptions)
 
 // 如果安装了 Accelerate 扩展且 DATABASE_URL 使用 prisma:// 协议，则启用 Accelerate
 if (withAccelerate && process.env.DATABASE_URL?.startsWith('prisma://')) {
