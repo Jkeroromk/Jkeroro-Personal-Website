@@ -23,24 +23,7 @@ export default function MusicPlayer() {
   const [isShuffled, setIsShuffled] = useState(false)
   const [showMiniPlayer, setShowMiniPlayer] = useState(false)
   const [showMiniModal, setShowMiniModal] = useState(false)
-  const [miniPlayerTop, setMiniPlayerTop] = useState(80)
   const audioRef = useRef(null)
-
-  // 监听导航栏高度，mini player 始终贴在导航栏正下方
-  useEffect(() => {
-    const updatePosition = () => {
-      const nav = document.getElementById('nav-bar')
-      if (!nav) return
-      const { bottom } = nav.getBoundingClientRect()
-      setMiniPlayerTop(bottom + 8)
-    }
-    updatePosition()
-    const nav = document.getElementById('nav-bar')
-    if (!nav) return
-    const ro = new ResizeObserver(updatePosition)
-    ro.observe(nav)
-    return () => ro.disconnect()
-  }, [])
 
   const {
     isPlaying,
@@ -367,8 +350,8 @@ export default function MusicPlayer() {
 
           {/* ── 移动端：浮动球 ── */}
           <button
-            className="sm:hidden fixed right-4 z-50 w-11 h-11 rounded-full shadow-2xl overflow-hidden text-white"
-            style={{ top: miniPlayerTop, animation: 'ball-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards', transition: 'top 0.3s ease' }}
+            className="sm:hidden fixed right-4 z-50 w-12 h-12 rounded-full shadow-2xl overflow-hidden text-white"
+            style={{ top: 'calc(var(--nav-bottom, 72px) + 8px)', animation: 'ball-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards', transition: 'top 0.3s ease' }}
             onClick={() => setShowMiniModal(true)}
           >
             {/* 封面或纯色背景 */}
