@@ -18,6 +18,7 @@ export default function NavigationBar() {
   const { guiParams, handleParamChange } = useControlPanel()
   const [isMounted, setIsMounted] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
+  const navRef = React.useRef(null)
   const [showLogin, setShowLogin] = useState(false)
   const [showControlPanel, setShowControlPanel] = useState(false)
   const [showAssistant, setShowAssistant] = useState(false)
@@ -46,6 +47,20 @@ export default function NavigationBar() {
   }
 
   // 确保组件在客户端挂载
+  // 自测量 nav 高度，更新 CSS 变量供 mini player 定位
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+    const update = () => {
+      const bottom = nav.getBoundingClientRect().bottom
+      document.documentElement.style.setProperty('--nav-bottom', `${bottom}px`)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(nav)
+    return () => ro.disconnect()
+  }, [])
+
   useEffect(() => {
     setIsMounted(true)
 
@@ -143,6 +158,7 @@ export default function NavigationBar() {
       {/* 可折叠导航栏容器 - 右上角 */}
       <div
         id="nav-bar"
+        ref={navRef}
         className="fixed top-4 right-4 z-50"
         style={{ position: 'fixed', top: '16px', right: '16px' }}
       >
