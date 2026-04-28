@@ -19,6 +19,7 @@ export default function NavigationBar() {
   const [isMounted, setIsMounted] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const navRef = React.useRef(null)
+  const toggleBtnRef = React.useRef(null)
   const [showLogin, setShowLogin] = useState(false)
   const [showControlPanel, setShowControlPanel] = useState(false)
   const [showAssistant, setShowAssistant] = useState(false)
@@ -46,20 +47,27 @@ export default function NavigationBar() {
     }
   }
 
-  // 确保组件在客户端挂载
   // 自测量 nav 高度，更新 CSS 变量供 mini player 定位
+  // isMounted：第一次渲染 nav 未挂载（return null），需等 true 后再测量
+  // isExpanded：expand/collapse 只改 opacity 不改 DOM 尺寸，ResizeObserver 感知不到，
+  //             所以用 isExpanded 直接驱动：展开时等动画结束再量，折叠时立即量
   useEffect(() => {
+    if (!isMounted) return
     const nav = navRef.current
     if (!nav) return
-    const update = () => {
-      const bottom = nav.getBoundingClientRect().bottom
+    const measure = () => {
+      // 展开时量整个 nav，折叠时只量 toggle 按钮（invisible buttons 仍占 DOM 高度）
+      const target = isExpanded ? nav : (toggleBtnRef.current ?? nav)
+      const bottom = target.getBoundingClientRect().bottom
       document.documentElement.style.setProperty('--nav-bottom', `${bottom}px`)
     }
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(nav)
-    return () => ro.disconnect()
-  }, [])
+    if (isExpanded) {
+      const t = setTimeout(measure, 320) // 等 300ms 动画结束
+      return () => clearTimeout(t)
+    } else {
+      measure()
+    }
+  }, [isMounted, isExpanded])
 
   useEffect(() => {
     setIsMounted(true)
@@ -171,7 +179,7 @@ export default function NavigationBar() {
         ></div>
 
         {/* 主切换按钮 */}
-        <div className="relative group/button">
+        <div ref={toggleBtnRef} className="relative group/button">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             aria-label={isExpanded ? '收起菜单' : '展开菜单'}
