@@ -41,7 +41,7 @@ export const useAdminImages = () => {
     if (!formData.src?.trim()) throw new Error('请上传图片文件')
 
     const isNew = !editingItem || editingItem === 'new'
-    await apiCall(
+    const res = await apiCall(
       isNew ? '/api/media/images' : `/api/media/images/${editingItem.id}`,
       isNew ? 'POST' : 'PATCH',
       {
@@ -54,7 +54,13 @@ export const useAdminImages = () => {
         ...(isNew ? { priority: false } : {}),
       }
     )
-    setTimeout(() => loadImages(), 300)
+    // 立即更新本地 state，不依赖缓存失效
+    const saved = await res.json()
+    if (isNew) {
+      setImages(prev => [...(prev || []), saved])
+    } else {
+      setImages(prev => (prev || []).map(img => img.id === saved.id ? saved : img))
+    }
   }
 
   const handleDeleteImage = async (id) => {
