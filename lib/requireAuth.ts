@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/supabase'
+import { createClient } from '@supabase/supabase-js'
 
 /**
  * Validates the Bearer token in the Authorization header.
@@ -17,8 +17,18 @@ export async function requireAuth(request: NextRequest): Promise<NextResponse | 
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  // service role key 优先，没有则降级用 anon key（验证 token 身份两者都可以）
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseKey) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
-    const supabase = createServerClient()
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
     const { data: { user }, error } = await supabase.auth.getUser(token)
     if (error || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
