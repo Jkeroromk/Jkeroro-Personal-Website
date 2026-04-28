@@ -14,8 +14,6 @@ export async function GET() {
           { order: 'asc' },
           { createdAt: 'asc' },
         ],
-        // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-        cacheStrategy: { swr: 300, ttl: 300 },
       }),
       8000
       )
