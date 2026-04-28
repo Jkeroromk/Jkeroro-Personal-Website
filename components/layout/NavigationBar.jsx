@@ -142,6 +142,7 @@ export default function NavigationBar() {
     <>
       {/* 可折叠导航栏容器 - 右上角 */}
       <div
+        id="nav-bar"
         className="fixed top-4 right-4 z-50"
         style={{ position: 'fixed', top: '16px', right: '16px' }}
       >
