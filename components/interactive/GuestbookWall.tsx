@@ -310,7 +310,13 @@ export default function GuestbookWall() {
         pinned: false,
         likes: 0, fires: 0, hearts: 0, laughs: 0, wows: 0,
       }
-      setEntries((prev) => [newEntry, ...prev])
+      setEntries((prev) => {
+        const list = [newEntry, ...prev]
+        return list.sort((a, b) => {
+          if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        })
+      })
       setName(''); setMessage(''); setEmoji('👋')
       setSuccess(true); setShowForm(false)
       setTimeout(() => setSuccess(false), 3000)

@@ -61,11 +61,17 @@ export default function NavigationBar() {
       const bottom = target.getBoundingClientRect().bottom
       document.documentElement.style.setProperty('--nav-bottom', `${bottom}px`)
     }
+    let t
     if (isExpanded) {
-      const t = setTimeout(measure, 320) // 等 300ms 动画结束
-      return () => clearTimeout(t)
+      t = setTimeout(measure, 320) // 等 300ms 动画结束
     } else {
       measure()
+    }
+    // 窗口缩放/resize 时重新测量（浏览器 zoom 也会触发 resize）
+    window.addEventListener('resize', measure)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('resize', measure)
     }
   }, [isMounted, isExpanded])
 

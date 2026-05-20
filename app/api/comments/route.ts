@@ -16,11 +16,9 @@ export async function GET() {
           { pinned: 'desc' },
           { createdAt: 'desc' },
         ],
-        // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-        cacheStrategy: { swr: 60, ttl: 60 },
       }),
       8000
-      )
+    )
 
     return NextResponse.json(comments)
   } catch (error) {

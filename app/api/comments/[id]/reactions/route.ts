@@ -72,7 +72,7 @@ export async function POST(
           commentId_userId_type: {
             commentId: id,
             userId,
-            type,
+            type: dbType,
           },
         },
       })

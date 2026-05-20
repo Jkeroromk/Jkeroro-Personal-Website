@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Edit2, Trash2, MessageSquare, ThumbsUp, Flame, Heart, Laugh, Eye, RefreshCw, Check, X, Pin, PinOff } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
+import { getAuthHeaders } from '@/lib/auth-client'
 
 const reactionIcons = {
   likes:  { icon: ThumbsUp, color: 'text-blue-400' },
@@ -43,7 +44,8 @@ const CommentsTab = () => {
   const handleDelete = async (id) => {
     if (!confirm('Delete this comment?')) return
     try {
-      const res = await fetch(`/api/comments/${id}`, { method: 'DELETE' })
+      const authHeaders = await getAuthHeaders()
+      const res = await fetch(`/api/comments/${id}`, { method: 'DELETE', headers: authHeaders })
       if (!res.ok) throw new Error((await res.json()).error || 'Failed')
       setComments(c => c.filter(x => x.id !== id))
       toast({ title: 'Deleted', description: 'Comment removed.' })
@@ -58,9 +60,10 @@ const CommentsTab = () => {
       return
     }
     try {
+      const authHeaders = await getAuthHeaders()
       const res = await fetch(`/api/comments/${editingComment}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ text: editText.trim() }),
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Failed')
@@ -74,9 +77,10 @@ const CommentsTab = () => {
 
   const handlePin = async (id, pinned) => {
     try {
+      const authHeaders = await getAuthHeaders()
       const res = await fetch(`/api/comments/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
         body: JSON.stringify({ pinned }),
       })
       if (!res.ok) throw new Error((await res.json()).error || 'Failed')

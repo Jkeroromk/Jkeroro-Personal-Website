@@ -15,7 +15,7 @@ const GuestbookWall = dynamic(() => import("@/components/interactive/GuestbookWa
 const PersonalStore = dynamic(() => import("@/components/interactive/personalStore"), { ssr: false })
 const Album = dynamic(() => import("@/components/media/album"), { ssr: false })
 const AnniversaryCounter = dynamic(() => import("@/components/interactive/AnniversaryCounter"), { ssr: false })
-const Footer = dynamic(() => import("@/components/layout/footer"), { ssr: false })
+import Footer from "@/components/layout/footer"
 
 
 const HomeContent = () => {
