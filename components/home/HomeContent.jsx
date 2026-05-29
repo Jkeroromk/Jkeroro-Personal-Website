@@ -9,6 +9,8 @@ import HomeSection from './HomeSection'
 import Stack from "@/components/media/stack"
 import MusicPlayer from "@/components/media/musicPlayer"
 
+const About = dynamic(() => import("@/components/home/About"), { ssr: false })
+
 // 折叠下方组件延迟加载，减少首屏 JS 体积
 const Tabs = dynamic(() => import("@/components/media/tabs"), { ssr: false })
 const GuestbookWall = dynamic(() => import("@/components/interactive/GuestbookWall"), { ssr: false })
@@ -29,6 +31,10 @@ const HomeContent = () => {
         <Stack/>
       </HomeSection>
       
+      <HomeSection delay={0.25}>
+        <About />
+      </HomeSection>
+
       <HomeSection delay={0.3}>
         <MusicPlayer />
       </HomeSection>

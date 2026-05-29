@@ -22,7 +22,28 @@
       "Bash(DIRECT_URL=\"postgresql://postgres:JASON123KEROROa@db.abiovzwxewgabshbkuyh.supabase.co:5432/postgres\" DATABASE_URL=\"prisma://accelerate.prisma-data.net/?api_key=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqd3RfaWQiOjEsInNlY3VyZV9rZXkiOiJza19vQUlPS2ZYWXdmeDhVTE9DbkNTcjciLCJhcGlfa2V5IjoiMDFLOUpFUVoxOE1ETkNSRFgwOVpDUlpSUEYiLCJ0ZW5hbnRfaWQiOiJiY2I0OTIyNmE4YzVmY2ZkZDdjZWRjNWE2ODRkYjY5M2UyZTc2ZDk3ZmY2NzMxYTI3YzAyOWM3YWZkMjMzNzVlIiwiaW50ZXJuYWxfc2VjcmV0IjoiZGU0Mzc4MmQtN2NlYS00MjkwLTk2MGQtNzIzYWUxMzE4NmI4In0.XcwaSan9WvfNvPAuh6me1dUYU0ZJ8MArIMD6ioTvVHM\" npx prisma migrate resolve --applied \"20260402000000_add_track_cover\")",
       "Bash(xargs grep:*)",
       "Bash(git -C /z/Programmming/Jkeroro-Personal-Website log --oneline -20)",
-      "Bash(xargs wc:*)"
+      "Bash(xargs wc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -l \"export async function POST\\\\|export async function PATCH\\\\|export async function DELETE\" /z/Programmming/Jkeroro-Personal-Website/app/api/**/*.ts)",
+      "Bash(xargs -I {} bash -c 'echo \"=== {} ===\" && head -20 {}')",
+      "Bash(git pull *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(cat next.config.ts)",
+      "Bash(cat next.config.js)",
+      "Bash(cat next.config.mjs)",
+      "Bash(gh run *)",
+      "Bash(gh deployment *)",
+      "WebFetch(domain:www.jkeroro.com)",
+      "Bash(git fetch *)",
+      "Bash(git rebase *)",
+      "Bash(git stash *)",
+      "Bash(git merge *)",
+      "Bash(cat lib/api-client.ts)",
+      "Bash(cat lib/api-client.js)",
+      "PowerShell(git clone https://github.com/Jkeroromk/Hive.git \"z:\\\\Programmming\\\\Hive\")"
     ]
   }
 }
