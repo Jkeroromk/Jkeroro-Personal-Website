@@ -15,8 +15,9 @@ function cacheKey(track: Pick<Track, 'title' | 'subtitle'>) {
   return `${track.title}|||${track.subtitle}`
 }
 
-async function fetchLyrics(title: string, artist: string): Promise<LyricLine[] | null> {
+async function fetchLyrics(title: string, artist: string, duration?: number): Promise<LyricLine[] | null> {
   const params = new URLSearchParams({ title, artist })
+  if (duration && duration > 0) params.set('duration', String(duration))
   const res = await fetch(`/api/lyrics/search?${params}`)
   if (!res.ok) throw new Error('fetch_error')
   const data = await res.json()
@@ -73,10 +74,11 @@ export async function preloadAllLyrics(
   )
 }
 
-export function useLyrics(track: Track | null) {
+export function useLyrics(track: Track | null, duration?: number) {
   const [lyrics, setLyrics] = useState<LyricLine[] | null>(null)
   const [loading, setLoading] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  const refinedKeysRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     if (!track) {
@@ -92,6 +94,7 @@ export function useLyrics(track: Track | null) {
       lyricsCache.set(key, false)
       setLoading(true)
       const params = new URLSearchParams({ title: track.title, artist: track.subtitle })
+      if (duration && duration > 0) params.set('duration', String(duration))
       fetch(`/api/lyrics/search?${params}`, { signal: controller.signal })
         .then(res => { if (!res.ok) throw new Error('fetch_error'); return res.json() })
         .then(data => {
@@ -143,6 +146,25 @@ export function useLyrics(track: Track | null) {
     doFetch(controller)
     return () => controller.abort()
   }, [track?.id])
+
+  // 音频元数据加载完、真实时长可用后，用时长重新校准一次匹配结果
+  // （预取阶段不知道时长，可能选错版本导致歌词不对轨；这里纠正一次）
+  useEffect(() => {
+    if (!track || !duration || duration <= 0) return
+    const key = cacheKey(track)
+    if (refinedKeysRef.current.has(key)) return
+    refinedKeysRef.current.add(key)
+
+    let cancelled = false
+    fetchLyrics(track.title, track.subtitle, duration)
+      .then(parsed => {
+        if (cancelled) return
+        lyricsCache.set(key, parsed)
+        setLyrics(parsed)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [track?.id, duration])
 
   return { lyrics, loading }
 }
