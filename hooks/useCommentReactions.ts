@@ -3,7 +3,7 @@
  * 管理评论反应逻辑
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import { apiRequest } from '@/lib/api-client'
 
@@ -11,6 +11,8 @@ export function useCommentReactions() {
   const { toast } = useToast()
   const [userReactions, setUserReactions] = useState<Record<string, string[]>>({})
   const [userId, setUserId] = useState<string | null>(null)
+  // 防止网络慢时用户快速连点同一个反应，导致 add+remove 两个请求相互抵消
+  const pendingRef = useRef<Set<string>>(new Set())
 
   // 生成用户 ID
   const generateUserId = () => {
@@ -75,6 +77,10 @@ export function useCommentReactions() {
       return
     }
 
+    const pendingKey = `${commentId}:${reactionType}`
+    if (pendingRef.current.has(pendingKey)) return
+    pendingRef.current.add(pendingKey)
+
     try {
       const result = await apiRequest(`/api/comments/${commentId}/reactions`, {
         method: 'POST',
@@ -134,6 +140,8 @@ export function useCommentReactions() {
         description: 'Failed to add reaction',
         variant: 'destructive',
       })
+    } finally {
+      pendingRef.current.delete(pendingKey)
     }
   }
 
