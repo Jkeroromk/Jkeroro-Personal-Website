@@ -3,18 +3,12 @@
  * 组件 Props 类型定义
  */
 
-import { Image, Track, Project, Comment } from './api'
+import { Image, Track, Project } from './api'
 
 // Music Player Types
 export interface MusicPlayerProps {
   tracks?: Track[]
   autoPlay?: boolean
-}
-
-// Comment System Types
-export interface CommentSystemProps {
-  initialComments?: Comment[]
-  maxDisplayed?: number
 }
 
 // Anniversary Counter Types
