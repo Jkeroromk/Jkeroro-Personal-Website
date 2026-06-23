@@ -47,7 +47,7 @@ export default function MusicPlayer() {
     useVolume()
 
   const currentTrackForLyrics = tracks?.[currentTrackIndex] ?? null
-  const { lyrics } = useLyrics(currentTrackForLyrics)
+  const { lyrics } = useLyrics(currentTrackForLyrics, duration)
 
   // tracks 加载完后立即预取所有歌词
   useEffect(() => {

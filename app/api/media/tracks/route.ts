@@ -7,14 +7,11 @@ import { requireAuth } from '@/lib/requireAuth'
 export async function GET() {
   try {
     // 添加连接超时保护（8秒超时）
-    // 使用 Accelerate 缓存策略：SWR 策略，音乐轨道数据不经常变化，缓存 300 秒（5分钟）
     const tracks = await withTimeout(
       prisma.track.findMany({
         orderBy: {
           order: 'asc',
         },
-        // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-        cacheStrategy: { swr: 300, ttl: 300 },
       }),
       8000
       )
