@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const LRC_HEADERS = { 'Lrclib-Client': 'Jkeroro-Personal-Website (https://github.com/Jkeroromk)' }
 const CACHE = { next: { revalidate: 3600 } } as const
+const FETCH_TIMEOUT_MS = 5000
 
 interface LrcResult {
   syncedLyrics?: string
@@ -23,7 +24,11 @@ function normalizeTitle(title: string): string {
 }
 
 async function fetchJson<T>(url: URL): Promise<T | null> {
-  return fetch(url.toString(), { headers: LRC_HEADERS, ...CACHE })
+  return fetch(url.toString(), {
+    headers: LRC_HEADERS,
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    ...CACHE,
+  })
     .then(r => r.ok ? r.json() : null)
     .catch(() => null)
 }
