@@ -11,7 +11,7 @@ export default function AnniversaryPreview({
 }) {
   // 计算天数
   const days = useMemo(() => {
-    const anniversaryDate = new Date('2023-05-20T00:00:00')
+    const anniversaryDate = new Date('2023-05-30T00:00:00')
     const now = new Date()
     const diff = now.getTime() - anniversaryDate.getTime()
     return Math.floor(diff / (1000 * 60 * 60 * 24))
@@ -64,7 +64,7 @@ export default function AnniversaryPreview({
               <div className="text-center mb-2">
                 {/* 开始日期 */}
                 <div className="text-xs sm:text-sm text-white/80 drop-shadow-md">
-                  Since May 20, 2023 💕
+                  Since May 30, 2023 💕
                 </div>
               </div>
               

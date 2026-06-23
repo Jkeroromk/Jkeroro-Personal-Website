@@ -66,18 +66,6 @@ export async function POST(
     })
 
     if (existingReaction) {
-      // 移除反应
-      await prisma.commentReaction.delete({
-        where: {
-          commentId_userId_type: {
-            commentId: id,
-            userId,
-            type: dbType,
-          },
-        },
-      })
-
-      // 减少计数（确保不会小于0）
       const reactionCounts: Record<string, number> = {
         likes: comment.likes,
         fires: comment.fires,
@@ -85,33 +73,45 @@ export async function POST(
         laughs: comment.laughs,
         wows: comment.wows,
       }
-      const currentCount = reactionCounts[dbType] || 0
-      const newCount = Math.max(0, currentCount - 1)
-      await prisma.comment.update({
-        where: { id },
-        data: {
-          [dbType]: newCount,
-        },
-      })
+
+      // 移除反应：删除反应行 + 原子 decrement 计数，同一事务保证不会中途失败导致不一致
+      await prisma.$transaction([
+        prisma.commentReaction.delete({
+          where: {
+            commentId_userId_type: {
+              commentId: id,
+              userId,
+              type: dbType,
+            },
+          },
+        }),
+        prisma.comment.update({
+          where: { id },
+          data: { [dbType]: { decrement: 1 } },
+        }),
+      ])
+
+      // decrement 不会自动钳制在 0，这里兜底修正负数（理论上不会出现，除非历史数据已经不一致）
+      if ((reactionCounts[dbType] || 0) - 1 < 0) {
+        await prisma.comment.update({ where: { id }, data: { [dbType]: 0 } })
+      }
 
       return NextResponse.json({ action: 'removed' })
     } else {
-      // 添加反应
-      await prisma.commentReaction.create({
-        data: {
-          commentId: id,
-          userId,
-          type: dbType,
-        },
-      })
-
-      // 增加计数
-      await prisma.comment.update({
-        where: { id },
-        data: {
-          [dbType]: { increment: 1 },
-        },
-      })
+      // 添加反应（反应行 + 计数同一事务，避免中途失败导致计数和反应行不一致）
+      await prisma.$transaction([
+        prisma.commentReaction.create({
+          data: {
+            commentId: id,
+            userId,
+            type: dbType,
+          },
+        }),
+        prisma.comment.update({
+          where: { id },
+          data: { [dbType]: { increment: 1 } },
+        }),
+      ])
 
       return NextResponse.json({ action: 'added' })
     }

@@ -82,53 +82,35 @@ export function useCommentReactions() {
     pendingRef.current.add(pendingKey)
 
     try {
-      const result = await apiRequest(`/api/comments/${commentId}/reactions`, {
-        method: 'POST',
-        body: JSON.stringify({ type: reactionType, userId }),
-      })
+      const result = await apiRequest<{ action: 'added' | 'removed' }>(
+        `/api/comments/${commentId}/reactions`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ type: reactionType, userId }),
+        }
+      )
 
       if (result.error) {
         throw new Error(result.error.message || 'Failed to toggle reaction')
       }
 
-      // 更新本地用户反应状态
-      setUserReactions((prev) => {
-        const currentReactions = prev[commentId] || []
+      // 以服务端实际执行的动作为准更新本地状态，避免本地猜测的状态和数据库不一致后越点越乱
+      const wasAdded = result.data?.action === 'added'
 
-        if (Array.isArray(currentReactions)) {
-          if (currentReactions.includes(reactionType)) {
-            // 移除反应
-            const newReactions = currentReactions.filter((r) => r !== reactionType)
-            if (newReactions.length > 0) {
-              return {
-                ...prev,
-                [commentId]: newReactions,
-              }
-            } else {
-              // 删除该键
-              const { [commentId]: _, ...rest } = prev
-              return rest
-            }
-          } else {
-            // 添加反应
-            return {
-              ...prev,
-              [commentId]: [...currentReactions, reactionType],
-            }
-          }
-        } else {
-          // 处理旧的单个反应格式
-          if (currentReactions === reactionType) {
-            const newReactions = { ...prev }
-            delete newReactions[commentId]
-            return newReactions
-          } else {
-            return {
-              ...prev,
-              [commentId]: [currentReactions, reactionType],
-            }
-          }
+      setUserReactions((prev) => {
+        const currentReactions = Array.isArray(prev[commentId]) ? prev[commentId] : []
+
+        if (wasAdded) {
+          if (currentReactions.includes(reactionType)) return prev
+          return { ...prev, [commentId]: [...currentReactions, reactionType] }
         }
+
+        const newReactions = currentReactions.filter((r) => r !== reactionType)
+        if (newReactions.length > 0) {
+          return { ...prev, [commentId]: newReactions }
+        }
+        const { [commentId]: _, ...rest } = prev
+        return rest
       })
 
       if (onSuccess) {

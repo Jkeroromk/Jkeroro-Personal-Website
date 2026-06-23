@@ -18,8 +18,8 @@ const AnniversaryCounter = () => {
   const currentIndexRef = useRef(0)
   const [imagesPreloaded, setImagesPreloaded] = useState(false)
 
-  // 纪念日开始日期：2023年5月20日
-  const anniversaryDate = new Date('2023-05-20T00:00:00')
+  // 纪念日开始日期：2023年5月30日
+  const anniversaryDate = new Date('2023-05-30T00:00:00')
 
   // 获取背景图列表和位置 - 使用新的 Hook
   const { backgroundImages: fetchedImages, imagePositions: fetchedPositions, loading: imagesLoading } = useAnniversaryData()
@@ -211,7 +211,7 @@ const AnniversaryCounter = () => {
               <div className="text-center mb-2">
                 {/* 开始日期 */}
                 <div className="text-xs sm:text-sm text-white/80 drop-shadow-md">
-                  Since May 20, 2023 💕
+                  Since May 30, 2023 💕
                 </div>
               </div>
               
