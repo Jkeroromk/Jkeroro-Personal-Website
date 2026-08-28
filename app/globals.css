@@ -21,11 +21,18 @@
   }
 }
 
-/* 减少重绘和重排 */
-.motion-reduce {
-  animation-duration: 0.01ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
+/* 系统开启"减弱动态效果"时，关闭全站 CSS 过渡/动画/平滑滚动
+   （框架内的 framer-motion 组件不受 CSS 控制，由 layout.tsx 里的 MotionConfig 处理；
+   鼠标轨迹、背景视频自动播放同理由各自组件里的 JS 判断处理） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* 硬件加速 */

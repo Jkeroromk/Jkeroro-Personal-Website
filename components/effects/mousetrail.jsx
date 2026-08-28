@@ -9,9 +9,20 @@ const MouseTrail = () => {
   const coordsRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
+    // 系统开启了"减弱动态效果"：这个跟随鼠标的拖尾纯属装饰性动效，直接不启用，
+    // 并把默认渲染出来的 cursor/circle 隐藏，避免它们停在左上角不动
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll(".circle").forEach((circle) => {
+        circle.style.display = 'none';
+      });
+      const cursor = document.querySelector(".cursor");
+      if (cursor) cursor.style.display = 'none';
+      return;
+    }
+
     // 重置状态，确保每次都是全新的初始化
     isActiveRef.current = true;
-    
+
     // 等待DOM完全渲染
     const initializeMouseTrail = () => {
       const circles = document.querySelectorAll(".circle");

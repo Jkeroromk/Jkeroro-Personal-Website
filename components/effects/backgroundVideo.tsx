@@ -9,6 +9,12 @@ export default function BackgroundVideo() {
     const video = videoRef.current;
     if (!video) return;
 
+    // 系统开启了"减弱动态效果"：背景视频会一直循环播放，属于持续性动效，停在当前帧不播放
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      video.pause();
+      return;
+    }
+
     // 降低播放速率减少 GPU 负担，烟雾效果慢放更自然
     video.playbackRate = 0.75;
 

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fredoka } from "next/font/google";
+import { MotionConfig } from "framer-motion";
 import "./globals.css";
 import { ConditionalToaster } from "@/components/ui/conditional-toaster";
 import ClientScripts from "@/components/ClientScripts";
@@ -79,10 +80,12 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/192.png" />
       </head>
       <body className={`${fredoka.className} antialiased bg-black`} suppressHydrationWarning>
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
-        <ConditionalToaster/>
+        <MotionConfig reducedMotion="user">
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+          <ConditionalToaster/>
+        </MotionConfig>
       </body>
     </html>
   );

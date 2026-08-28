@@ -224,7 +224,7 @@ export default function MusicPlayer() {
           {/* 上半：标题 + 专辑封面 */}
           <div className="flex flex-col items-center w-full">
             <TrackInfo track={currentTrack} />
-            <div className="w-full max-w-[300px] mx-auto mt-2" style={{ height: '130px' }}>
+            <div className="w-full max-w-[300px] aspect-square mx-auto mt-2">
               {resolvedCover ? (
                 <img
                   key={resolvedCover}
