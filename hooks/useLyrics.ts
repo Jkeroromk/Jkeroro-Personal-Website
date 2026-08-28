@@ -3,7 +3,6 @@
  * 播放时自动从 LRCLIB 拉取歌词，结果缓存在内存中避免重复请求
  */
 
-import { useState, useEffect, useRef } from 'react'
 import { Track, LyricLine } from '@/types/api'
 
 // 模块级缓存，key = "title|||artist"
@@ -72,101 +71,6 @@ export async function preloadAllLyrics(
       }
     })
   )
-}
-
-export function useLyrics(track: Track | null, duration?: number) {
-  const [lyrics, setLyrics] = useState<LyricLine[] | null>(null)
-  const [loading, setLoading] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
-  const refinedKeysRef = useRef<Set<string>>(new Set())
-
-  useEffect(() => {
-    if (!track) {
-      setLyrics(null)
-      return
-    }
-
-    setLyrics(null)
-
-    const key = cacheKey(track)
-
-    const doFetch = (controller: AbortController) => {
-      lyricsCache.set(key, false)
-      setLoading(true)
-      const params = new URLSearchParams({ title: track.title, artist: track.subtitle })
-      if (duration && duration > 0) params.set('duration', String(duration))
-      fetch(`/api/lyrics/search?${params}`, { signal: controller.signal })
-        .then(res => { if (!res.ok) throw new Error('fetch_error'); return res.json() })
-        .then(data => {
-          const parsed = data.syncedLyrics ? parseLrc(data.syncedLyrics) : null
-          lyricsCache.set(key, parsed)
-          setLyrics(parsed)
-        })
-        .catch(err => {
-          lyricsCache.delete(key)
-          if (err.name !== 'AbortError') setLyrics(null)
-        })
-        .finally(() => setLoading(false))
-    }
-
-    const cached = lyricsCache.get(key)
-
-    // 命中缓存
-    if (cached !== undefined && cached !== false) {
-      setLyrics(cached)
-      return
-    }
-
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-
-    // 预取进行中，轮询等待；若预取失败（key 被删除）则自己重新请求
-    if (cached === false) {
-      let cancelled = false
-      const poll = setInterval(() => {
-        if (cancelled) return
-        const v = lyricsCache.get(key)
-        if (v === false) return
-        clearInterval(poll)
-        if (v !== undefined) {
-          // 预取成功
-          setLyrics(v)
-          setLoading(false)
-        } else {
-          // 预取失败，自己重新请求
-          if (!cancelled) doFetch(controller)
-        }
-      }, 100)
-      setLoading(true)
-      return () => { cancelled = true; clearInterval(poll); controller.abort() }
-    }
-
-    // 未缓存，直接请求
-    doFetch(controller)
-    return () => controller.abort()
-  }, [track?.id])
-
-  // 音频元数据加载完、真实时长可用后，用时长重新校准一次匹配结果
-  // （预取阶段不知道时长，可能选错版本导致歌词不对轨；这里纠正一次）
-  useEffect(() => {
-    if (!track || !duration || duration <= 0) return
-    const key = cacheKey(track)
-    if (refinedKeysRef.current.has(key)) return
-    refinedKeysRef.current.add(key)
-
-    let cancelled = false
-    fetchLyrics(track.title, track.subtitle, duration)
-      .then(parsed => {
-        if (cancelled) return
-        lyricsCache.set(key, parsed)
-        setLyrics(parsed)
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
-  }, [track?.id, duration])
-
-  return { lyrics, loading }
 }
 
 function parseLrc(lrcText: string): LyricLine[] | null {

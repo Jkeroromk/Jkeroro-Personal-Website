@@ -10,12 +10,11 @@ import { Play, Pause, SkipBack, SkipForward } from 'lucide-react'
 import { useTracks } from '@/hooks/useTracks'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { useVolume } from '@/hooks/useVolume'
-import { useLyrics, prefetchLyrics } from '@/hooks/useLyrics'
+import { useAlbumArt } from '@/hooks/useAlbumArt'
 import TrackInfo from './musicPlayer/TrackInfo'
 import PlayerControls from './musicPlayer/PlayerControls'
 import ProgressBar from './musicPlayer/ProgressBar'
 import VolumeControl from './musicPlayer/VolumeControl'
-import LyricsDisplay from './musicPlayer/LyricsDisplay'
 
 export default function MusicPlayer() {
   const { tracks, loading } = useTracks()
@@ -46,13 +45,9 @@ export default function MusicPlayer() {
   const { volume, isMuted, changeVolume, toggleMute, initializeWebAudio, updateVolume } =
     useVolume()
 
-  const currentTrackForLyrics = tracks?.[currentTrackIndex] ?? null
-  const { lyrics } = useLyrics(currentTrackForLyrics, duration)
-
-  // tracks 加载完后立即预取所有歌词
-  useEffect(() => {
-    if (tracks?.length) prefetchLyrics(tracks)
-  }, [tracks])
+  // 没有手动上传封面的曲目，按歌名+歌手自动搜索专辑封面
+  const trackForArt = tracks?.[currentTrackIndex] ?? null
+  const resolvedCover = useAlbumArt(trackForArt)
 
   // 初始化 Web Audio API
   useEffect(() => {
@@ -223,32 +218,37 @@ export default function MusicPlayer() {
           }
         `}</style>
 
-
         {/* 内容层 */}
         <div className="relative z-10 p-6 flex flex-col gap-5">
 
-          {/* 上半：标题 + 歌词/封面 */}
+          {/* 上半：标题 + 专辑封面 */}
           <div className="flex flex-col items-center w-full">
             <TrackInfo track={currentTrack} />
-            <div className="w-full mt-2">
-              {/* 无歌词 + 有封面：在控制栏宽度内展示专辑封面 */}
-              {(!lyrics || lyrics.length === 0) && currentTrack?.cover ? (
-                <div className="w-full max-w-[300px] mx-auto" style={{ height: '130px' }}>
-                  <img
-                    key={currentTrack.cover}
-                    src={currentTrack.cover}
-                    alt="Album Cover"
-                    className="w-full h-full object-cover rounded-xl shadow-lg"
-                    style={{ animation: 'cover-fadein 0.6s ease forwards' }}
-                  />
-                </div>
-              ) : (
-                <LyricsDisplay
-                  lyrics={lyrics}
-                  currentTime={currentTime}
-                  lyricsOffset={currentTrack?.lyricsOffset ?? 0}
-                  hasCover={!!currentTrack?.cover}
+            <div className="w-full max-w-[300px] mx-auto mt-2" style={{ height: '130px' }}>
+              {resolvedCover ? (
+                <img
+                  key={resolvedCover}
+                  src={resolvedCover}
+                  alt="Album Cover"
+                  className="w-full h-full object-cover rounded-xl shadow-lg"
+                  style={{ animation: 'cover-fadein 0.6s ease forwards' }}
                 />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white/25 bg-white/5 rounded-xl">
+                  <svg
+                    className="w-10 h-10"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1}
+                      d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                    />
+                  </svg>
+                </div>
               )}
             </div>
           </div>
@@ -306,11 +306,11 @@ export default function MusicPlayer() {
             className="hidden sm:block fixed bottom-4 right-4 z-50 w-72 rounded-2xl overflow-hidden text-white shadow-2xl"
             style={{ animation: 'mini-slidein 0.3s ease forwards' }}
           >
-            {currentTrack?.cover && (
+            {resolvedCover && (
               <div
                 className="absolute inset-0 z-0"
                 style={{
-                  backgroundImage: `url(${currentTrack.cover})`,
+                  backgroundImage: `url(${resolvedCover})`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   filter: 'blur(28px)',
@@ -321,7 +321,7 @@ export default function MusicPlayer() {
             <div
               className="absolute inset-0 z-0"
               style={{
-                background: currentTrack?.cover ? 'rgba(0,0,0,0.55)' : 'rgba(20,20,20,0.85)',
+                background: resolvedCover ? 'rgba(0,0,0,0.55)' : 'rgba(20,20,20,0.85)',
                 backdropFilter: 'blur(20px)',
                 WebkitBackdropFilter: 'blur(20px)',
                 border: '1px solid rgba(255,255,255,0.1)',
@@ -351,12 +351,12 @@ export default function MusicPlayer() {
           {/* ── 移动端：浮动球 ── */}
           <button
             className="sm:hidden fixed right-4 z-50 w-12 h-12 rounded-full shadow-2xl overflow-hidden text-white"
-            style={{ top: 'calc(var(--nav-bottom, 72px) + 8px)', animation: 'ball-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards', transition: 'top 0.3s ease' }}
+            style={{ top: 'calc(var(--nav-bottom, 84px) + 20px)', animation: 'ball-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards', transition: 'top 0.3s ease' }}
             onClick={() => setShowMiniModal(true)}
           >
             {/* 封面或纯色背景 */}
-            {currentTrack?.cover ? (
-              <img src={currentTrack.cover} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            {resolvedCover ? (
+              <img src={resolvedCover} alt="" className="absolute inset-0 w-full h-full object-cover" />
             ) : (
               <div className="absolute inset-0 bg-zinc-800" />
             )}
@@ -392,11 +392,11 @@ export default function MusicPlayer() {
                 style={{ animation: 'modal-slidein 0.32s cubic-bezier(0.32,0.72,0,1) forwards', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
               >
                 {/* 封面模糊背景 */}
-                {currentTrack?.cover && (
+                {resolvedCover && (
                   <div
                     className="absolute inset-0 z-0"
                     style={{
-                      backgroundImage: `url(${currentTrack.cover})`,
+                      backgroundImage: `url(${resolvedCover})`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
                       filter: 'blur(40px)',
@@ -411,9 +411,9 @@ export default function MusicPlayer() {
                   <div className="w-10 h-1 bg-white/30 rounded-full mx-auto mb-5" />
 
                   {/* 封面大图 */}
-                  {currentTrack?.cover && (
+                  {resolvedCover && (
                     <div className="w-40 h-40 mx-auto mb-5 rounded-2xl overflow-hidden shadow-2xl">
-                      <img src={currentTrack.cover} alt="" className="w-full h-full object-cover" />
+                      <img src={resolvedCover} alt="" className="w-full h-full object-cover" />
                     </div>
                   )}
 

@@ -49,8 +49,11 @@ export default function NavigationBar() {
 
   // 自测量 nav 高度，更新 CSS 变量供 mini player 定位
   // isMounted：第一次渲染 nav 未挂载（return null），需等 true 后再测量
-  // isExpanded：expand/collapse 只改 opacity 不改 DOM 尺寸，ResizeObserver 感知不到，
-  //             所以用 isExpanded 直接驱动：展开时等动画结束再量，折叠时立即量
+  // isExpanded：expand/collapse 只改 opacity/transform，不改按钮组的文档流高度
+  //             （按钮组始终占据 DOM 空间，只是折叠时不可见），所以 nav 的
+  //             getBoundingClientRect().bottom 展开/折叠时其实是同一个值——
+  //             不需要等动画结束再量，立即测量即可，这样 mini player 悬浮球才能
+  //             和菜单按钮的展开/收起动画同步位移，避免中途叠在一起
   useEffect(() => {
     if (!isMounted) return
     const nav = navRef.current
@@ -61,16 +64,10 @@ export default function NavigationBar() {
       const bottom = target.getBoundingClientRect().bottom
       document.documentElement.style.setProperty('--nav-bottom', `${bottom}px`)
     }
-    let t
-    if (isExpanded) {
-      t = setTimeout(measure, 320) // 等 300ms 动画结束
-    } else {
-      measure()
-    }
+    measure()
     // 窗口缩放/resize 时重新测量（浏览器 zoom 也会触发 resize）
     window.addEventListener('resize', measure)
     return () => {
-      clearTimeout(t)
       window.removeEventListener('resize', measure)
     }
   }, [isMounted, isExpanded])
@@ -176,14 +173,6 @@ export default function NavigationBar() {
         className="fixed top-4 right-4 z-50"
         style={{ position: 'fixed', top: '16px', right: '16px' }}
       >
-        {/* 导航栏背景 */}
-        <div
-          className={`absolute -inset-2 bg-white/5 rounded-xl transition-all duration-300 ${
-            isExpanded ? 'opacity-100' : 'opacity-0'
-          }`}
-          style={{ backdropFilter: 'blur(20px)' }}
-        ></div>
-
         {/* 主切换按钮 */}
         <div ref={toggleBtnRef} className="relative group/button">
           <button
@@ -245,7 +234,7 @@ export default function NavigationBar() {
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-sm sm:text-base font-bold text-white relative z-10 animate-pulse">
+              <span className="text-sm sm:text-base font-bold text-white relative z-10">
                 J
               </span>
               <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
@@ -282,10 +271,10 @@ export default function NavigationBar() {
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-sm sm:text-base font-bold text-white relative z-10 animate-pulse">
+              <span className="text-sm sm:text-base font-bold text-white relative z-10">
                 L
               </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-white/10 animate-pulse opacity-50"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-white/10 opacity-50"></div>
             </button>
             {/* 工具提示 */}
             <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
