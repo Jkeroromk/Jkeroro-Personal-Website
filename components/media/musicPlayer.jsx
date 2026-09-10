@@ -232,6 +232,7 @@ export default function MusicPlayer() {
                   alt="Album Cover"
                   className="w-full h-full object-cover rounded-xl shadow-lg"
                   style={{ animation: 'cover-fadein 0.6s ease forwards' }}
+                  onError={(e) => { e.currentTarget.style.display = 'none' }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white/25 bg-white/5 rounded-xl">

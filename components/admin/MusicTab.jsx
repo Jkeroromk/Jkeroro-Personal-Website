@@ -2,58 +2,13 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Edit2, Trash2, Music2, GripVertical, AlertTriangle, Upload, AlignLeft } from 'lucide-react'
+import { Edit2, Trash2, Music2, GripVertical, AlertTriangle, Upload } from 'lucide-react'
 import FileUploadModal from '@/components/admin/modals/FileUploadModal'
-
-const STEP = 0.5
 
 const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) => {
   const [draggedIndex, setDraggedIndex] = React.useState(null)
   const [dragOverIndex, setDragOverIndex] = React.useState(null)
   const [showUploadModal, setShowUploadModal] = React.useState(false)
-  const [offsets, setOffsets] = React.useState({})
-  const [expandedTrack, setExpandedTrack] = React.useState(null)
-  const debounceTimers = React.useRef({})
-
-  // 初始化 offsets 从 tracks 数据（DB）
-  React.useEffect(() => {
-    if (!tracks?.length) return
-    const map = {}
-    tracks.forEach(t => { if (t.lyricsOffset) map[t.id] = t.lyricsOffset })
-    setOffsets(map)
-  }, [tracks])
-
-  const saveOffsetToDb = React.useCallback((trackId, offset) => {
-    clearTimeout(debounceTimers.current[trackId])
-    debounceTimers.current[trackId] = setTimeout(() => {
-      fetch(`/api/media/tracks/${trackId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lyricsOffset: offset }),
-      }).catch(() => {})
-    }, 600)
-  }, [])
-
-  const adjustOffset = (trackId, delta) => {
-    setOffsets(prev => {
-      const current = typeof prev[trackId] === 'number' ? prev[trackId] : 0
-      const next = Math.round((current + delta) * 10) / 10
-      saveOffsetToDb(trackId, next)
-      const updated = { ...prev }
-      if (next === 0) delete updated[trackId]
-      else updated[trackId] = next
-      return updated
-    })
-  }
-
-  const resetOffset = (trackId) => {
-    setOffsets(prev => {
-      const updated = { ...prev }
-      delete updated[trackId]
-      saveOffsetToDb(trackId, 0)
-      return updated
-    })
-  }
 
   const getFileSizeEstimate = (src) => {
     const fileName = src.split('/').pop() || ''
@@ -209,20 +164,6 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
                     className="flex items-center gap-1 flex-shrink-0"
                     onMouseDown={(e) => e.stopPropagation()}
                   >
-                    {/* 歌词校准按钮 */}
-                    <button
-                      onClick={() => setExpandedTrack(expandedTrack === track.id ? null : track.id)}
-                      className={`p-1.5 rounded-md transition-colors ${
-                        expandedTrack === track.id
-                          ? 'text-indigo-400 bg-indigo-500/10'
-                          : offsets[track.id]
-                            ? 'text-indigo-400 opacity-100'
-                            : 'text-zinc-600 opacity-0 group-hover:opacity-100 hover:text-zinc-300 hover:bg-white/10'
-                      }`}
-                      title="歌词同步校准"
-                    >
-                      <AlignLeft className="w-3.5 h-3.5" />
-                    </button>
                     <button
                       onClick={() => onEdit(track, 'track')}
                       className="p-1.5 rounded-md text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10 transition-colors"
@@ -237,54 +178,6 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
                     </button>
                   </div>
                 </div>
-
-                {/* 歌词校准展开行 */}
-                {expandedTrack === track.id && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="px-4 pb-3 border-t border-white/5 bg-white/[0.02]"
-                  >
-                    <div className="pt-3 flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-medium text-white">歌词同步校准</p>
-                        <p className="text-[10px] text-zinc-500 mt-0.5">
-                          负值 = 歌词提前显示　正值 = 歌词延后显示
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => adjustOffset(track.id, -STEP)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-sm font-medium transition-colors"
-                        >
-                          −
-                        </button>
-                        <button
-                          onClick={() => offsets[track.id] && resetOffset(track.id)}
-                          className={`min-w-[52px] h-7 px-2 rounded-lg text-xs font-mono text-center transition-colors ${
-                            offsets[track.id]
-                              ? 'bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 cursor-pointer'
-                              : 'bg-white/5 text-zinc-600 cursor-default'
-                          }`}
-                          title={offsets[track.id] ? '点击归零' : '无偏移'}
-                        >
-                          {(() => {
-                            const v = offsets[track.id] || 0
-                            return v > 0 ? `+${v}s` : v < 0 ? `${v}s` : '0s'
-                          })()}
-                        </button>
-                        <button
-                          onClick={() => adjustOffset(track.id, STEP)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-sm font-medium transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
               </motion.div>
             )
           })}

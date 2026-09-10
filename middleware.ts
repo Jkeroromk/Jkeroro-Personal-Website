@@ -27,9 +27,6 @@ const RATE_LIMITS: Array<{
   { pattern: /^\/api\/ai$/,             limit: 5,  windowMs: 60_000 },
   { pattern: /^\/api\/chat/,  methods: ['POST'],   limit: 10, windowMs: 60_000 },
 
-  // Lyrics proxy — prevents hammering LRCLIB
-  { pattern: /^\/api\/lyrics\/search/,  limit: 30, windowMs: 60_000 },
-
   // Public write endpoints — spam prevention
   { pattern: /^\/api\/guestbook/,       methods: ['POST'], limit: 3, windowMs: 300_000 },
   { pattern: /^\/api\/comments/,        methods: ['POST'], limit: 5, windowMs: 60_000  },
