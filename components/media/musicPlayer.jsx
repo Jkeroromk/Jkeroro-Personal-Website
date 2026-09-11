@@ -17,7 +17,7 @@ import ProgressBar from './musicPlayer/ProgressBar'
 import VolumeControl from './musicPlayer/VolumeControl'
 
 export default function MusicPlayer() {
-  const { tracks, loading } = useTracks()
+  const { tracks, loading, isFresh } = useTracks()
   const [isLooping, setIsLooping] = useState(false)
   const [isShuffled, setIsShuffled] = useState(false)
   const [showMiniPlayer, setShowMiniPlayer] = useState(false)
@@ -46,7 +46,9 @@ export default function MusicPlayer() {
     useVolume()
 
   // 没有手动上传封面的曲目，按歌名+歌手自动搜索专辑封面
-  const trackForArt = tracks?.[currentTrackIndex] ?? null
+  // 曲目列表先用本地缓存瞬时渲染，缓存可能和数据库最新曲目不一致（比如刚增删改过曲目）
+  // 等数据库/实时数据确认过一次（isFresh）再解析封面，避免先闪一下缓存里的旧封面再被替换掉
+  const trackForArt = isFresh ? (tracks?.[currentTrackIndex] ?? null) : null
   const resolvedCover = useAlbumArt(trackForArt)
 
   // 初始化 Web Audio API

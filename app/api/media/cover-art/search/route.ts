@@ -37,7 +37,19 @@ function artistMatches(resultArtist: string, queryArtist: string): boolean {
 function titleMatches(resultTitle: string, queryTitle: string): boolean {
   const rt = normalize(resultTitle)
   const t = normalize(queryTitle)
-  return !!(rt && t && (rt.includes(t) || t.includes(rt)))
+  if (!rt || !t) return false
+  if (rt.includes(t) || t.includes(rt)) return true
+
+  // 子串没对上时，按字符重叠率兜底：容错简繁体等个别字符差异
+  // （例如数据库存的是繁体"客客氣氣"，平台索引的是简体"客客气气"）
+  // 阈值定得高，避免把完全不同的曲目误判成匹配
+  const [shorter, longer] = rt.length <= t.length ? [rt, t] : [t, rt]
+  if (shorter.length < 4) return false
+  let matched = 0
+  for (const ch of shorter) {
+    if (longer.includes(ch)) matched++
+  }
+  return matched / shorter.length >= 0.8
 }
 
 // iTunes 默认给 100x100，换成更高清的尺寸

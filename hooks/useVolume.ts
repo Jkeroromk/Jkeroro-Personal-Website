@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 
 export function useVolume() {
-  const [volume, setVolume] = useState(15) // 0-150
+  const [volume, setVolume] = useState(10) // 0-150
   const [isMuted, setIsMuted] = useState(false)
   const audioContextRef = useRef<AudioContext | null>(null)
   const gainNodeRef = useRef<GainNode | null>(null)

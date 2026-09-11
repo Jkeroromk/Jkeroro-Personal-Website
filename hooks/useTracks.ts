@@ -27,7 +27,10 @@ export function useTracks() {
   )
   const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(true)
-  
+  // 缓存数据可能与数据库最新曲目不一致（比如刚增删改过曲目），
+  // 标记是否已经用数据库/实时数据覆盖过一次，供依赖"确定最新"的场景使用（如封面解析），避免闪烁
+  const [isFresh, setIsFresh] = useState(false)
+
   // 初始化：立即使用缓存数据（不等待 API）
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -52,9 +55,11 @@ export function useTracks() {
       setTracks(apiTracks)
       dataManager.saveTracks(apiTracks)
       setLoading(false) // API 数据加载完成，停止 loading
+      setIsFresh(true)
     } else if (!apiLoading && apiTracks && apiTracks.length === 0) {
       // API 加载完成但没有数据，停止 loading
       setLoading(false)
+      setIsFresh(true)
     }
   }, [apiTracks, apiLoading, dataManager])
 
@@ -67,6 +72,7 @@ export function useTracks() {
       setTracks(tracksData)
       dataManager.saveTracks(tracksData)
       setLoading(false)
+      setIsFresh(true)
     })
 
     return () => {
@@ -74,6 +80,6 @@ export function useTracks() {
     }
   }, [dataManager])
 
-  return { tracks, loading, error, refetch }
+  return { tracks, loading, error, refetch, isFresh }
 }
 
