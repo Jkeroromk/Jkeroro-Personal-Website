@@ -134,7 +134,7 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
                   onDrop={(e) => handleDrop(e, index)}
                   className={[
                     'flex items-center gap-3 px-4 py-3 group cursor-grab active:cursor-grabbing transition-colors',
-                    index !== tracks.length - 1 || expandedTrack === track.id ? 'border-b border-white/5' : '',
+                    index !== tracks.length - 1 ? 'border-b border-white/5' : '',
                     isDragging ? 'bg-indigo-500/10 opacity-60' :
                     isDragOver ? 'bg-white/5' :
                                  'hover:bg-white/[0.03]',

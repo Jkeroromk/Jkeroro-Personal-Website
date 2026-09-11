@@ -15,6 +15,12 @@ interface DeezerTrack {
   album?: { cover_xl?: string; cover_big?: string }
 }
 
+interface QQTrack {
+  songname?: string
+  singer?: { name?: string }[]
+  albummid?: string
+}
+
 // 去除标点/空格后小写，用于模糊匹配（兼容中文 Unicode）
 function normalize(s: string): string {
   return s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
@@ -25,6 +31,13 @@ function artistMatches(resultArtist: string, queryArtist: string): boolean {
   const ra = normalize(resultArtist)
   const a = normalize(queryArtist)
   return !!(ra && a && (ra.includes(a) || a.includes(ra)))
+}
+
+// 判断曲名是否匹配（防止歌手对了但曲目不对，选到同一歌手其他专辑的封面）
+function titleMatches(resultTitle: string, queryTitle: string): boolean {
+  const rt = normalize(resultTitle)
+  const t = normalize(queryTitle)
+  return !!(rt && t && (rt.includes(t) || t.includes(rt)))
 }
 
 // iTunes 默认给 100x100，换成更高清的尺寸
@@ -81,13 +94,70 @@ async function searchItunes(title: string, artist: string): Promise<string | nul
     const withArt = results.filter(r => r.artworkUrl100)
     if (!withArt.length) return null
 
-    // 有歌手名时，要求至少一条结果能匹配歌手，否则宁可空白也不返回错误封面
-    if (artist && !withArt.some(r => artistMatches(r.artistName || '', artist))) return null
+    // 曲名和歌手（有给的话）都必须匹配，否则宁可空白也不返回错误封面
+    const candidates = withArt.filter(
+      r => titleMatches(r.trackName || '', title) && (!artist || artistMatches(r.artistName || '', artist))
+    )
+    if (!candidates.length) return null
 
-    const best = withArt.reduce((prev, cur) =>
+    const best = candidates.reduce((prev, cur) =>
       scoreItunes(cur, title, artist) >= scoreItunes(prev, title, artist) ? cur : prev
     )
     return upscaleItunes(best.artworkUrl100!)
+  } catch {
+    return null
+  }
+}
+
+function scoreQQ(t: QQTrack, title: string, artist: string): number {
+  const rt = normalize(t.songname || '')
+  const ra = normalize((t.singer || []).map(s => s.name || '').join(''))
+  const ti = normalize(title)
+  const ar = normalize(artist)
+  let s = 0
+  if (ti && rt) {
+    if (rt === ti) s += 10
+    else if (rt.includes(ti) || ti.includes(rt)) s += 5
+  }
+  if (ar && ra) {
+    if (ra === ar) s += 6
+    else if (ra.includes(ar) || ar.includes(ra)) s += 3
+  }
+  return s
+}
+
+// 中文曲库兜底（iTunes/Deezer 对国内歌曲覆盖差），走 QQ 音乐搜索
+async function searchQQMusic(title: string, artist: string): Promise<string | null> {
+  try {
+    const url = new URL('https://c.y.qq.com/soso/fcgi-bin/client_search_cp')
+    url.searchParams.set('w', `${artist} ${title}`.trim())
+    url.searchParams.set('p', '1')
+    url.searchParams.set('n', '10')
+    url.searchParams.set('format', 'json')
+
+    const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: { Referer: 'https://y.qq.com/', 'User-Agent': 'Mozilla/5.0' },
+      ...CACHE,
+    })
+    if (!res.ok) return null
+
+    const data = await res.json()
+    const tracks: QQTrack[] = Array.isArray(data?.data?.song?.list) ? data.data.song.list : []
+    const withArt = tracks.filter(t => t.albummid)
+    if (!withArt.length) return null
+
+    const candidates = withArt.filter(
+      t =>
+        titleMatches(t.songname || '', title) &&
+        (!artist || (t.singer || []).some(s => artistMatches(s.name || '', artist)))
+    )
+    if (!candidates.length) return null
+
+    const best = candidates.reduce((prev, cur) =>
+      scoreQQ(cur, title, artist) >= scoreQQ(prev, title, artist) ? cur : prev
+    )
+    return `https://y.gtimg.cn/music/photo_new/T002R500x500M000${best.albummid}.jpg`
   } catch {
     return null
   }
@@ -109,9 +179,12 @@ async function searchDeezer(title: string, artist: string): Promise<string | nul
     const withArt = tracks.filter(t => t.album?.cover_xl || t.album?.cover_big)
     if (!withArt.length) return null
 
-    if (artist && !withArt.some(t => artistMatches(t.artist?.name || '', artist))) return null
+    const candidates = withArt.filter(
+      t => titleMatches(t.title || '', title) && (!artist || artistMatches(t.artist?.name || '', artist))
+    )
+    if (!candidates.length) return null
 
-    const best = withArt.reduce((prev, cur) =>
+    const best = candidates.reduce((prev, cur) =>
       scoreDeezer(cur, title, artist) >= scoreDeezer(prev, title, artist) ? cur : prev
     )
     return best.album?.cover_xl || best.album?.cover_big || null
@@ -130,8 +203,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // iTunes 优先，失败后 fallback 到 Deezer（免费，覆盖更广）
-    const artwork = (await searchItunes(title, artist)) ?? (await searchDeezer(title, artist))
+    // iTunes 优先，失败后 fallback 到 Deezer，再 fallback 到 QQ 音乐（覆盖中文曲库）
+    const artwork =
+      (await searchItunes(title, artist)) ??
+      (await searchDeezer(title, artist)) ??
+      (await searchQQMusic(title, artist))
     if (artwork) return NextResponse.json({ artwork })
 
     return NextResponse.json({ found: false })
