@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const FETCH_TIMEOUT_MS = 5000
 const CACHE = { next: { revalidate: 86400 } } as const
+// 网易云/QQ 音乐被风控或限流时照样返回 HTTP 200（错误码在 body 里），
+// 不能进 Next 数据缓存，否则一次失败会被缓存 24 小时
+const NO_CACHE = { cache: 'no-store' } as const
 
 interface ItunesResult {
   trackName?: string
@@ -15,10 +18,16 @@ interface DeezerTrack {
   album?: { cover_xl?: string; cover_big?: string }
 }
 
+interface NeteaseSong {
+  name?: string
+  ar?: { name?: string }[]
+  al?: { picUrl?: string }
+}
+
 interface QQTrack {
-  songname?: string
+  name?: string
   singer?: { name?: string }[]
-  albummid?: string
+  album?: { mid?: string }
 }
 
 // 去除标点/空格后小写，用于模糊匹配（兼容中文 Unicode）
@@ -52,14 +61,10 @@ function titleMatches(resultTitle: string, queryTitle: string): boolean {
   return matched / shorter.length >= 0.8
 }
 
-// iTunes 默认给 100x100，换成更高清的尺寸
-function upscaleItunes(url: string, size = 500): string {
-  return url.replace(/\d+x\d+bb\.(jpg|png)$/, `${size}x${size}bb.$1`)
-}
-
-function scoreItunes(r: ItunesResult, title: string, artist: string): number {
-  const rt = normalize(r.trackName || '')
-  const ra = normalize(r.artistName || '')
+// 候选结果打分，用于挑最佳：曲名完全一致 > 包含，歌手完全一致 > 包含
+function scoreMatch(resultTitle: string, resultArtist: string, title: string, artist: string): number {
+  const rt = normalize(resultTitle)
+  const ra = normalize(resultArtist)
   const t = normalize(title)
   const a = normalize(artist)
   let s = 0
@@ -74,29 +79,19 @@ function scoreItunes(r: ItunesResult, title: string, artist: string): number {
   return s
 }
 
-function scoreDeezer(t: DeezerTrack, title: string, artist: string): number {
-  const rt = normalize(t.title || '')
-  const ra = normalize(t.artist?.name || '')
-  const ti = normalize(title)
-  const ar = normalize(artist)
-  let s = 0
-  if (ti && rt) {
-    if (rt === ti) s += 10
-    else if (rt.includes(ti) || ti.includes(rt)) s += 5
-  }
-  if (ar && ra) {
-    if (ra === ar) s += 6
-    else if (ra.includes(ar) || ar.includes(ra)) s += 3
-  }
-  return s
+// iTunes 默认给 100x100，换成更高清的尺寸
+function upscaleItunes(url: string, size = 500): string {
+  return url.replace(/\d+x\d+bb\.(jpg|png)$/, `${size}x${size}bb.$1`)
 }
 
-async function searchItunes(title: string, artist: string): Promise<string | null> {
+// country 为 iTunes 商店区域：美区收录欧美歌最全；国区接口搜不到东西，华语歌要走台区
+async function searchItunes(title: string, artist: string, country: string): Promise<string | null> {
   try {
     const url = new URL('https://itunes.apple.com/search')
     url.searchParams.set('term', `${artist} ${title}`.trim())
     url.searchParams.set('entity', 'song')
     url.searchParams.set('limit', '10')
+    url.searchParams.set('country', country)
 
     const res = await fetch(url.toString(), { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS), ...CACHE })
     if (!res.ok) return null
@@ -112,64 +107,9 @@ async function searchItunes(title: string, artist: string): Promise<string | nul
     )
     if (!candidates.length) return null
 
-    const best = candidates.reduce((prev, cur) =>
-      scoreItunes(cur, title, artist) >= scoreItunes(prev, title, artist) ? cur : prev
-    )
+    const score = (r: ItunesResult) => scoreMatch(r.trackName || '', r.artistName || '', title, artist)
+    const best = candidates.reduce((prev, cur) => (score(cur) >= score(prev) ? cur : prev))
     return upscaleItunes(best.artworkUrl100!)
-  } catch {
-    return null
-  }
-}
-
-function scoreQQ(t: QQTrack, title: string, artist: string): number {
-  const rt = normalize(t.songname || '')
-  const ra = normalize((t.singer || []).map(s => s.name || '').join(''))
-  const ti = normalize(title)
-  const ar = normalize(artist)
-  let s = 0
-  if (ti && rt) {
-    if (rt === ti) s += 10
-    else if (rt.includes(ti) || ti.includes(rt)) s += 5
-  }
-  if (ar && ra) {
-    if (ra === ar) s += 6
-    else if (ra.includes(ar) || ar.includes(ra)) s += 3
-  }
-  return s
-}
-
-// 中文曲库兜底（iTunes/Deezer 对国内歌曲覆盖差），走 QQ 音乐搜索
-async function searchQQMusic(title: string, artist: string): Promise<string | null> {
-  try {
-    const url = new URL('https://c.y.qq.com/soso/fcgi-bin/client_search_cp')
-    url.searchParams.set('w', `${artist} ${title}`.trim())
-    url.searchParams.set('p', '1')
-    url.searchParams.set('n', '10')
-    url.searchParams.set('format', 'json')
-
-    const res = await fetch(url.toString(), {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      headers: { Referer: 'https://y.qq.com/', 'User-Agent': 'Mozilla/5.0' },
-      ...CACHE,
-    })
-    if (!res.ok) return null
-
-    const data = await res.json()
-    const tracks: QQTrack[] = Array.isArray(data?.data?.song?.list) ? data.data.song.list : []
-    const withArt = tracks.filter(t => t.albummid)
-    if (!withArt.length) return null
-
-    const candidates = withArt.filter(
-      t =>
-        titleMatches(t.songname || '', title) &&
-        (!artist || (t.singer || []).some(s => artistMatches(s.name || '', artist)))
-    )
-    if (!candidates.length) return null
-
-    const best = candidates.reduce((prev, cur) =>
-      scoreQQ(cur, title, artist) >= scoreQQ(prev, title, artist) ? cur : prev
-    )
-    return `https://y.gtimg.cn/music/photo_new/T002R500x500M000${best.albummid}.jpg`
   } catch {
     return null
   }
@@ -196,10 +136,93 @@ async function searchDeezer(title: string, artist: string): Promise<string | nul
     )
     if (!candidates.length) return null
 
-    const best = candidates.reduce((prev, cur) =>
-      scoreDeezer(cur, title, artist) >= scoreDeezer(prev, title, artist) ? cur : prev
-    )
+    const score = (t: DeezerTrack) => scoreMatch(t.title || '', t.artist?.name || '', title, artist)
+    const best = candidates.reduce((prev, cur) => (score(cur) >= score(prev) ? cur : prev))
     return best.album?.cover_xl || best.album?.cover_big || null
+  } catch {
+    return null
+  }
+}
+
+// 网易云音乐：华语曲库覆盖最全，歌手名多为"中文 英文"（如"鹤 The Crane"），
+// 能对上数据库里的中文歌手名（iTunes 上同一歌手只有英文名 "The Crane"）
+async function searchNetease(title: string, artist: string): Promise<string | null> {
+  try {
+    const url = new URL('https://music.163.com/api/cloudsearch/pc')
+    url.searchParams.set('s', `${artist} ${title}`.trim())
+    url.searchParams.set('type', '1') // 1 = 单曲
+    url.searchParams.set('limit', '10')
+
+    const res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: { Referer: 'https://music.163.com/', 'User-Agent': 'Mozilla/5.0' },
+      ...NO_CACHE,
+    })
+    if (!res.ok) return null
+
+    const data = await res.json()
+    const songs: NeteaseSong[] = Array.isArray(data?.result?.songs) ? data.result.songs : []
+    const withArt = songs.filter(s => s.al?.picUrl)
+    if (!withArt.length) return null
+
+    const candidates = withArt.filter(
+      s =>
+        titleMatches(s.name || '', title) &&
+        (!artist || (s.ar || []).some(a => artistMatches(a.name || '', artist)))
+    )
+    if (!candidates.length) return null
+
+    const score = (s: NeteaseSong) =>
+      scoreMatch(s.name || '', (s.ar || []).map(a => a.name || '').join(''), title, artist)
+    const best = candidates.reduce((prev, cur) => (score(cur) >= score(prev) ? cur : prev))
+    // 接口给的是 http 原图，换成 https，并让图床缩放到 500x500
+    return `${best.al!.picUrl!.replace(/^http:/, 'https:')}?param=500y500`
+  } catch {
+    return null
+  }
+}
+
+// QQ 音乐兜底。旧接口 c.y.qq.com/soso/fcgi-bin/client_search_cp 已下线（一律返回 500），
+// 改用网页版在用的 musicu.fcg；它有频率限制，被限时返回 req.code 2001、结果为空
+async function searchQQMusic(title: string, artist: string): Promise<string | null> {
+  try {
+    const res = await fetch('https://u.y.qq.com/cgi-bin/musicu.fcg', {
+      method: 'POST',
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      headers: {
+        Referer: 'https://y.qq.com/',
+        'User-Agent': 'Mozilla/5.0',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        comm: { ct: 19, cv: 1859, uin: '0' },
+        req: {
+          module: 'music.search.SearchCgiService',
+          method: 'DoSearchForQQMusicDesktop',
+          param: { query: `${artist} ${title}`.trim(), search_type: 0, page_num: 1, num_per_page: 10, grp: 1 },
+        },
+      }),
+      ...NO_CACHE,
+    })
+    if (!res.ok) return null
+
+    const data = await res.json()
+    const list = data?.req?.data?.body?.song?.list
+    const tracks: QQTrack[] = Array.isArray(list) ? list : []
+    const withArt = tracks.filter(t => t.album?.mid)
+    if (!withArt.length) return null
+
+    const candidates = withArt.filter(
+      t =>
+        titleMatches(t.name || '', title) &&
+        (!artist || (t.singer || []).some(s => artistMatches(s.name || '', artist)))
+    )
+    if (!candidates.length) return null
+
+    const score = (t: QQTrack) =>
+      scoreMatch(t.name || '', (t.singer || []).map(s => s.name || '').join(''), title, artist)
+    const best = candidates.reduce((prev, cur) => (score(cur) >= score(prev) ? cur : prev))
+    return `https://y.gtimg.cn/music/photo_new/T002R500x500M000${best.album!.mid}.jpg`
   } catch {
     return null
   }
@@ -215,10 +238,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // iTunes 优先，失败后 fallback 到 Deezer，再 fallback 到 QQ 音乐（覆盖中文曲库）
+    // 官方接口优先：iTunes 美区 → iTunes 台区 → Deezer；
+    // 再用华语曲库兜底：网易云 → QQ 音乐（非官方接口，可能被风控，所以放最后）
     const artwork =
-      (await searchItunes(title, artist)) ??
+      (await searchItunes(title, artist, 'US')) ??
+      (await searchItunes(title, artist, 'TW')) ??
       (await searchDeezer(title, artist)) ??
+      (await searchNetease(title, artist)) ??
       (await searchQQMusic(title, artist))
     if (artwork) return NextResponse.json({ artwork })
 

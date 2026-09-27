@@ -8,7 +8,9 @@ import { Track } from '@/types/api'
 
 // 模块级缓存，key = "title|||artist"，value = 封面 URL 或 null（查无结果）
 const artCache = new Map<string, string | null>()
-const LS_PREFIX = 'albumart_v1:'
+// 服务端匹配规则变更、旧缓存可能存了错误封面时递增版本号，让旧缓存整体失效
+// （v1 里有早期只校验歌手、不校验曲名时存下的错图，且永不过期）
+const LS_PREFIX = 'albumart_v2:'
 
 function cacheKey(track: Pick<Track, 'title' | 'subtitle'>) {
   return `${track.title}|||${track.subtitle}`
