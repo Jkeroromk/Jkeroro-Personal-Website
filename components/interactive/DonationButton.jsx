@@ -26,29 +26,6 @@ const WeChatIcon = ({ className }) => (
   </div>
 )
 
-// 支付宝图标组件
-const AlipayIcon = ({ className }) => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-  >
-    <rect width="24" height="24" rx="4" fill="#1677FF" />
-    <text
-      x="12"
-      y="17"
-      textAnchor="middle"
-      fontSize="14"
-      fill="white"
-      fontWeight="bold"
-      fontFamily="Arial, sans-serif"
-    >
-      支
-    </text>
-  </svg>
-)
-
 const DonationButton = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedMethod, setSelectedMethod] = useState(null)
@@ -59,12 +36,6 @@ const DonationButton = () => {
       description: 'WeChat Pay',
       qrCode: '/wechatqr.JPG',
       icon: <WeChatIcon className="w-6 h-6 flex items-center justify-center" />,
-    },
-    {
-      name: '支付宝',
-      description: 'Alipay',
-      qrCode: '/uploads/alipay-qr.png',
-      icon: <AlipayIcon className="w-6 h-6" />,
     },
     {
       name: 'PayPal',
@@ -99,7 +70,7 @@ const DonationButton = () => {
       </div>
 
       <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-        <AlertDialogContent className="bg-white bg-opacity-90 border-2 border-black max-w-md rounded-3xl">
+        <AlertDialogContent className="bg-white bg-opacity-90 border-2 border-black max-w-md rounded-3xl max-h-[85vh] overflow-y-auto">
           <AlertDialogHeader>
             <div className="flex items-center justify-between">
               <AlertDialogTitle className="text-xl font-extrabold text-black flex items-center gap-2">
