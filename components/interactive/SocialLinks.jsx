@@ -1,7 +1,7 @@
 'use client'
 
 import { FaTiktok } from "react-icons/fa6"
-import { FaInstagram, FaYoutube, FaTwitch, FaSpotify, FaSoundcloud } from "react-icons/fa"
+import { FaInstagram, FaYoutube, FaTwitch, FaSpotify, FaSoundcloud, FaGithub } from "react-icons/fa"
 
 const SocialLinks = () => {
   return (
@@ -81,6 +81,19 @@ const SocialLinks = () => {
           <FaSoundcloud size={25} className="hover:scale-[2.0] transform transition-transform duration-300 text-white hover:text-orange-500" />
           <span className="absolute top-full mt-4 font-bold text-sm opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none text-white">
             SoundCloud
+          </span>
+        </div>
+      </a>
+      <a
+        href="https://github.com/Jkeroromk"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex flex-col items-center justify-center group"
+      >
+        <div className="relative flex flex-col items-center">
+          <FaGithub size={25} className="hover:scale-[2.0] transform transition-transform duration-300 text-white hover:text-gray-400" />
+          <span className="absolute top-full mt-4 font-bold text-sm opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none text-white">
+            GitHub
           </span>
         </div>
       </a>
