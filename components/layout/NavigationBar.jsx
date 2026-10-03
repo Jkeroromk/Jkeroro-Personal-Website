@@ -84,18 +84,28 @@ export default function NavigationBar() {
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
+  // 迷你播放卡片打开时关掉控制面板（互斥）
+  useEffect(() => {
+    const close = () => setShowControlPanel(false)
+    window.addEventListener('jk:close-control-panel', close)
+    return () => window.removeEventListener('jk:close-control-panel', close)
+  }, [])
+
   // 键盘事件处理
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // ESC 键关闭展开的菜单
-      if (event.key === 'Escape' && isExpanded) {
+      // ESC：先关控制面板，再收起菜单
+      if (event.key !== 'Escape') return
+      if (showControlPanel) {
+        setShowControlPanel(false)
+      } else if (isExpanded) {
         setIsExpanded(false)
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isExpanded])
+  }, [isExpanded, showControlPanel])
 
   // 拖拽处理函数
   const handleMouseDown = (e, type) => {
@@ -172,7 +182,11 @@ export default function NavigationBar() {
         {/* 主切换按钮：Muse 头像 */}
         <div ref={toggleBtnRef} className="relative group/button">
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={() => {
+              // 收起菜单时连同控制面板一起关掉
+              if (isExpanded) setShowControlPanel(false)
+              setIsExpanded(!isExpanded)
+            }}
             aria-label={isExpanded ? '收起菜单' : '展开菜单'}
             aria-expanded={isExpanded}
             className={`block w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative border-2 ${
@@ -291,8 +305,12 @@ export default function NavigationBar() {
           <div className="relative group/button">
             <button
               onClick={() => {
+                // 控制面板作为菜单的弹出层：打开时菜单保持展开，按钮显示选中态
+                if (!showControlPanel) {
+                  // 和桌面迷你播放卡片互斥，避免两个弹层叠在一起
+                  window.dispatchEvent(new Event('jk:close-mini-card'))
+                }
                 setShowControlPanel(!showControlPanel)
-                setIsExpanded(false)
               }}
               aria-label={
                 showControlPanel ? '关闭控制面板' : '打开控制面板'
@@ -347,16 +365,22 @@ export default function NavigationBar() {
         onMouseDown={handleMouseDown}
       />
 
-      {/* 控制面板 */}
+      {/* 控制面板：贴在菜单列左侧弹出，菜单保持展开 */}
       {showControlPanel && (
         <>
-          {/* 背景遮罩 */}
+          {/* 透明遮罩：点外面关闭面板并收起菜单；不调暗背景，方便边调边看 3D 效果 */}
           <div
-            className="fixed inset-0 bg-black/20 z-40"
-            onClick={() => setShowControlPanel(false)}
+            className="fixed inset-0 z-40"
+            onClick={() => {
+              setShowControlPanel(false)
+              setIsExpanded(false)
+            }}
           ></div>
 
-          <div className="fixed bottom-24 right-4 z-50 w-64 max-h-[60vh]">
+          <div
+            className="fixed z-50 w-64 max-w-[calc(100vw-88px)] right-[76px] sm:right-[92px]"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
+          >
             <ModernControlPanel
               params={guiParams}
               onParamChange={handleParamChange}
