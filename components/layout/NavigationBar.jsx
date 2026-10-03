@@ -49,6 +49,21 @@ export default function NavigationBar() {
     }
   }
 
+  // 测量右下角导航（头像 + 已展开菜单）的总高度，写入 --nav-stack，
+  // 供圆形迷你播放器叠在它上方。折叠时只量头像（隐藏的菜单仍占布局空间）。
+  useEffect(() => {
+    if (!isMounted) return
+    const measure = () => {
+      const target = isExpanded ? navRef.current : toggleBtnRef.current
+      if (!target) return
+      const { top, bottom } = target.getBoundingClientRect()
+      document.documentElement.style.setProperty('--nav-stack', `${Math.round(bottom - top)}px`)
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [isMounted, isExpanded])
+
   useEffect(() => {
     setIsMounted(true)
 
