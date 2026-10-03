@@ -206,6 +206,29 @@ const Tabs = () => {
             Job Only
           </h2>
         </Card3D>
+
+        <Card3D
+          href="https://killcam.vercel.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-4 rounded-3xl mt-6 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
+        >
+          <div className="flex items-center gap-2">
+            <Image
+              src="/killcam.png"
+              alt=""
+              width={24}
+              height={24}
+              className="rounded-md"
+            />
+            <h1 className="text-xl font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
+              KillCam
+            </h1>
+          </div>
+          <h2 className="text-base font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
+            PUBG Highlight Recorder
+          </h2>
+        </Card3D>
       </div>
 
       <h1 className="flex justify-center text-white font-extrabold text-2xl mt-20">
