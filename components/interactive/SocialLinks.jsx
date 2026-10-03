@@ -1,9 +1,9 @@
 'use client'
 
 import { FaTiktok } from "react-icons/fa6"
-import { FaInstagram, FaYoutube, FaTwitch, FaSpotify, FaSoundcloud, FaGithub } from "react-icons/fa"
+import { FaInstagram, FaYoutube, FaTwitch, FaSpotify, FaSoundcloud, FaGithub, FaLinkedin } from "react-icons/fa"
 
-// 两行：上面是内容平台，下面是音乐和代码
+// 两行：上面是内容平台，下面是音乐和职业（代码、LinkedIn）
 const ROWS = [
   [
     { name: "TikTok", href: "https://www.tiktok.com/@jkeroro", Icon: FaTiktok, hover: "hover:text-white" },
@@ -15,6 +15,7 @@ const ROWS = [
     { name: "Spotify", href: "https://open.spotify.com/user/jkeroro", Icon: FaSpotify, hover: "hover:text-green-500" },
     { name: "SoundCloud", href: "https://on.soundcloud.com/B1Fe1ewaen6xbNfv9", Icon: FaSoundcloud, hover: "hover:text-orange-500" },
     { name: "GitHub", href: "https://github.com/Jkeroromk", Icon: FaGithub, hover: "hover:text-gray-400" },
+    { name: "LinkedIn", href: "https://www.linkedin.com/in/zexin-zou/", Icon: FaLinkedin, hover: "hover:text-blue-500" },
   ],
 ]
 
