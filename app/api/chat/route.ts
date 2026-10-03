@@ -4,8 +4,15 @@ import { NextRequest } from 'next/server';
 // export const runtime = 'edge'; // 已移除，避免禁用静态生成的警告
 
 // 环境变量
-const PROVIDER_API_KEY = process.env.PROVIDER_API_KEY;
-const MODEL_NAME = process.env.MODEL_NAME || 'accounts/fireworks/models/gpt-oss-20b';
+// 优先使用 Meta Model API（Muse Spark，OpenAI 兼容）；未配置 MODEL_API_KEY 时回退到 Fireworks
+const META_API_KEY = process.env.MODEL_API_KEY;
+const META_MODEL = process.env.MUSE_MODEL || 'muse-spark-1.3';
+const FIREWORKS_API_KEY = process.env.PROVIDER_API_KEY;
+const FIREWORKS_MODEL = process.env.MODEL_NAME || 'accounts/fireworks/models/gpt-oss-20b';
+
+const PROVIDER = META_API_KEY
+  ? { url: 'https://api.meta.ai/v1/chat/completions', key: META_API_KEY, model: META_MODEL }
+  : { url: 'https://api.fireworks.ai/inference/v1/chat/completions', key: FIREWORKS_API_KEY, model: FIREWORKS_MODEL };
 
 /**
  * GET /api/chat - 探活测试
@@ -23,8 +30,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     // 1. 校验 API Key
-    if (!PROVIDER_API_KEY) {
-      return new Response('Missing PROVIDER_API_KEY', {
+    if (!PROVIDER.key) {
+      return new Response('Missing MODEL_API_KEY (Meta) or PROVIDER_API_KEY (Fireworks)', {
         status: 400,
         headers: { 'Content-Type': 'text/plain; charset=utf-8' }
       });
@@ -52,15 +59,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 3. 调用 Fireworks API
-    const response = await fetch('https://api.fireworks.ai/inference/v1/chat/completions', {
+    // 3. 调用模型 API（Meta Muse Spark 或 Fireworks，均为 OpenAI 兼容格式）
+    const response = await fetch(PROVIDER.url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${PROVIDER_API_KEY}`,
+        'Authorization': `Bearer ${PROVIDER.key}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: MODEL_NAME,
+        model: PROVIDER.model,
         messages,
         stream: true,
       }),

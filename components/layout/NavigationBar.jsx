@@ -12,6 +12,7 @@ import ModernControlPanel from '@/components/interactive/ModernControlPanel'
 import { useControlPanel } from '@/contexts/ControlPanelContext'
 import NavigationBarAI from './navigation/NavigationBarAI'
 import NavigationBarLogin from './navigation/NavigationBarLogin'
+import JkeroroAvatar from '@/components/media/JkeroroAvatar'
 
 export default function NavigationBar() {
   const { isAdmin } = useAuth()
@@ -216,7 +217,7 @@ export default function NavigationBar() {
               : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
           }`}
         >
-          {/* AI助手按钮 */}
+          {/* Muse 按钮（个性化头像） */}
           <div className="relative group/button">
             <button
               onClick={() => {
@@ -226,22 +227,23 @@ export default function NavigationBar() {
                 setShowAssistant(!showAssistant)
                 setIsExpanded(false)
               }}
-              aria-label={showAssistant ? '关闭AI助手' : '打开AI助手'}
-              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              aria-label={showAssistant ? '关闭 Muse' : '打开 Muse'}
+              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border-2 ${
                 showAssistant
-                  ? 'bg-white/20 border-white/40'
-                  : 'bg-white/5 border-white/20 hover:bg-white/10'
+                  ? 'border-white/70'
+                  : 'border-white/30 hover:border-white/60'
               }`}
-              style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-sm sm:text-base font-bold text-white relative z-10">
-                J
-              </span>
-              <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
+              <JkeroroAvatar
+                state="idle"
+                states={['idle']}
+                size={56}
+                className="absolute inset-0 !w-full !h-full"
+              />
             </button>
             {/* 工具提示 */}
             <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
-              AI助手
+              my Muse
             </div>
           </div>
 
@@ -322,7 +324,7 @@ export default function NavigationBar() {
         </div>
       </div>
 
-      {/* AI助手对话框 */}
+      {/* Muse 对话框 */}
       <NavigationBarAI
         isOpen={showAssistant}
         onClose={() => setShowAssistant(false)}
