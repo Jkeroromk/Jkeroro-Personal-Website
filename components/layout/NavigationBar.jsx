@@ -217,7 +217,7 @@ export default function NavigationBar() {
 
         {/* 功能按钮容器 - 在头像上方，向上展开 */}
         <div
-          className={`flex flex-col items-center gap-3 sm:gap-4 mb-3 sm:mb-4 pr-1 transition-all duration-300 ${
+          className={`flex flex-col items-center gap-2.5 sm:gap-3 mb-3 pr-2 sm:pr-2.5 transition-all duration-300 ${
             isExpanded
               ? 'opacity-100 translate-y-0 scale-100'
               : 'opacity-0 translate-y-2 scale-95 pointer-events-none'
@@ -234,18 +234,18 @@ export default function NavigationBar() {
                 setIsExpanded(false)
               }}
               aria-label={showAssistant ? '关闭 Muse 对话' : '和 Muse 聊天'}
-              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showAssistant
                   ? 'bg-white/20 border-white/40'
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white" />
+              <MessageCircle className="w-4 h-4 sm:w-[18px] sm:h-[18px] relative z-10 text-white" />
               <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
             </button>
             {/* 工具提示 */}
-            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
+            <div className="absolute right-[52px] top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
               和 Muse 聊天
             </div>
           </div>
@@ -269,20 +269,20 @@ export default function NavigationBar() {
                     ? '关闭登录'
                     : '打开登录'
               }
-              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showLogin
                   ? 'bg-white/20 border-white/40'
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-sm sm:text-base font-bold text-white relative z-10">
+              <span className="text-xs sm:text-sm font-bold text-white relative z-10">
                 L
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-white/10 opacity-50"></div>
             </button>
             {/* 工具提示 */}
-            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
+            <div className="absolute right-[52px] top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
               {isAdmin ? '管理面板' : '登录'}
             </div>
           </div>
@@ -297,7 +297,7 @@ export default function NavigationBar() {
               aria-label={
                 showControlPanel ? '关闭控制面板' : '打开控制面板'
               }
-              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showControlPanel
                   ? 'bg-white/20 border-white/40'
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
@@ -305,7 +305,7 @@ export default function NavigationBar() {
               style={{ backdropFilter: 'blur(20px)' }}
             >
               <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white"
+                className="w-4 h-4 sm:w-[18px] sm:h-[18px] relative z-10 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -320,7 +320,7 @@ export default function NavigationBar() {
               <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
             </button>
             {/* 工具提示 */}
-            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
+            <div className="absolute right-[52px] top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
               控制面板
             </div>
           </div>
