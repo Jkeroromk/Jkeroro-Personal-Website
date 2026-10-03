@@ -7,6 +7,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { MessageCircle } from 'lucide-react'
 import { useAuth } from '@/auth'
 import ModernControlPanel from '@/components/interactive/ModernControlPanel'
 import { useControlPanel } from '@/contexts/ControlPanelContext'
@@ -47,31 +48,6 @@ export default function NavigationBar() {
       })
     }
   }
-
-  // 自测量 nav 高度，更新 CSS 变量供 mini player 定位
-  // isMounted：第一次渲染 nav 未挂载（return null），需等 true 后再测量
-  // isExpanded：expand/collapse 只改 opacity/transform，不改按钮组的文档流高度
-  //             （按钮组始终占据 DOM 空间，只是折叠时不可见），所以 nav 的
-  //             getBoundingClientRect().bottom 展开/折叠时其实是同一个值——
-  //             不需要等动画结束再量，立即测量即可，这样 mini player 悬浮球才能
-  //             和菜单按钮的展开/收起动画同步位移，避免中途叠在一起
-  useEffect(() => {
-    if (!isMounted) return
-    const nav = navRef.current
-    if (!nav) return
-    const measure = () => {
-      // 展开时量整个 nav，折叠时只量 toggle 按钮（invisible buttons 仍占 DOM 高度）
-      const target = isExpanded ? nav : (toggleBtnRef.current ?? nav)
-      const bottom = target.getBoundingClientRect().bottom
-      document.documentElement.style.setProperty('--nav-bottom', `${bottom}px`)
-    }
-    measure()
-    // 窗口缩放/resize 时重新测量（浏览器 zoom 也会触发 resize）
-    window.addEventListener('resize', measure)
-    return () => {
-      window.removeEventListener('resize', measure)
-    }
-  }, [isMounted, isExpanded])
 
   useEffect(() => {
     setIsMounted(true)
@@ -167,57 +143,72 @@ export default function NavigationBar() {
 
   return (
     <>
-      {/* 可折叠导航栏容器 - 右上角 */}
+      {/* 可折叠导航栏容器 - 右下角，Muse 头像即菜单开关，菜单向上展开 */}
       <div
         id="nav-bar"
         ref={navRef}
-        className="fixed top-4 right-4 z-50"
-        style={{ position: 'fixed', top: '16px', right: '16px' }}
+        className="fixed z-50 flex flex-col-reverse items-end"
+        style={{
+          position: 'fixed',
+          right: '16px',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+        }}
       >
-        {/* 主切换按钮 */}
+        {/* 主切换按钮：Muse 头像 */}
         <div ref={toggleBtnRef} className="relative group/button">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             aria-label={isExpanded ? '收起菜单' : '展开菜单'}
-            className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+            aria-expanded={isExpanded}
+            className={`block w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative border-2 ${
               isExpanded
-                ? 'bg-white/20 border-white/40'
-                : 'bg-white/5 border-white/20 hover:bg-white/10'
+                ? 'border-white/80 scale-105'
+                : 'border-white/30 hover:border-white/60'
             }`}
-            style={{ backdropFilter: 'blur(20px)' }}
           >
-            <svg
-              className={`w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white transition-all duration-300 ${
-                isExpanded ? 'rotate-90' : 'rotate-0'
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
+            <span className="absolute inset-0 rounded-full overflow-hidden">
+              <JkeroroAvatar
+                state="idle"
+                states={['idle']}
+                size={64}
+                className="!w-full !h-full"
               />
-            </svg>
-            <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
+            </span>
+            {/* 角标：提示这是菜单 */}
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-black/70 border border-white/30 flex items-center justify-center text-white"
+              style={{ backdropFilter: 'blur(10px)' }}
+            >
+              <svg
+                className={`w-3 h-3 transition-transform duration-300 ${isExpanded ? 'rotate-90' : 'rotate-0'}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                {isExpanded ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 6l12 12M18 6L6 18" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 7h16M4 12h16M4 17h16" />
+                )}
+              </svg>
+            </span>
           </button>
           {/* 工具提示 */}
-          <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
-            {isExpanded ? '收起菜单' : '展开菜单'}
+          <div className="absolute right-[72px] top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
+            {isExpanded ? '收起菜单' : 'my Muse'}
           </div>
         </div>
 
-        {/* 功能按钮容器 - 放在主按钮下方 */}
+        {/* 功能按钮容器 - 在头像上方，向上展开 */}
         <div
-          className={`flex flex-col gap-3 sm:gap-4 mt-3 sm:mt-4 transition-all duration-300 ${
+          className={`flex flex-col items-center gap-3 sm:gap-4 mb-3 sm:mb-4 pr-1 transition-all duration-300 ${
             isExpanded
               ? 'opacity-100 translate-y-0 scale-100'
-              : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
+              : 'opacity-0 translate-y-2 scale-95 pointer-events-none'
           }`}
         >
-          {/* Muse 按钮（个性化头像） */}
+          {/* 和 Muse 聊天 */}
           <div className="relative group/button">
             <button
               onClick={() => {
@@ -227,23 +218,20 @@ export default function NavigationBar() {
                 setShowAssistant(!showAssistant)
                 setIsExpanded(false)
               }}
-              aria-label={showAssistant ? '关闭 Muse' : '打开 Muse'}
-              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border-2 ${
+              aria-label={showAssistant ? '关闭 Muse 对话' : '和 Muse 聊天'}
+              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showAssistant
-                  ? 'border-white/70'
-                  : 'border-white/30 hover:border-white/60'
+                  ? 'bg-white/20 border-white/40'
+                  : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
+              style={{ backdropFilter: 'blur(20px)' }}
             >
-              <JkeroroAvatar
-                state="idle"
-                states={['idle']}
-                size={56}
-                className="absolute inset-0 !w-full !h-full"
-              />
+              <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white" />
+              <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
             </button>
             {/* 工具提示 */}
             <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
-              my Muse
+              和 Muse 聊天
             </div>
           </div>
 
@@ -353,7 +341,7 @@ export default function NavigationBar() {
             onClick={() => setShowControlPanel(false)}
           ></div>
 
-          <div className="fixed top-4 right-4 z-50 w-64 max-h-[60vh]">
+          <div className="fixed bottom-24 right-4 z-50 w-64 max-h-[60vh]">
             <ModernControlPanel
               params={guiParams}
               onParamChange={handleParamChange}

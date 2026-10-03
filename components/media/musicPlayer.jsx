@@ -304,9 +304,9 @@ export default function MusicPlayer() {
 
       {showMiniPlayer && (
         <>
-          {/* ── 桌面：右下角胶囊 ── */}
+          {/* ── 桌面：右下角胶囊（让出最右侧给 Muse 头像菜单） ── */}
           <div
-            className="hidden sm:block fixed bottom-4 right-4 z-50 w-72 rounded-2xl overflow-hidden text-white shadow-2xl"
+            className="hidden sm:block fixed bottom-4 right-[92px] z-50 w-72 rounded-2xl overflow-hidden text-white shadow-2xl"
             style={{ animation: 'mini-slidein 0.3s ease forwards' }}
           >
             {resolvedCover && (
@@ -351,10 +351,10 @@ export default function MusicPlayer() {
             </div>
           </div>
 
-          {/* ── 移动端：浮动球 ── */}
+          {/* ── 移动端：浮动球（右上角；右下角是 Muse 头像菜单） ── */}
           <button
             className="sm:hidden fixed right-4 z-50 w-12 h-12 rounded-full shadow-2xl overflow-hidden text-white"
-            style={{ top: 'calc(var(--nav-bottom, 84px) + 20px)', animation: 'ball-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards', transition: 'top 0.3s ease' }}
+            style={{ top: 'calc(env(safe-area-inset-top, 0px) + 16px)', animation: 'ball-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards', transition: 'top 0.3s ease' }}
             onClick={() => setShowMiniModal(true)}
           >
             {/* 封面或纯色背景 */}
