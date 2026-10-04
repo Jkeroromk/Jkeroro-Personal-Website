@@ -129,7 +129,8 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       // 不把上游的原始错误透传给前端
       console.error('Chat provider error', response.status, await response.text().catch(() => ''));
-      return text('Upstream error', 502);
+      // 只回传上游的状态码（方便排查：401 key 无效 / 402 余额不足 / 404 模型不存在 / 429 上游限流）
+      return text(`Upstream error (${response.status})`, 502);
     }
 
     return new Response(response.body, {
