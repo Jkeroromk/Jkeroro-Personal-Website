@@ -28,8 +28,10 @@ const RATE_LIMITS: Array<{
 
   // Public write endpoints — spam prevention
   { pattern: /^\/api\/guestbook/,       methods: ['POST'], limit: 3, windowMs: 300_000 },
+  // 注意顺序：规则按顺序匹配、命中第一条就停。reactions 必须放在 /api/comments 前面，
+  // 否则点表情会被「发评论」的 5 次/分钟限制拦住
+  { pattern: /^\/api\/comments\/.*\/reactions/, methods: ['POST'], limit: 30, windowMs: 60_000 },
   { pattern: /^\/api\/comments/,        methods: ['POST'], limit: 5, windowMs: 60_000  },
-  { pattern: /^\/api\/comments\/.*\/reactions/, methods: ['POST'], limit: 10, windowMs: 60_000 },
 
   // File uploads — prevent storage abuse
   { pattern: /^\/api\/upload/,          methods: ['POST'], limit: 5, windowMs: 60_000 },

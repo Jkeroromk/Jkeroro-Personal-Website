@@ -6,7 +6,8 @@ import { Comment } from '@/types/api'
 
 interface ReactionButtonsProps {
   comment: Comment
-  onReaction: (commentId: string, reactionType: string) => void
+  /** 返回 false 表示失败，组件会撤销乐观更新的计数 */
+  onReaction: (commentId: string, reactionType: string) => void | Promise<boolean>
   hasUserReaction: (commentId: string, reactionType: string) => boolean
 }
 
@@ -62,12 +63,17 @@ const ReactionButtons = memo(function ReactionButtons({
     closeTimer.current = setTimeout(() => setPickerOpen(false), 180)
   }
 
-  const handleReact = (type: string) => {
+  const handleReact = async (type: string) => {
     const wasReacted = hasUserReaction(comment.id, type)
-    setCountAdj(prev => ({ ...prev, [type]: (prev[type] ?? 0) + (wasReacted ? -1 : 1) }))
+    const delta = wasReacted ? -1 : 1
+    setCountAdj(prev => ({ ...prev, [type]: (prev[type] ?? 0) + delta }))
     setAnimKeys(prev => ({ ...prev, [type]: (prev[type] ?? 0) + 1 }))
-    onReaction(comment.id, type)
     triggerClose()
+    const ok = await onReaction(comment.id, type)
+    // 请求失败时撤销乐观更新，避免界面显示的数字和数据库不一致
+    if (ok === false) {
+      setCountAdj(prev => ({ ...prev, [type]: (prev[type] ?? 0) - delta }))
+    }
   }
 
   const visibleReactions = REACTIONS.filter(r => {
@@ -76,14 +82,14 @@ const ReactionButtons = memo(function ReactionButtons({
   })
 
   return (
-    <div ref={wrapRef} className="flex items-center gap-1.5 flex-shrink-0">
+    <div ref={wrapRef} className="relative flex items-center gap-1.5 flex-shrink-0">
       <style>{KEYFRAMES}</style>
 
       {/* Active pills */}
       {visibleReactions.length > 0 && (
         <div className="flex items-center gap-1 flex-wrap">
           {visibleReactions.map(r => {
-            const count   = (comment[r.type] ?? 0) + (countAdj[r.type] ?? 0)
+            const count   = Math.max(0, (comment[r.type] ?? 0) + (countAdj[r.type] ?? 0))
             const reacted = hasUserReaction(comment.id, r.type)
             const display = reacted && count === 0 ? 1 : count
 
@@ -127,8 +133,8 @@ const ReactionButtons = memo(function ReactionButtons({
         </div>
       )}
 
-      {/* Smiley toggle + floating picker */}
-      <div className="relative">
+      {/* Smiley toggle + floating picker（picker 相对整行定位，从行首向右展开，不会超出屏幕左边） */}
+      <div>
         <button
           onClick={() => pickerOpen ? triggerClose() : triggerOpen()}
           className={`
@@ -146,10 +152,10 @@ const ReactionButtons = memo(function ReactionButtons({
         {pickerOpen && (
           <div
             className={`
-              absolute right-0 bottom-full mb-2 z-50
+              absolute left-0 bottom-full mb-2 z-50 w-max
               flex items-center gap-0.5 p-1.5
               bg-gray-900/96 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl
-              transition-all duration-200 origin-bottom-right
+              transition-all duration-200 origin-bottom-left
               ${pickerVisible
                 ? 'opacity-100 scale-100 translate-y-0'
                 : 'opacity-0 scale-90 translate-y-1.5 pointer-events-none'
