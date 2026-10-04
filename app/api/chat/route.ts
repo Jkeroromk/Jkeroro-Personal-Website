@@ -8,7 +8,7 @@ const cleanKey = (v?: string) => v?.trim().replace(/^['"]|['"]$/g, '') || undefi
 const META_API_KEY = cleanKey(process.env.MODEL_API_KEY);
 const META_MODEL = process.env.MUSE_MODEL || 'muse-spark-1.3';
 const FIREWORKS_API_KEY = cleanKey(process.env.PROVIDER_API_KEY);
-const FIREWORKS_MODEL = process.env.MODEL_NAME || 'accounts/fireworks/models/gpt-oss-20b';
+const FIREWORKS_MODEL = process.env.MODEL_NAME || 'accounts/fireworks/models/gpt-oss-120b';
 
 const PROVIDER = META_API_KEY
   ? { url: 'https://api.meta.ai/v1/chat/completions', key: META_API_KEY, model: META_MODEL }
