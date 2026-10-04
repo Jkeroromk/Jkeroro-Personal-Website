@@ -1,12 +1,13 @@
 /**
  * NavigationBarAI Component
- * AI助手对话框组件，支持对话历史持久化
+ * Muse 对话框组件（个性化会动头像 + Muse Spark），支持对话历史持久化
  */
 
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { sseIterator } from '@/lib/ai/sse'
+import JkeroroAvatar, { type JkeroroAvatarState } from '@/components/media/JkeroroAvatar'
 
 interface Message {
   id: number
@@ -29,7 +30,16 @@ interface NavigationBarAIProps {
   onMouseDown: (e: React.MouseEvent, type: string) => void
 }
 
-const SYSTEM_PROMPT = `你是 Jkeroro 的个人网站 AI 助手，代表 Jkeroro 与访客对话。
+const WELCOME = '你好！我是 Jkeroro 的 Muse，有什么想聊的吗？'
+
+const STATUS_TEXT: Record<JkeroroAvatarState, string> = {
+  idle: '在线',
+  working: '思考中…',
+  making: '输入中…',
+  celebrating: '嗨～',
+}
+
+const SYSTEM_PROMPT = `你是 Jkeroro 的 Muse —— 他的个人 AI 伙伴，在他的个人网站上代表 Jkeroro 与访客对话。
 
 关于 Jkeroro：
 - 一名热爱创意与技术的前端开发者，专注于构建有温度的交互体验
@@ -78,9 +88,20 @@ export default function NavigationBarAI({
   const [conversationMessages, setConversationMessages] = useState<Record<string, Message[]>>({})
   const [isAssistantLoading, setIsAssistantLoading] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [avatarState, setAvatarState] = useState<JkeroroAvatarState>('idle')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messageIdCounterRef = useRef(1)
   const hasInitializedRef = useRef(false)
+
+  // 打开对话框时先打个招呼，再回到待机
+  useEffect(() => {
+    if (!isOpen) return
+    setAvatarState('celebrating')
+    const t = setTimeout(() => {
+      setAvatarState((s) => (s === 'celebrating' ? 'idle' : s))
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [isOpen])
 
   // 自动滚动到最新消息
   useEffect(() => {
@@ -139,7 +160,7 @@ export default function NavigationBarAI({
         {
           id: messageIdCounterRef.current++,
           role: 'assistant',
-          content: '你好！我是 Jkeroro 的 AI 助手。有什么可以帮助你的吗？',
+          content: WELCOME,
           timestamp: new Date(),
         },
       ])
@@ -178,7 +199,7 @@ export default function NavigationBarAI({
     const welcomeMsg: Message = {
       id: messageIdCounterRef.current++,
       role: 'assistant',
-      content: '你好！我是 Jkeroro 的 AI 助手，有什么可以帮助你的吗？',
+      content: WELCOME,
       timestamp: new Date(),
     }
     setConversations([newConv])
@@ -218,7 +239,7 @@ export default function NavigationBarAI({
           const welcomeMsg: Message = {
             id: messageIdCounterRef.current++,
             role: 'assistant',
-            content: '你好！我是 Jkeroro 的 AI 助手，有什么可以帮助你的吗？',
+            content: WELCOME,
             timestamp: new Date(),
           }
           setActiveConversationId(newId)
@@ -270,6 +291,7 @@ export default function NavigationBarAI({
     }))
     setAssistantInput('')
     setIsAssistantLoading(true)
+    setAvatarState('working')
 
     // 保存用户消息
     saveMessage('user', userMessage.content, activeConversationId)
@@ -309,6 +331,7 @@ export default function NavigationBarAI({
       let fullContent = ''
       for await (const token of sseIterator(response)) {
         if (token) {
+          if (!fullContent) setAvatarState('making')
           fullContent += token
           setAssistantMessages((prev) => {
             const newMessages = [...prev]
@@ -340,6 +363,7 @@ export default function NavigationBarAI({
       })
     } finally {
       setIsAssistantLoading(false)
+      setAvatarState('idle')
     }
   }
 
@@ -396,9 +420,19 @@ export default function NavigationBarAI({
           style={{ backdropFilter: 'blur(10px)' }}
           onMouseDown={(e) => onMouseDown(e, 'assistant')}
         >
-          <div className="flex items-center space-x-2">
-            <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-            <h3 className="text-white font-semibold text-xs">J 助手</h3>
+          <div className="flex items-center gap-2.5">
+            <JkeroroAvatar state={avatarState} size={44} className="ring-2 ring-white/30" />
+            <div className="leading-tight">
+              <h3 className="text-white font-semibold text-sm">Muse</h3>
+              <p className="text-white/50 text-[11px] flex items-center gap-1">
+                <span
+                  className={`inline-block w-1.5 h-1.5 rounded-full ${
+                    avatarState === 'idle' ? 'bg-emerald-400' : 'bg-amber-300 animate-pulse'
+                  }`}
+                ></span>
+                {STATUS_TEXT[avatarState]}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -483,11 +517,11 @@ export default function NavigationBarAI({
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="输入消息..."
+              placeholder="和 Muse 聊聊..."
               value={assistantInput || ''}
               onChange={(e) => setAssistantInput(e.target.value)}
               onKeyPress={handleAssistantKeyPress}
-              aria-label="AI助手消息输入"
+              aria-label="给 Muse 发消息"
               className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 text-xs focus:outline-none focus:border-white/40"
             />
             <button
@@ -498,6 +532,9 @@ export default function NavigationBarAI({
               {isAssistantLoading ? '发送中...' : '发送'}
             </button>
           </div>
+          <p className="text-center text-white/35 text-[10px] mt-1.5 tracking-wide">
+            my Muse · powered by Muse Spark
+          </p>
         </div>
       </div>
     </>

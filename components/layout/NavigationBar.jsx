@@ -7,11 +7,13 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { MessageCircle } from 'lucide-react'
 import { useAuth } from '@/auth'
 import ModernControlPanel from '@/components/interactive/ModernControlPanel'
 import { useControlPanel } from '@/contexts/ControlPanelContext'
 import NavigationBarAI from './navigation/NavigationBarAI'
 import NavigationBarLogin from './navigation/NavigationBarLogin'
+import JkeroroAvatar from '@/components/media/JkeroroAvatar'
 
 export default function NavigationBar() {
   const { isAdmin } = useAuth()
@@ -47,29 +49,19 @@ export default function NavigationBar() {
     }
   }
 
-  // 自测量 nav 高度，更新 CSS 变量供 mini player 定位
-  // isMounted：第一次渲染 nav 未挂载（return null），需等 true 后再测量
-  // isExpanded：expand/collapse 只改 opacity/transform，不改按钮组的文档流高度
-  //             （按钮组始终占据 DOM 空间，只是折叠时不可见），所以 nav 的
-  //             getBoundingClientRect().bottom 展开/折叠时其实是同一个值——
-  //             不需要等动画结束再量，立即测量即可，这样 mini player 悬浮球才能
-  //             和菜单按钮的展开/收起动画同步位移，避免中途叠在一起
+  // 测量右下角导航（头像 + 已展开菜单）的总高度，写入 --nav-stack，
+  // 供圆形迷你播放器叠在它上方。折叠时只量头像（隐藏的菜单仍占布局空间）。
   useEffect(() => {
     if (!isMounted) return
-    const nav = navRef.current
-    if (!nav) return
     const measure = () => {
-      // 展开时量整个 nav，折叠时只量 toggle 按钮（invisible buttons 仍占 DOM 高度）
-      const target = isExpanded ? nav : (toggleBtnRef.current ?? nav)
-      const bottom = target.getBoundingClientRect().bottom
-      document.documentElement.style.setProperty('--nav-bottom', `${bottom}px`)
+      const target = isExpanded ? navRef.current : toggleBtnRef.current
+      if (!target) return
+      const { top, bottom } = target.getBoundingClientRect()
+      document.documentElement.style.setProperty('--nav-stack', `${Math.round(bottom - top)}px`)
     }
     measure()
-    // 窗口缩放/resize 时重新测量（浏览器 zoom 也会触发 resize）
     window.addEventListener('resize', measure)
-    return () => {
-      window.removeEventListener('resize', measure)
-    }
+    return () => window.removeEventListener('resize', measure)
   }, [isMounted, isExpanded])
 
   useEffect(() => {
@@ -92,18 +84,28 @@ export default function NavigationBar() {
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
+  // 迷你播放卡片打开时关掉控制面板（互斥）
+  useEffect(() => {
+    const close = () => setShowControlPanel(false)
+    window.addEventListener('jk:close-control-panel', close)
+    return () => window.removeEventListener('jk:close-control-panel', close)
+  }, [])
+
   // 键盘事件处理
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // ESC 键关闭展开的菜单
-      if (event.key === 'Escape' && isExpanded) {
+      // ESC：先关控制面板，再收起菜单
+      if (event.key !== 'Escape') return
+      if (showControlPanel) {
+        setShowControlPanel(false)
+      } else if (isExpanded) {
         setIsExpanded(false)
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isExpanded])
+  }, [isExpanded, showControlPanel])
 
   // 拖拽处理函数
   const handleMouseDown = (e, type) => {
@@ -166,57 +168,76 @@ export default function NavigationBar() {
 
   return (
     <>
-      {/* 可折叠导航栏容器 - 右上角 */}
+      {/* 可折叠导航栏容器 - 右下角，Muse 头像即菜单开关，菜单向上展开 */}
       <div
         id="nav-bar"
         ref={navRef}
-        className="fixed top-4 right-4 z-50"
-        style={{ position: 'fixed', top: '16px', right: '16px' }}
+        className="fixed z-50 flex flex-col-reverse items-end"
+        style={{
+          position: 'fixed',
+          right: '16px',
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+        }}
       >
-        {/* 主切换按钮 */}
+        {/* 主切换按钮：Muse 头像 */}
         <div ref={toggleBtnRef} className="relative group/button">
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={() => {
+              // 收起菜单时连同控制面板一起关掉
+              if (isExpanded) setShowControlPanel(false)
+              setIsExpanded(!isExpanded)
+            }}
             aria-label={isExpanded ? '收起菜单' : '展开菜单'}
-            className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+            aria-expanded={isExpanded}
+            className={`block w-14 h-14 sm:w-16 sm:h-16 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative border-2 ${
               isExpanded
-                ? 'bg-white/20 border-white/40'
-                : 'bg-white/5 border-white/20 hover:bg-white/10'
+                ? 'border-white/80 scale-105'
+                : 'border-white/30 hover:border-white/60'
             }`}
-            style={{ backdropFilter: 'blur(20px)' }}
           >
-            <svg
-              className={`w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white transition-all duration-300 ${
-                isExpanded ? 'rotate-90' : 'rotate-0'
-              }`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
+            <span className="absolute inset-0 rounded-full overflow-hidden">
+              <JkeroroAvatar
+                state="idle"
+                states={['idle']}
+                size={64}
+                className="!w-full !h-full"
               />
-            </svg>
-            <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
+            </span>
+            {/* 角标：提示这是菜单 */}
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-black/70 border border-white/30 flex items-center justify-center text-white"
+              style={{ backdropFilter: 'blur(10px)' }}
+            >
+              <svg
+                className={`w-3 h-3 transition-transform duration-300 ${isExpanded ? 'rotate-90' : 'rotate-0'}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                {isExpanded ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 6l12 12M18 6L6 18" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 7h16M4 12h16M4 17h16" />
+                )}
+              </svg>
+            </span>
           </button>
           {/* 工具提示 */}
-          <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
-            {isExpanded ? '收起菜单' : '展开菜单'}
+          <div className="absolute right-[72px] top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
+            {isExpanded ? '收起菜单' : 'my Muse'}
           </div>
         </div>
 
-        {/* 功能按钮容器 - 放在主按钮下方 */}
+        {/* 功能按钮容器 - 在头像上方，向上展开 */}
         <div
-          className={`flex flex-col gap-3 sm:gap-4 mt-3 sm:mt-4 transition-all duration-300 ${
+          className={`flex flex-col items-center gap-2.5 sm:gap-3 mb-3 pr-2 sm:pr-2.5 transition-all duration-300 ${
             isExpanded
               ? 'opacity-100 translate-y-0 scale-100'
-              : 'opacity-0 -translate-y-2 scale-95 pointer-events-none'
+              : 'opacity-0 translate-y-2 scale-95 pointer-events-none'
           }`}
         >
-          {/* AI助手按钮 */}
+          {/* 和 Muse 聊天 */}
           <div className="relative group/button">
             <button
               onClick={() => {
@@ -226,22 +247,20 @@ export default function NavigationBar() {
                 setShowAssistant(!showAssistant)
                 setIsExpanded(false)
               }}
-              aria-label={showAssistant ? '关闭AI助手' : '打开AI助手'}
-              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              aria-label={showAssistant ? '关闭 Muse 对话' : '和 Muse 聊天'}
+              className={`flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showAssistant
                   ? 'bg-white/20 border-white/40'
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-sm sm:text-base font-bold text-white relative z-10">
-                J
-              </span>
+              <MessageCircle className="w-4 h-4 sm:w-[18px] sm:h-[18px] relative z-10 text-white" />
               <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
             </button>
             {/* 工具提示 */}
-            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
-              AI助手
+            <div className="absolute right-[52px] top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
+              和 Muse 聊天
             </div>
           </div>
 
@@ -264,20 +283,20 @@ export default function NavigationBar() {
                     ? '关闭登录'
                     : '打开登录'
               }
-              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showLogin
                   ? 'bg-white/20 border-white/40'
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
               }`}
               style={{ backdropFilter: 'blur(20px)' }}
             >
-              <span className="text-sm sm:text-base font-bold text-white relative z-10">
+              <span className="text-xs sm:text-sm font-bold text-white relative z-10">
                 L
               </span>
               <div className="absolute inset-0 bg-gradient-to-r from-white/10 via-white/5 to-white/10 opacity-50"></div>
             </button>
             {/* 工具提示 */}
-            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
+            <div className="absolute right-[52px] top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
               {isAdmin ? '管理面板' : '登录'}
             </div>
           </div>
@@ -286,13 +305,17 @@ export default function NavigationBar() {
           <div className="relative group/button">
             <button
               onClick={() => {
+                // 控制面板作为菜单的弹出层：打开时菜单保持展开，按钮显示选中态
+                if (!showControlPanel) {
+                  // 和桌面迷你播放卡片互斥，避免两个弹层叠在一起
+                  window.dispatchEvent(new Event('jk:close-mini-card'))
+                }
                 setShowControlPanel(!showControlPanel)
-                setIsExpanded(false)
               }}
               aria-label={
                 showControlPanel ? '关闭控制面板' : '打开控制面板'
               }
-              className={`flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
+              className={`flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
                 showControlPanel
                   ? 'bg-white/20 border-white/40'
                   : 'bg-white/5 border-white/20 hover:bg-white/10'
@@ -300,7 +323,7 @@ export default function NavigationBar() {
               style={{ backdropFilter: 'blur(20px)' }}
             >
               <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 relative z-10 text-white"
+                className="w-4 h-4 sm:w-[18px] sm:h-[18px] relative z-10 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -315,14 +338,14 @@ export default function NavigationBar() {
               <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
             </button>
             {/* 工具提示 */}
-            <div className="absolute right-14 top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
+            <div className="absolute right-[52px] top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
               控制面板
             </div>
           </div>
         </div>
       </div>
 
-      {/* AI助手对话框 */}
+      {/* Muse 对话框 */}
       <NavigationBarAI
         isOpen={showAssistant}
         onClose={() => setShowAssistant(false)}
@@ -342,16 +365,22 @@ export default function NavigationBar() {
         onMouseDown={handleMouseDown}
       />
 
-      {/* 控制面板 */}
+      {/* 控制面板：贴在菜单列左侧弹出，菜单保持展开 */}
       {showControlPanel && (
         <>
-          {/* 背景遮罩 */}
+          {/* 透明遮罩：点外面关闭面板并收起菜单；不调暗背景，方便边调边看 3D 效果 */}
           <div
-            className="fixed inset-0 bg-black/20 z-40"
-            onClick={() => setShowControlPanel(false)}
+            className="fixed inset-0 z-40"
+            onClick={() => {
+              setShowControlPanel(false)
+              setIsExpanded(false)
+            }}
           ></div>
 
-          <div className="fixed top-4 right-4 z-50 w-64 max-h-[60vh]">
+          <div
+            className="fixed z-50 w-64 max-w-[calc(100vw-88px)] right-[76px] sm:right-[92px]"
+            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
+          >
             <ModernControlPanel
               params={guiParams}
               onParamChange={handleParamChange}

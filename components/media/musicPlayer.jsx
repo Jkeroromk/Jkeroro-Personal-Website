@@ -16,12 +16,24 @@ import PlayerControls from './musicPlayer/PlayerControls'
 import ProgressBar from './musicPlayer/ProgressBar'
 import VolumeControl from './musicPlayer/VolumeControl'
 
+// 圆形迷你播放器位置：在 Muse 头像（及展开的菜单）上方 12px
+// --nav-stack 由 NavigationBar 测量并写入（头像 + 已展开菜单的总高度）
+const MINI_BALL_BOTTOM = 'calc(env(safe-area-inset-bottom, 0px) + 16px + var(--nav-stack, 64px) + 12px)'
+
 export default function MusicPlayer() {
   const { tracks, loading, isFresh } = useTracks()
   const [isLooping, setIsLooping] = useState(false)
   const [isShuffled, setIsShuffled] = useState(false)
   const [showMiniPlayer, setShowMiniPlayer] = useState(false)
   const [showMiniModal, setShowMiniModal] = useState(false)
+  const [showMiniCard, setShowMiniCard] = useState(false) // 桌面：圆球旁弹出的控制卡片
+
+  // 控制面板打开时收起播放卡片（互斥）
+  useEffect(() => {
+    const close = () => setShowMiniCard(false)
+    window.addEventListener('jk:close-mini-card', close)
+    return () => window.removeEventListener('jk:close-mini-card', close)
+  }, [])
   const audioRef = useRef(null)
 
   const {
@@ -304,10 +316,11 @@ export default function MusicPlayer() {
 
       {showMiniPlayer && (
         <>
-          {/* ── 桌面：右下角胶囊 ── */}
+          {/* ── 桌面：点圆球后在左侧弹出的控制卡片 ── */}
+          {showMiniCard && (
           <div
-            className="hidden sm:block fixed bottom-4 right-4 z-50 w-72 rounded-2xl overflow-hidden text-white shadow-2xl"
-            style={{ animation: 'mini-slidein 0.3s ease forwards' }}
+            className="hidden sm:block fixed right-[88px] z-50 w-72 rounded-2xl overflow-hidden text-white shadow-2xl"
+            style={{ bottom: MINI_BALL_BOTTOM, animation: 'mini-slidein 0.3s ease forwards', transition: 'bottom 0.3s ease' }}
           >
             {resolvedCover && (
               <div
@@ -350,12 +363,23 @@ export default function MusicPlayer() {
               <div className="h-full bg-white/60 rounded-full transition-all duration-300" style={{ width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%' }} />
             </div>
           </div>
+          )}
 
-          {/* ── 移动端：浮动球 ── */}
+          {/* ── 圆形迷你播放器：叠在右下角 Muse 头像上方（桌面/移动端统一） ── */}
           <button
-            className="sm:hidden fixed right-4 z-50 w-12 h-12 rounded-full shadow-2xl overflow-hidden text-white"
-            style={{ top: 'calc(var(--nav-bottom, 84px) + 20px)', animation: 'ball-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards', transition: 'top 0.3s ease' }}
-            onClick={() => setShowMiniModal(true)}
+            className={`fixed z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-2xl overflow-hidden text-white border-2 transition-colors ${
+              showMiniCard ? 'border-white/70' : 'border-white/30 hover:border-white/60'
+            }`}
+            style={{ right: '20px', bottom: MINI_BALL_BOTTOM, animation: 'ball-popin 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards', transition: 'bottom 0.3s ease' }}
+            aria-label={showMiniCard ? '收起播放器' : '打开播放器'}
+            onClick={() => {
+              if (window.matchMedia('(min-width: 640px)').matches) {
+                if (!showMiniCard) window.dispatchEvent(new Event('jk:close-control-panel'))
+                setShowMiniCard(!showMiniCard)
+              } else {
+                setShowMiniModal(true)
+              }
+            }}
           >
             {/* 封面或纯色背景 */}
             {resolvedCover ? (
