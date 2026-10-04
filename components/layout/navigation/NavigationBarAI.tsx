@@ -186,6 +186,39 @@ export default function NavigationBarAI({ isOpen, onClose }: NavigationBarAIProp
   const lastMessage = messages[messages.length - 1]
   const showTyping = isActiveLoading && (!lastMessage || lastMessage.role === 'user' || !lastMessage.content)
 
+  /* ---------- 移动端：跟随键盘调整面板（visualViewport），并锁住背景滚动 ---------- */
+  const [viewport, setViewport] = useState<{ top: number; height: number; keyboard: boolean } | null>(null)
+  useEffect(() => {
+    if (!isOpen || window.matchMedia('(min-width: 640px)').matches) return
+    const vv = window.visualViewport
+    const update = () => {
+      if (!vv) return
+      setViewport({
+        top: vv.offsetTop,
+        height: vv.height,
+        keyboard: vv.height < window.innerHeight * 0.8,
+      })
+    }
+    update()
+    vv?.addEventListener('resize', update)
+    vv?.addEventListener('scroll', update)
+
+    const { overflow } = document.body.style
+    document.body.style.overflow = 'hidden'
+    return () => {
+      vv?.removeEventListener('resize', update)
+      vv?.removeEventListener('scroll', update)
+      document.body.style.overflow = overflow
+      setViewport(null)
+    }
+  }, [isOpen])
+
+  // 键盘弹出时：面板占满键盘上方的可见区域，不再被顶出屏幕
+  const mobileKeyboardStyle: React.CSSProperties =
+    viewport?.keyboard
+      ? { top: viewport.top + 8, height: viewport.height - 8, bottom: 'auto', paddingBottom: 0 }
+      : {}
+
   /* ---------- 打开时：打招呼动画、聚焦、Esc 关闭 ---------- */
   useEffect(() => {
     if (!isOpen) return
@@ -449,6 +482,7 @@ export default function NavigationBarAI({ isOpen, onClose }: NavigationBarAIProp
           backdropFilter: 'blur(24px) saturate(140%)',
           WebkitBackdropFilter: 'blur(24px) saturate(140%)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          ...mobileKeyboardStyle,
         }}
       >
         {/* 移动端拖拽把手 */}
@@ -593,7 +627,7 @@ export default function NavigationBarAI({ isOpen, onClose }: NavigationBarAIProp
               onKeyDown={onKeyDown}
               placeholder="和 Muse 聊聊…"
               aria-label="给 Muse 发消息"
-              className="modern-scrollbar max-h-[140px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 font-sans text-base leading-6 text-white outline-none placeholder:text-white/35 sm:text-[14.5px]"
+              className="modern-scrollbar max-h-[140px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 font-sans text-[16px] leading-6 text-white outline-none placeholder:text-white/35 sm:text-[14.5px]"
             />
             <button
               type="button"
