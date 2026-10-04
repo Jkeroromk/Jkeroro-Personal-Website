@@ -349,10 +349,6 @@ export default function NavigationBar() {
       <NavigationBarAI
         isOpen={showAssistant}
         onClose={() => setShowAssistant(false)}
-        isDesktop={isDesktop}
-        position={assistantPosition}
-        onPositionChange={setAssistantPosition}
-        onMouseDown={handleMouseDown}
       />
 
       {/* 登录对话框 */}
