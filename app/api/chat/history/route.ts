@@ -60,6 +60,17 @@ export async function POST(req: NextRequest) {
     if (!['user', 'assistant'].includes(role)) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
     }
+    // 防止往数据库里灌大段内容
+    if (
+      typeof content !== 'string' ||
+      content.length > 8000 ||
+      typeof userId !== 'string' ||
+      userId.length > 100 ||
+      typeof conversationId !== 'string' ||
+      conversationId.length > 100
+    ) {
+      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    }
 
     await prisma.chatMessage.create({
       data: { userId, role, content, conversationId },
