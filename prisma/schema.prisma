@@ -155,6 +155,17 @@ model ChatMessage {
   @@map("chat_messages")
 }
 
+// /api/chat 限流记录：每次请求一行，只存 IP 的哈希，定期清理
+model ChatUsage {
+  id        String   @id @default(uuid()) @db.Uuid
+  ipHash    String   @map("ip_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
+  @@map("chat_usage")
+}
+
 model Guestbook {
   id        String   @id @default(uuid()) @db.Uuid
   name      String

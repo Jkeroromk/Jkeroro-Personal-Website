@@ -24,7 +24,6 @@ const RATE_LIMITS: Array<{
   windowMs: number
 }> = [
   // AI/external API — most expensive, tightest limit
-  { pattern: /^\/api\/ai$/,             limit: 5,  windowMs: 60_000 },
   { pattern: /^\/api\/chat/,  methods: ['POST'],   limit: 10, windowMs: 60_000 },
 
   // Public write endpoints — spam prevention
