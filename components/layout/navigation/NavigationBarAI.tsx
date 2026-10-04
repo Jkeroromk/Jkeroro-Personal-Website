@@ -425,7 +425,12 @@ export default function NavigationBarAI({ isOpen, onClose }: NavigationBarAIProp
           ],
         }),
       })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      if (!response.ok) {
+        // 限流等情况服务端会返回一句可读的提示，直接展示
+        const reason = response.status === 429 ? (await response.text().catch(() => '')).slice(0, 80) : ''
+        setAssistantContent(reason || `出了点问题，稍后再试一下吧。（HTTP ${response.status}）`, { local: true, error: true })
+        return
+      }
 
       let full = ''
       for await (const token of sseIterator(response)) {
