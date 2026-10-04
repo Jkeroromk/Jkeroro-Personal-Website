@@ -3,9 +3,11 @@ import { SYSTEM_PROMPT } from '@/lib/ai/prompt';
 import { checkChatLimit, getClientIp } from '@/lib/ai/rate-limit';
 
 // 优先使用 Meta Model API（Muse Spark，OpenAI 兼容）；未配置 MODEL_API_KEY 时回退到 Fireworks
-const META_API_KEY = process.env.MODEL_API_KEY;
+// trim + 去掉误粘贴的引号，防止复制 key 时带上空格/换行
+const cleanKey = (v?: string) => v?.trim().replace(/^['"]|['"]$/g, '') || undefined;
+const META_API_KEY = cleanKey(process.env.MODEL_API_KEY);
 const META_MODEL = process.env.MUSE_MODEL || 'muse-spark-1.3';
-const FIREWORKS_API_KEY = process.env.PROVIDER_API_KEY;
+const FIREWORKS_API_KEY = cleanKey(process.env.PROVIDER_API_KEY);
 const FIREWORKS_MODEL = process.env.MODEL_NAME || 'accounts/fireworks/models/gpt-oss-20b';
 
 const PROVIDER = META_API_KEY
