@@ -67,18 +67,18 @@ export function useCommentReactions() {
     commentId: string,
     reactionType: string,
     onSuccess?: () => void
-  ) => {
+  ): Promise<boolean> => {
     if (!userId) {
       toast({
         title: 'Error',
         description: 'User not initialized',
         variant: 'destructive',
       })
-      return
+      return false
     }
 
     const pendingKey = `${commentId}:${reactionType}`
-    if (pendingRef.current.has(pendingKey)) return
+    if (pendingRef.current.has(pendingKey)) return false
     pendingRef.current.add(pendingKey)
 
     try {
@@ -91,7 +91,9 @@ export function useCommentReactions() {
       )
 
       if (result.error) {
-        throw new Error(result.error.message || 'Failed to toggle reaction')
+        const err = new Error(result.error.message || 'Failed to toggle reaction') as Error & { status?: number }
+        err.status = result.error.status
+        throw err
       }
 
       // 以服务端实际执行的动作为准更新本地状态，避免本地猜测的状态和数据库不一致后越点越乱
@@ -116,12 +118,18 @@ export function useCommentReactions() {
       if (onSuccess) {
         onSuccess()
       }
+      return true
     } catch (error) {
+      const status = (error as { status?: number })?.status
       toast({
-        title: 'Error',
-        description: 'Failed to add reaction',
+        title: status === 429 ? 'Slow down' : 'Error',
+        description:
+          status === 429
+            ? 'Too many reactions in a short time — try again in a minute'
+            : 'Failed to add reaction',
         variant: 'destructive',
       })
+      return false
     } finally {
       pendingRef.current.delete(pendingKey)
     }

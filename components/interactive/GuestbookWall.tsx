@@ -189,7 +189,7 @@ const EntryCard = memo(function EntryCard({
 }: {
   entry: GuestbookEntry
   t: Translations
-  onReaction: (id: string, type: string) => void
+  onReaction: (id: string, type: string) => void | Promise<boolean>
   hasUserReaction: (id: string, type: string) => boolean
 }) {
   const formatDate = (iso: string) =>
@@ -282,9 +282,7 @@ export default function GuestbookWall() {
     }
   }
 
-  const handleEntryReaction = (id: string, type: string) => {
-    handleReaction(id, type, fetchEntries)
-  }
+  const handleEntryReaction = (id: string, type: string) => handleReaction(id, type, fetchEntries)
 
   useEffect(() => { fetchEntries() }, [])
 
