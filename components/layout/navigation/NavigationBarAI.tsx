@@ -1,19 +1,25 @@
 /**
- * NavigationBarAI Component
- * Muse 对话框组件（个性化会动头像 + Muse Spark），支持对话历史持久化
+ * NavigationBarAI — Muse 对话面板
+ * 桌面：贴在右下角头像左侧弹出；移动端：底部抽屉
+ * 会话历史：localStorage 存会话列表，消息存数据库（/api/chat/history）
  */
 
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { ArrowUp, Check, Copy, History, SquarePen, Trash2, X } from 'lucide-react'
 import { sseIterator } from '@/lib/ai/sse'
-import JkeroroAvatar, { type JkeroroAvatarState } from '@/components/media/JkeroroAvatar'
+import Markdown from '@/lib/ai/markdown'
+import JkeroroAvatar, { AVATAR_POSTER, type JkeroroAvatarState } from '@/components/media/JkeroroAvatar'
 
 interface Message {
   id: number
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  /** 本地生成、不进模型上下文的消息（欢迎语、错误提示） */
+  local?: boolean
+  error?: boolean
 }
 
 interface Conversation {
@@ -24,13 +30,12 @@ interface Conversation {
 interface NavigationBarAIProps {
   isOpen: boolean
   onClose: () => void
-  isDesktop: boolean
-  position: { x: number; y: number }
-  onPositionChange: (position: { x: number; y: number }) => void
-  onMouseDown: (e: React.MouseEvent, type: string) => void
 }
 
 const WELCOME = '你好！我是 Jkeroro 的 Muse，有什么想聊的吗？'
+const DEFAULT_NAME = '新对话'
+
+const SUGGESTIONS = ['Jkeroro 是谁？', '他最近在做什么项目？', '这个网站有哪些好玩的功能？']
 
 const STATUS_TEXT: Record<JkeroroAvatarState, string> = {
   idle: '在线',
@@ -45,7 +50,7 @@ const SYSTEM_PROMPT = `你是 Jkeroro 的 Muse —— 他的个人 AI 伙伴，�
 - 一名热爱创意与技术的前端开发者，专注于构建有温度的交互体验
 - 技术栈：Next.js、React、TypeScript、Tailwind CSS、Three.js、GSAP、Framer Motion
 - 热爱音乐（会在网站上分享自己喜欢的歌曲）、摄影、设计
-- 双语（中文/英文），来自中国
+- 双语（中文/英文）
 - 网站功能包括：音乐播放器（带歌词同步）、相册、项目展示、纪念日计时器、实时访客地图等
 - 个人风格：细腻、有美感，追求极致的用户体验细节
 
@@ -54,7 +59,8 @@ const SYSTEM_PROMPT = `你是 Jkeroro 的 Muse —— 他的个人 AI 伙伴，�
 - 帮助访客了解网站功能
 - 如果不确定某些私人信息，诚实说不知道，不要编造
 - 如遇技术问题可给出建议，但保持对话轻松
-- 自然切换中英文（跟随用户语言习惯）`
+- 自然切换中英文（跟随用户语言习惯）
+- 回答简短为主，必要时可以用 Markdown 列表或粗体，但不要用表格`
 
 /** 从 localStorage 获取或生成用户 ID */
 function getUserId(): string {
@@ -62,9 +68,7 @@ function getUserId(): string {
     const stored = localStorage.getItem('ai_user_id')
     if (stored) return stored
     const id =
-      Math.random().toString(36).slice(2) +
-      Date.now().toString(36) +
-      Math.random().toString(36).slice(2)
+      Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2)
     localStorage.setItem('ai_user_id', id)
     return id
   } catch {
@@ -72,104 +76,201 @@ function getUserId(): string {
   }
 }
 
-export default function NavigationBarAI({
-  isOpen,
-  onClose,
-  isDesktop,
-  position,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onPositionChange: _onPositionChange,
-  onMouseDown,
-}: NavigationBarAIProps) {
-  const [assistantInput, setAssistantInput] = useState('')
-  const [assistantMessages, setAssistantMessages] = useState<Message[]>([])
+const EMPTY: Message[] = []
+
+let idCounter = 1
+const nextId = () => idCounter++
+
+const welcomeMessage = (): Message => ({
+  id: nextId(),
+  role: 'assistant',
+  content: WELCOME,
+  timestamp: new Date(),
+  local: true,
+})
+
+const newConversationId = () => `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+
+const titleFrom = (text: string) => {
+  const t = text.replace(/\s+/g, ' ').trim()
+  return t.length > 16 ? `${t.slice(0, 16)}…` : t || DEFAULT_NAME
+}
+
+/** 小号头像（消息旁边用，静态首帧即可） */
+function MiniAvatar() {
+  return (
+    <span className="mt-0.5 h-7 w-7 flex-shrink-0 overflow-hidden rounded-full bg-[#f4f4f2] ring-1 ring-white/20">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={AVATAR_POSTER}
+        alt=""
+        className="h-full w-full object-cover"
+        style={{ objectPosition: '50% 18%', transform: 'scale(1.6)', transformOrigin: '50% 18%' }}
+      />
+    </span>
+  )
+}
+
+function IconButton({
+  label,
+  onClick,
+  active,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  active?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+        active ? 'bg-white/15 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1500)
+        } catch {
+          /* ignore */
+        }
+      }}
+      className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-white/40 transition-colors hover:bg-white/10 hover:text-white/80"
+      aria-label="复制"
+    >
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+      {copied ? '已复制' : '复制'}
+    </button>
+  )
+}
+
+export default function NavigationBarAI({ isOpen, onClose }: NavigationBarAIProps) {
+  const [input, setInput] = useState('')
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [activeConversationId, setActiveConversationId] = useState<string>('default')
-  const [conversationMessages, setConversationMessages] = useState<Record<string, Message[]>>({})
-  const [isAssistantLoading, setIsAssistantLoading] = useState(false)
+  const [activeId, setActiveId] = useState<string>('')
+  const [messagesByConv, setMessagesByConv] = useState<Record<string, Message[]>>({})
+  const [loadingConvId, setLoadingConvId] = useState<string | null>(null)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [avatarState, setAvatarState] = useState<JkeroroAvatarState>('idle')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const messageIdCounterRef = useRef(1)
-  const hasInitializedRef = useRef(false)
+  const [showHistory, setShowHistory] = useState(false)
 
-  // 打开对话框时先打个招呼，再回到待机
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const hasInitializedRef = useRef(false)
+  const messagesRef = useRef(messagesByConv)
+  messagesRef.current = messagesByConv
+
+  const messages = messagesByConv[activeId] ?? EMPTY
+  // onClose 由父组件内联传入，用 ref 避免每次渲染都重跑打开逻辑
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const isLoading = loadingConvId !== null
+  const isActiveLoading = loadingConvId === activeId
+  const hasUserMessage = messages.some((m) => m.role === 'user')
+  const lastMessage = messages[messages.length - 1]
+  const showTyping = isActiveLoading && (!lastMessage || lastMessage.role === 'user' || !lastMessage.content)
+
+  /* ---------- 打开时：打招呼动画、聚焦、Esc 关闭 ---------- */
   useEffect(() => {
     if (!isOpen) return
-    setAvatarState('celebrating')
-    const t = setTimeout(() => {
-      setAvatarState((s) => (s === 'celebrating' ? 'idle' : s))
-    }, 3000)
-    return () => clearTimeout(t)
+    setAvatarState((s) => (s === 'idle' ? 'celebrating' : s))
+    const t = setTimeout(() => setAvatarState((s) => (s === 'celebrating' ? 'idle' : s)), 3000)
+
+    if (window.matchMedia('(min-width: 640px)').matches) {
+      setTimeout(() => textareaRef.current?.focus(), 80)
+    }
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setShowHistory((open) => {
+        if (!open) onCloseRef.current()
+        return false
+      })
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      clearTimeout(t)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [isOpen])
 
-  // 自动滚动到最新消息
+  /* ---------- 自动滚动到底部 ---------- */
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [assistantMessages])
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  }, [messages, showTyping, isOpen])
 
-  /** 保存一条消息到数据库 */
-  const saveMessage = useCallback(async (role: 'user' | 'assistant', content: string, conversationId = 'default') => {
+  /* ---------- 输入框自动增高 ---------- */
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`
+  }, [input, isOpen])
+
+  /* ---------- 持久化会话列表 ---------- */
+  useEffect(() => {
+    if (!hasInitializedRef.current) return
     try {
-      const userId = getUserId()
+      localStorage.setItem('ai_conversations', JSON.stringify(conversations))
+      localStorage.setItem('ai_active_conversation', activeId)
+    } catch {
+      /* ignore */
+    }
+  }, [conversations, activeId])
+
+  const saveMessage = useCallback(async (role: 'user' | 'assistant', content: string, conversationId: string) => {
+    try {
       await fetch('/api/chat/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role, content, conversationId }),
+        body: JSON.stringify({ userId: getUserId(), role, content, conversationId }),
       })
     } catch {
-      // 静默失败，不影响对话体验
+      /* 静默失败，不影响对话 */
     }
   }, [])
 
-  const persistConversations = useCallback(() => {
-    try {
-      localStorage.setItem('ai_conversations', JSON.stringify(conversations))
-      localStorage.setItem('ai_active_conversation', activeConversationId)
-    } catch {
-      // ignore storage errors
-    }
-  }, [conversations, activeConversationId])
-
-  useEffect(() => {
-    persistConversations()
-  }, [conversations, activeConversationId, persistConversations])
-
-  const loadHistoryForConversation = useCallback(async (conversationId: string) => {
+  const loadHistory = useCallback(async (conversationId: string) => {
     setIsLoadingHistory(true)
     try {
-      const userId = getUserId()
-      const res = await fetch(`/api/chat/history?userId=${userId}&conversationId=${conversationId}`)
+      const res = await fetch(
+        `/api/chat/history?userId=${encodeURIComponent(getUserId())}&conversationId=${encodeURIComponent(conversationId)}`
+      )
       if (!res.ok) throw new Error('failed')
       const history: { role: string; content: string; createdAt: string }[] = await res.json()
-
       const msgs: Message[] = history.map((h) => ({
-        id: messageIdCounterRef.current++,
+        id: nextId(),
         role: h.role as 'user' | 'assistant',
         content: h.content,
         timestamp: new Date(h.createdAt),
       }))
-
-      setConversationMessages((prev) => ({
-        ...prev,
-        [conversationId]: msgs,
-      }))
-      setAssistantMessages(msgs)
+      setMessagesByConv((prev) => ({ ...prev, [conversationId]: msgs.length ? msgs : [welcomeMessage()] }))
     } catch {
-      setAssistantMessages([
-        {
-          id: messageIdCounterRef.current++,
-          role: 'assistant',
-          content: WELCOME,
-          timestamp: new Date(),
-        },
-      ])
+      setMessagesByConv((prev) => ({ ...prev, [conversationId]: [welcomeMessage()] }))
     } finally {
       setIsLoadingHistory(false)
     }
   }, [])
 
-  /** 首次打开时自动初始化：从 localStorage 恢复或新建第一个会话 */
+  /* ---------- 首次打开：恢复或新建会话 ---------- */
   useEffect(() => {
     if (!isOpen || hasInitializedRef.current) return
     hasInitializedRef.current = true
@@ -178,215 +279,147 @@ export default function NavigationBarAI({
       const stored = localStorage.getItem('ai_conversations')
       const storedActive = localStorage.getItem('ai_active_conversation')
       const parsed: Conversation[] = stored ? JSON.parse(stored) : []
-
       if (parsed.length > 0) {
+        const id = storedActive && parsed.some((c) => c.id === storedActive) ? storedActive : parsed[0].id
         setConversations(parsed)
-        const activeId =
-          storedActive && parsed.some((c) => c.id === storedActive)
-            ? storedActive
-            : parsed[0].id
-        setActiveConversationId(activeId)
-        loadHistoryForConversation(activeId)
+        setActiveId(id)
+        loadHistory(id)
         return
       }
     } catch {
-      // fall through to auto-create
+      /* fall through */
     }
 
-    // 没有历史记录，自动创建第一个会话
-    const newId = `conv_${Date.now()}`
-    const newConv: Conversation = { id: newId, name: '会话 1' }
-    const welcomeMsg: Message = {
-      id: messageIdCounterRef.current++,
-      role: 'assistant',
-      content: WELCOME,
-      timestamp: new Date(),
+    const id = newConversationId()
+    setConversations([{ id, name: DEFAULT_NAME }])
+    setActiveId(id)
+    setMessagesByConv({ [id]: [welcomeMessage()] })
+  }, [isOpen, loadHistory])
+
+  /* ---------- 会话操作 ---------- */
+  const createConversation = () => {
+    // 当前会话还没聊过就不重复新建
+    if (!hasUserMessage && messages.length) {
+      setShowHistory(false)
+      textareaRef.current?.focus()
+      return
     }
-    setConversations([newConv])
-    setActiveConversationId(newId)
-    setAssistantMessages([welcomeMsg])
-    setConversationMessages({ [newId]: [welcomeMsg] })
-  }, [isOpen, loadHistoryForConversation])
+    const id = newConversationId()
+    setConversations((prev) => [{ id, name: DEFAULT_NAME }, ...prev])
+    setActiveId(id)
+    setMessagesByConv((prev) => ({ ...prev, [id]: [welcomeMessage()] }))
+    setShowHistory(false)
+    textareaRef.current?.focus()
+  }
 
-  /** 删除会话（本地 + 数据库） */
-  const deleteConversation = useCallback(
-    async (id: string, e: React.MouseEvent) => {
-      e.stopPropagation()
+  const switchConversation = (id: string) => {
+    setActiveId(id)
+    setShowHistory(false)
+    if (!messagesRef.current[id]) loadHistory(id)
+  }
 
-      // 删除 DB 历史
-      try {
-        const userId = getUserId()
-        await fetch(`/api/chat/history?userId=${userId}&conversationId=${id}`, {
-          method: 'DELETE',
-        })
-      } catch {
-        // 静默失败
-      }
-
-      setConversationMessages((prev) => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
-
-      setConversations((prev) => {
-        const remaining = prev.filter((c) => c.id !== id)
-
-        if (remaining.length === 0) {
-          // 删完了，自动新建一个
-          const newId = `conv_${Date.now()}`
-          const newConv: Conversation = { id: newId, name: '会话 1' }
-          const welcomeMsg: Message = {
-            id: messageIdCounterRef.current++,
-            role: 'assistant',
-            content: WELCOME,
-            timestamp: new Date(),
-          }
-          setActiveConversationId(newId)
-          setAssistantMessages([welcomeMsg])
-          setConversationMessages({ [newId]: [welcomeMsg] })
-          return [newConv]
-        }
-
-        // 如果删掉的是当前激活的会话，切换到第一个剩余会话
-        if (id === activeConversationId) {
-          const nextId = remaining[0].id
-          setActiveConversationId(nextId)
-          setConversationMessages((s) => {
-            setAssistantMessages(s[nextId] || [])
-            if (!s[nextId]) loadHistoryForConversation(nextId)
-            return s
-          })
-        }
-
-        return remaining
-      })
-    },
-    [activeConversationId, loadHistoryForConversation]
-  )
-
-  // AI助手消息发送处理
-  const handleAssistantSend = async () => {
-    const inputValue = assistantInput || ''
-    if (!inputValue.trim() || isAssistantLoading) return
-
-    const userMessage: Message = {
-      id: messageIdCounterRef.current++,
-      role: 'user',
-      content: inputValue,
-      timestamp: new Date(),
+  const deleteConversation = async (id: string) => {
+    try {
+      await fetch(
+        `/api/chat/history?userId=${encodeURIComponent(getUserId())}&conversationId=${encodeURIComponent(id)}`,
+        { method: 'DELETE' }
+      )
+    } catch {
+      /* ignore */
     }
 
-    setAssistantMessages((prev) => {
-      const newMessages = [...prev, userMessage]
-      setConversationMessages((s) => ({
-        ...s,
-        [activeConversationId]: newMessages,
-      }))
-      return newMessages
+    const remaining = conversations.filter((c) => c.id !== id)
+    setMessagesByConv((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
     })
-    setConversationMessages((prev) => ({
-      ...prev,
-      [activeConversationId]: [...(prev[activeConversationId] || []), userMessage],
-    }))
-    setAssistantInput('')
-    setIsAssistantLoading(true)
+
+    if (remaining.length === 0) {
+      const newId = newConversationId()
+      setConversations([{ id: newId, name: DEFAULT_NAME }])
+      setActiveId(newId)
+      setMessagesByConv({ [newId]: [welcomeMessage()] })
+      return
+    }
+    setConversations(remaining)
+    if (id === activeId) switchConversation(remaining[0].id)
+  }
+
+  /* ---------- 发送 ---------- */
+  const send = async (raw?: string) => {
+    const text = (raw ?? input).trim()
+    if (!text || isLoading || !activeId) return
+
+    const convId = activeId
+    const userMessage: Message = { id: nextId(), role: 'user', content: text, timestamp: new Date() }
+    const history = (messagesRef.current[convId] ?? []).filter((m) => !m.local && !m.error).slice(-20)
+
+    setMessagesByConv((prev) => ({ ...prev, [convId]: [...(prev[convId] ?? []), userMessage] }))
+    setInput('')
+    setLoadingConvId(convId)
     setAvatarState('working')
 
-    // 保存用户消息
-    saveMessage('user', userMessage.content, activeConversationId)
+    // 第一次提问时用问题当会话标题
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === convId && (c.name === DEFAULT_NAME || /^会话 \d+$/.test(c.name)) ? { ...c, name: titleFrom(text) } : c
+      )
+    )
+
+    saveMessage('user', text, convId)
+
+    const assistantId = nextId()
+    const setAssistantContent = (content: string, extra?: Partial<Message>) =>
+      setMessagesByConv((prev) => {
+        const list = prev[convId] ?? []
+        const exists = list.some((m) => m.id === assistantId)
+        const next = exists
+          ? list.map((m) => (m.id === assistantId ? { ...m, content, ...extra } : m))
+          : [...list, { id: assistantId, role: 'assistant' as const, content, timestamp: new Date(), ...extra }]
+        return { ...prev, [convId]: next }
+      })
 
     try {
-      // 准备消息历史（系统提示 + 最近20条对话 + 本次用户消息）
-      const recentMessages = (conversationMessages[activeConversationId] || assistantMessages).slice(-20)
-      const messageHistory = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        ...recentMessages.map((msg) => ({ role: msg.role, content: msg.content })),
-        { role: 'user', content: userMessage.content },
-      ]
-
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: messageHistory }),
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            ...history.map((m) => ({ role: m.role, content: m.content })),
+            { role: 'user', content: text },
+          ],
+        }),
       })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
-      }
-
-      const assistantMessageId = messageIdCounterRef.current++
-      setAssistantMessages((prev) => {
-        const placeholderMessage: Message = {
-          id: assistantMessageId,
-          role: 'assistant',
-          content: '',
-          timestamp: new Date(),
-        }
-        const newMessages = [...prev, placeholderMessage]
-        setConversationMessages((s) => ({ ...s, [activeConversationId]: newMessages }))
-        return newMessages
-      })
-
-      let fullContent = ''
+      let full = ''
       for await (const token of sseIterator(response)) {
-        if (token) {
-          if (!fullContent) setAvatarState('making')
-          fullContent += token
-          setAssistantMessages((prev) => {
-            const newMessages = [...prev]
-            const lastMessage = newMessages[newMessages.length - 1]
-            if (lastMessage && lastMessage.id === assistantMessageId) {
-              lastMessage.content = fullContent
-            }
-            setConversationMessages((s) => ({ ...s, [activeConversationId]: newMessages }))
-            return newMessages
-          })
-        }
+        if (!token) continue
+        if (!full) setAvatarState('making')
+        full += token
+        setAssistantContent(full)
       }
 
-      // 保存 AI 回复
-      if (fullContent) {
-        saveMessage('assistant', fullContent, activeConversationId)
-      }
+      if (full) saveMessage('assistant', full, convId)
+      else setAssistantContent('（没有收到回复，换个问法试试？）', { local: true, error: true })
     } catch (error) {
-      setAssistantMessages((prev) => {
-        const errorMessage: Message = {
-          id: messageIdCounterRef.current++,
-          role: 'assistant',
-          content: `发生错误：${error instanceof Error ? error.message : 'Unknown error'}`,
-          timestamp: new Date(),
-        }
-        const newMessages = [...prev, errorMessage]
-        setConversationMessages((s) => ({ ...s, [activeConversationId]: newMessages }))
-        return newMessages
-      })
+      setAssistantContent(
+        `出了点问题，稍后再试一下吧。${error instanceof Error ? `（${error.message}）` : ''}`,
+        { local: true, error: true }
+      )
     } finally {
-      setIsAssistantLoading(false)
+      setLoadingConvId(null)
       setAvatarState('idle')
     }
   }
 
-  const createConversation = () => {
-    const newId = `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    const newConversation: Conversation = { id: newId, name: `会话 ${conversations.length + 1}` }
-
-    const welcomeMessage: Message = {
-      id: messageIdCounterRef.current++,
-      role: 'assistant',
-      content: '这是新的会话。请开始提问。',
-      timestamp: new Date(),
-    }
-
-    setConversations((prev) => [...prev, newConversation])
-    setActiveConversationId(newId)
-    setAssistantMessages([welcomeMessage])
-    setConversationMessages((prev) => ({ ...prev, [newId]: [welcomeMessage] }))
-  }
-
-  const handleAssistantKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleAssistantSend()
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // 中文输入法选词时的回车不发送
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) {
+      e.preventDefault()
+      send()
     }
   }
 
@@ -394,149 +427,190 @@ export default function NavigationBarAI({
 
   return (
     <>
-      {/* 背景遮罩 */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40"
-        onClick={onClose}
-      ></div>
+      <style>{`
+        @keyframes muse-panel-in { from { opacity: 0; transform: translateY(12px) scale(.98) } to { opacity: 1; transform: none } }
+        @keyframes muse-sheet-in { from { transform: translateY(100%) } to { transform: none } }
+        @keyframes muse-dot { 0%, 80%, 100% { opacity: .25; transform: translateY(0) } 40% { opacity: 1; transform: translateY(-3px) } }
+        .muse-panel { animation: muse-sheet-in .32s cubic-bezier(.32,.72,0,1) both }
+        @media (min-width: 640px) { .muse-panel { animation: muse-panel-in .22s ease-out both } }
+      `}</style>
 
-      <div
-        className={`w-80 h-[480px] bg-white/5 border border-white/20 rounded-lg shadow-2xl z-50 flex flex-col ${
-          isDesktop
-            ? 'fixed'
-            : 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
-        }`}
+      {/* 遮罩：移动端调暗，桌面端透明（只负责点外面关闭） */}
+      <div className="fixed inset-0 z-[55] bg-black/50 sm:bg-transparent" onClick={onClose} />
+
+      <section
+        role="dialog"
+        aria-label="和 Muse 聊天"
+        className="muse-panel fixed z-[60] flex flex-col overflow-hidden border border-white/10 text-white shadow-2xl shadow-black/50
+          inset-x-0 bottom-0 h-[88dvh] rounded-t-3xl
+          sm:inset-x-auto sm:bottom-4 sm:right-[92px] sm:h-[min(640px,calc(100dvh_-_32px))] sm:w-[400px] sm:rounded-2xl"
         style={{
-          backdropFilter: 'blur(20px)',
-          ...(isDesktop && {
-            left: `${position.x}px`,
-            top: `${position.y}px`,
-          }),
+          background: 'rgba(14, 14, 18, 0.88)',
+          backdropFilter: 'blur(24px) saturate(140%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(140%)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
-        {/* 窗口头部 */}
-        <div
-          className="flex items-center justify-between px-3 py-2 border-b border-white/20 bg-white/5 rounded-t-lg flex-shrink-0 cursor-move"
-          style={{ backdropFilter: 'blur(10px)' }}
-          onMouseDown={(e) => onMouseDown(e, 'assistant')}
-        >
-          <div className="flex items-center gap-2.5">
-            <JkeroroAvatar state={avatarState} size={44} className="ring-2 ring-white/30" />
-            <div className="leading-tight">
-              <h3 className="text-white font-semibold text-sm">Muse</h3>
-              <p className="text-white/50 text-[11px] flex items-center gap-1">
-                <span
-                  className={`inline-block w-1.5 h-1.5 rounded-full ${
-                    avatarState === 'idle' ? 'bg-emerald-400' : 'bg-amber-300 animate-pulse'
-                  }`}
-                ></span>
-                {STATUS_TEXT[avatarState]}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-white/60 hover:text-white transition-colors p-1 hover:bg-white/10 rounded text-xs"
-          >
-            ✕
-          </button>
-        </div>
+        {/* 移动端拖拽把手 */}
+        <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-white/25 sm:hidden" />
 
-        {/* 会话标签 */}
-        <div className="flex items-center gap-1 p-2 border-b border-white/10 overflow-x-auto">
-          {conversations.map((conv) => (
-            <div
-              key={conv.id}
-              className={`flex items-center rounded-md text-xs font-medium transition-colors flex-shrink-0 ${
-                activeConversationId === conv.id
-                  ? 'bg-white/20 text-white'
-                  : 'bg-white/10 text-white/70 hover:bg-white/20'
-              }`}
-            >
-              <button
-                onClick={() => {
-                  setActiveConversationId(conv.id)
-                  if (conversationMessages[conv.id]) {
-                    setAssistantMessages(conversationMessages[conv.id])
-                  } else {
-                    loadHistoryForConversation(conv.id)
-                  }
-                }}
-                className="px-2 py-1"
-              >
-                {conv.name}
-              </button>
-              <button
-                onClick={(e) => deleteConversation(conv.id, e)}
-                className="pr-1.5 py-1 text-white/30 hover:text-white/80 transition-colors"
-                title="关闭会话"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-          <button
-            onClick={createConversation}
-            className="ml-auto px-2 py-1 rounded-md text-xs bg-indigo-500 text-white hover:bg-indigo-400 flex-shrink-0"
-            title="新建会话"
-          >
-            +
-          </button>
-        </div>
-
-        {/* 消息区域 */}
-        <div className="flex-1 p-2 overflow-y-auto space-y-2 min-h-0">
-          {isLoadingHistory ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-white/40 text-xs">加载历史记录...</div>
-            </div>
-          ) : (
-            assistantMessages.map((message) => (
-              <div
-                key={message.id}
-                className={`rounded-lg p-2 ${
-                  message.role === 'user'
-                    ? 'bg-blue-600/20 ml-8'
-                    : 'bg-white/10 mr-8'
+        {/* 头部 */}
+        <header className="relative flex items-center gap-3 border-b border-white/[0.06] px-4 py-3">
+          <JkeroroAvatar state={avatarState} size={40} className="ring-1 ring-white/25" />
+          <div className="min-w-0 flex-1 leading-tight">
+            <h3 className="text-[15px] font-semibold">Muse</h3>
+            <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-white/50">
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${
+                  avatarState === 'idle' ? 'bg-emerald-400' : 'animate-pulse bg-amber-300'
                 }`}
-              >
-                <p className="text-white text-xs leading-relaxed">
-                  {message.content}
-                </p>
-                <p className="text-white/40 text-xs mt-1">
-                  {message.timestamp.toLocaleTimeString()}
-                </p>
+              />
+              {STATUS_TEXT[avatarState]}
+            </p>
+          </div>
+          <IconButton label="新对话" onClick={createConversation}>
+            <SquarePen className="h-[17px] w-[17px]" />
+          </IconButton>
+          <IconButton label="历史对话" onClick={() => setShowHistory((v) => !v)} active={showHistory}>
+            <History className="h-[17px] w-[17px]" />
+          </IconButton>
+          <IconButton label="关闭" onClick={onClose}>
+            <X className="h-[18px] w-[18px]" />
+          </IconButton>
+
+          {/* 历史会话 */}
+          {showHistory && (
+            <div className="absolute right-3 top-full z-10 mt-1 w-64 overflow-hidden rounded-xl border border-white/10 bg-[#16161b]/95 p-1 shadow-2xl backdrop-blur-xl">
+              <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wider text-white/35">历史对话</p>
+              <div className="modern-scrollbar max-h-64 overflow-y-auto font-sans">
+                {conversations.map((c) => (
+                  <div
+                    key={c.id}
+                    className={`group flex items-center rounded-lg ${c.id === activeId ? 'bg-white/10' : 'hover:bg-white/[0.06]'}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => switchConversation(c.id)}
+                      className="min-w-0 flex-1 truncate px-2.5 py-2 text-left text-[13px] text-white/85"
+                    >
+                      {c.name}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteConversation(c.id)}
+                      aria-label={`删除 ${c.name}`}
+                      className="mr-1 rounded-md p-1.5 text-white/30 opacity-0 transition hover:bg-white/10 hover:text-red-300 focus:opacity-100 group-hover:opacity-100 max-sm:opacity-100"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))
+            </div>
           )}
-          <div ref={messagesEndRef} />
+        </header>
+
+        {/* 消息区 */}
+        <div
+          ref={scrollRef}
+          className="modern-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-5 font-sans text-[15px] leading-[1.7] sm:text-[14.5px]"
+          onClick={() => setShowHistory(false)}
+        >
+          {isLoadingHistory ? (
+            <div className="flex h-full items-center justify-center text-[13px] text-white/40">加载中…</div>
+          ) : (
+            <div className="space-y-5">
+              {messages.map((m) =>
+                m.role === 'user' ? (
+                  <div key={m.id} className="flex justify-end">
+                    <div
+                      className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-white/[0.1] px-3.5 py-2 text-white"
+                      title={m.timestamp.toLocaleString()}
+                    >
+                      {m.content}
+                    </div>
+                  </div>
+                ) : m.content ? (
+                  <div key={m.id} className="group flex gap-2.5" title={m.timestamp.toLocaleString()}>
+                    <MiniAvatar />
+                    <div className="min-w-0 flex-1">
+                      <div className={m.error ? 'text-red-300/90' : 'text-white/[0.88]'}>
+                        <Markdown text={m.content} />
+                      </div>
+                      {!m.local && !(isActiveLoading && m === lastMessage) && (
+                        <div className="-ml-1.5 mt-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                          <CopyButton text={m.content} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null
+              )}
+
+              {/* 打字中 */}
+              {showTyping && (
+                <div className="flex gap-2.5">
+                  <MiniAvatar />
+                  <div className="flex h-7 items-center gap-1">
+                    {[0, 1, 2].map((d) => (
+                      <span
+                        key={d}
+                        className="h-1.5 w-1.5 rounded-full bg-white/70"
+                        style={{ animation: `muse-dot 1.2s ${d * 0.15}s infinite ease-in-out` }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 推荐问题 */}
+              {!hasUserMessage && !isActiveLoading && (
+                <div className="flex flex-wrap gap-2 pl-[38px]">
+                  {SUGGESTIONS.map((q) => (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => send(q)}
+                      className="rounded-full border border-white/15 px-3 py-1.5 text-[13px] text-white/75 transition-colors hover:border-white/30 hover:bg-white/[0.06] hover:text-white"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* 输入区域 */}
-        <div className="p-2 border-t border-white/20 flex-shrink-0">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="和 Muse 聊聊..."
-              value={assistantInput || ''}
-              onChange={(e) => setAssistantInput(e.target.value)}
-              onKeyPress={handleAssistantKeyPress}
+        {/* 输入区 */}
+        <div className="px-3 pb-3 pt-1">
+          <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.06] py-1.5 pl-3.5 pr-1.5 transition-colors focus-within:border-white/25">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="和 Muse 聊聊…"
               aria-label="给 Muse 发消息"
-              className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 text-xs focus:outline-none focus:border-white/40"
+              className="modern-scrollbar max-h-[140px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 font-sans text-base leading-6 text-white outline-none placeholder:text-white/35 sm:text-[14.5px]"
             />
             <button
-              onClick={handleAssistantSend}
-              disabled={!(assistantInput || '').trim() || isAssistantLoading}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg text-xs transition-colors"
+              type="button"
+              onClick={() => send()}
+              disabled={!input.trim() || isLoading}
+              aria-label="发送"
+              className="mb-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white text-black transition-all hover:scale-105 disabled:scale-100 disabled:bg-white/15 disabled:text-white/40"
             >
-              {isAssistantLoading ? '发送中...' : '发送'}
+              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
             </button>
           </div>
-          <p className="text-center text-white/35 text-[10px] mt-1.5 tracking-wide">
-            my Muse · powered by Muse Spark
+          <p className="mt-2 hidden text-center text-[10.5px] tracking-wide text-white/30 sm:block">
+            my Muse · powered by Muse Spark · Enter 发送，Shift+Enter 换行
           </p>
+          <p className="mt-2 text-center text-[10.5px] tracking-wide text-white/30 sm:hidden">my Muse · powered by Muse Spark</p>
         </div>
-      </div>
+      </section>
     </>
   )
 }
