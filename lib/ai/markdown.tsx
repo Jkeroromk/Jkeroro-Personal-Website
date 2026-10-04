@@ -10,7 +10,8 @@ import React from 'react'
 type Block =
   | { type: 'p'; text: string }
   | { type: 'h'; level: number; text: string }
-  | { type: 'ul' | 'ol'; items: string[]; start?: number }
+  | { type: 'ul'; items: string[] }
+  | { type: 'ol'; items: string[]; start: number }
   | { type: 'quote'; text: string }
   | { type: 'code'; lang: string; code: string }
 
@@ -179,7 +180,7 @@ export default function Markdown({ text }: { text: string }) {
               <ol key={k} className="space-y-1.5 pl-1">
                 {b.items.map((it, j) => (
                   <li key={j} className="flex gap-2">
-                    <span className="flex-shrink-0 tabular-nums text-white/50">{(b.start ?? 1) + j}.</span>
+                    <span className="flex-shrink-0 tabular-nums text-white/50">{b.start + j}.</span>
                     <span className="min-w-0">{renderInline(it, `${k}-${j}`)}</span>
                   </li>
                 ))}
@@ -197,8 +198,10 @@ export default function Markdown({ text }: { text: string }) {
                 <code>{b.code}</code>
               </pre>
             )
-          default:
+          case 'p':
             return <p key={k}>{renderInline(b.text, k)}</p>
+          default:
+            return null
         }
       })}
     </div>
