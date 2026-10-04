@@ -24,7 +24,8 @@ function parseBlocks(src: string): Block[] {
     const line = lines[i]
 
     // 代码块（未闭合时吃到结尾，适配流式输出）
-    const fence = line.match(/^\s*```(\w*)\s*$/)
+    // 允许 ```c++、```tsx {1,3} 这类带额外内容的开头
+    const fence = line.match(/^\s*```\s*([\w+#.-]*)/)
     if (fence) {
       const buf: string[] = []
       i++
@@ -89,13 +90,15 @@ function parseBlocks(src: string): Block[] {
     ) {
       buf.push(lines[i++])
     }
+    // 兜底：保证每轮至少前进一行，任何没被识别的行都按普通文字处理，避免死循环
+    if (buf.length === 0) buf.push(lines[i++])
     blocks.push({ type: 'p', text: buf.join('\n') })
   }
 
   return blocks
 }
 
-const INLINE_RE =
+const INLINE_PATTERN =
   /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(__[^_\n]+__)|(\*[^*\s][^*\n]*\*)|(\[[^\]\n]+\]\((https?:\/\/[^\s)]+)\))|(https?:\/\/[^\s<>()（）。，、]+)/g
 
 function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
@@ -103,9 +106,11 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   let last = 0
   let m: RegExpExecArray | null
   let n = 0
-  INLINE_RE.lastIndex = 0
+  // 每次调用都用新的正则实例：全局正则的 lastIndex 是共享状态，
+  // 粗体/斜体里递归调用 renderInline 会把外层的 lastIndex 重置成 0，导致死循环、页面卡死
+  const re = new RegExp(INLINE_PATTERN.source, 'g')
 
-  while ((m = INLINE_RE.exec(text))) {
+  while ((m = re.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index))
     const k = `${keyPrefix}-${n++}`
     const tok = m[0]
