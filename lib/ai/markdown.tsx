@@ -143,11 +143,16 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
   if (last < text.length) out.push(text.slice(last))
 
   // 段落内换行保留
-  return out.flatMap((node, idx) =>
-    typeof node === 'string'
-      ? node.split('\n').flatMap((part, j, arr) => (j < arr.length - 1 ? [part, <br key={`${keyPrefix}-br-${idx}-${j}`} />] : [part]))
-      : [node]
-  )
+  return out.flatMap<React.ReactNode>((node, idx) => {
+    if (typeof node !== 'string') return [node]
+    const parts = node.split('\n')
+    const result: React.ReactNode[] = []
+    parts.forEach((part, j) => {
+      result.push(part)
+      if (j < parts.length - 1) result.push(<br key={`${keyPrefix}-br-${idx}-${j}`} />)
+    })
+    return result
+  })
 }
 
 export default function Markdown({ text }: { text: string }) {
