@@ -226,7 +226,7 @@ const Tabs = () => {
             </h1>
           </div>
           <h2 className="text-base font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
-            PUBG Highlight Recorder
+            In-Game auto Highlight Recorder
           </h2>
         </Card3D>
       </div>
