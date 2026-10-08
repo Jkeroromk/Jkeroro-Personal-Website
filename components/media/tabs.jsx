@@ -377,37 +377,7 @@ const Tabs = () => {
         </div>
       </div>
 
-      <div className="flex flex-col items-center w-full">
-        <Card3D
-          href="https://www.xiaohongshu.com/user/profile/678e5f43000000000e0107ac?xsec_token=YBoDy4ooZI5wbVMGN9VSpV7OGN88SSTRIr5QQntEv1awY=&xsec_source=app_share&xhsshare=CopyLink&appuid=678e5f43000000000e0107ac&apptime=1738075633&share_id=d3e00f56b0ba47ecb739975076b7eb34"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-4 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
-        >
-          <h1 className="text-xl font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
-            Rednote
-          </h1>
-          <h2 className="text-sm font-semibold text-black hover:text-blue-600 transition-colors duration-300">
-            Thread
-          </h2>
-        </Card3D>
-      </div>
 
-      <div className="flex flex-col items-center w-full">
-        <a
-          href="https://discord.gg/eD7ZRcg22H"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-10 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white] heartbeat"
-        >
-          <h1 className="text-xl font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
-            Discord
-          </h1>
-          <h2 className="text-sm font-semibold text-black hover:text-blue-600 transition-colors duration-300">
-            Cozy
-          </h2>
-        </a>
-      </div>
 
       <DonationButton />
     </div>
