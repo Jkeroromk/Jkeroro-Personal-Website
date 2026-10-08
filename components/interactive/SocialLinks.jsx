@@ -28,7 +28,7 @@ const SocialLinks = () => {
     // 留出余量，第一行的文字不会压到第二行的图标
     <div className="flex flex-col items-center gap-y-14 mt-6">
       {ROWS.map((row, i) => (
-        <div key={i} className="grid grid-cols-5 gap-6 max-w-[600px]">
+        <div key={i} className="grid grid-cols-5 gap-6 max-w-[600px] mx-4 sm:mx-0">
           {row.map(({ name, href, Icon, hover }) => (
             <a
               key={name}
