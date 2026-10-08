@@ -69,8 +69,6 @@ export default function RootLayout({
         {/* DNS 预解析和预连接 */}
         <link rel="dns-prefetch" href="//cdnjs.cloudflare.com" />
         <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         
         {/* 客户端脚本组件 */}
         <ClientScripts />
