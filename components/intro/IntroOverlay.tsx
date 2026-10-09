@@ -11,7 +11,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { JetBrains_Mono } from 'next/font/google'
 import DataManager from '@/lib/data-manager'
 import {
   AUDIO_PERMISSION_KEY,
@@ -24,13 +23,6 @@ import {
 } from '@/lib/intro-signal'
 import { createIntroFx, type IntroFx, type RingKey } from './introFx'
 import s from './IntroOverlay.module.css'
-
-const mono = JetBrains_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  display: 'swap',
-  variable: '--font-intro-mono',
-})
 
 const AVATAR = {
   poster: '/jkeroro-avatar/avatar-poster.webp',
@@ -320,7 +312,6 @@ export default function IntroOverlay() {
 
   const rootClass = [
     s.root,
-    mono.variable,
     mounted && s.mounted,
     mode === 'quick' && s.quick,
     parting && s.parting,

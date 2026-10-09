@@ -15,7 +15,8 @@
   --dim: #8a8a86;
   --faint: #3a3a38;
   --ok: #9fd8a4;
-  --mono: var(--font-intro-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  /* 用系统等宽字体，不在构建时去 Google 拉字体（拉失败会让整个构建挂掉） */
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
 
   position: fixed;
   inset: 0;
