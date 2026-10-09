@@ -11,6 +11,7 @@ import { useTracks } from '@/hooks/useTracks'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { useVolume } from '@/hooks/useVolume'
 import { useAlbumArt } from '@/hooks/useAlbumArt'
+import { onIntroEnter } from '@/lib/intro-signal'
 import TrackInfo from './musicPlayer/TrackInfo'
 import PlayerControls from './musicPlayer/PlayerControls'
 import ProgressBar from './musicPlayer/ProgressBar'
@@ -91,57 +92,66 @@ export default function MusicPlayer() {
     return () => observer.disconnect()
   }, [playerNode])
 
-  // 检查localStorage中的音频权限设置并自动播放
+  // 开场遮罩点「进入」时决定要不要放音乐（见 lib/intro-signal.ts）
+  // 必须在那一下点击里同步调用 play()，浏览器才认为是用户手势
+  const pendingPlayRef = useRef(false)
+  const safePlayRef = useRef(safePlay)
+  useEffect(() => { safePlayRef.current = safePlay }, [safePlay])
+
   useEffect(() => {
-    // 确保在客户端环境运行
-    if (typeof window === 'undefined') return
+    let cleanupArmed = null
 
-    // 确保有音乐数据且不在加载中
-    if (loading || !tracks || tracks.length === 0) {
-      return
-    }
-
-    // 获取当前曲目
-    const currentTrack = tracks[currentTrackIndex]
-
-    const audioPermission = localStorage.getItem('audioPermission')
-    const fromLoading = sessionStorage.getItem('fromLoading')
-
-    if (audioPermission === 'allowed' && fromLoading && !isPlaying) {
-      // 如果用户允许了音频且从loading页面跳转过来，自动播放
+    const playNow = () => {
       const audio = audioRef.current
-      if (audio && currentTrack?.src) {
+      if (audio && audio.src) {
         audio.muted = false
-        
-        // 等待音频元素准备好
-        const tryPlay = async () => {
-          if (!audio || !audio.src) return
-          
-          // 如果音频还没加载，等待加载完成
-          if (audio.readyState < 2) {
-            audio.addEventListener('canplay', async () => {
-              if (!isPlaying) {
-                await safePlay()
-              }
-              sessionStorage.removeItem('fromLoading')
-            }, { once: true })
-            
-            // 触发加载
-            audio.load()
-          } else {
-            // 音频已准备好，直接播放
-            await safePlay()
-            sessionStorage.removeItem('fromLoading')
-          }
-        }
-        
-        // 延迟一点确保 DOM 已更新
-        const playTimer = setTimeout(tryPlay, 300)
-        
-        return () => clearTimeout(playTimer)
+        safePlayRef.current()
+      } else {
+        // 曲目还没加载好（慢网速时提前进门），加载好了再放
+        pendingPlayRef.current = true
       }
     }
-  }, [loading, tracks, currentTrackIndex, isPlaying, safePlay])
+
+    const off = onIntroEnter((music) => {
+      if (music === true) {
+        playNow()
+      } else if (music === 'armed') {
+        // 同一会话再次进入、上次开着音乐：等用户在页面上点任意处再接着放
+        // 点的是按钮/链接/输入框时不抢，避免和播放器自己的播放键打架
+        const onGesture = (e) => {
+          const target = e.target
+          if (target instanceof Element && target.closest('button, a, input, textarea, select, [role="button"]')) return
+          cleanupArmed?.()
+          playNow()
+        }
+        window.addEventListener('pointerdown', onGesture, true)
+        window.addEventListener('keydown', onGesture, true)
+        cleanupArmed = () => {
+          window.removeEventListener('pointerdown', onGesture, true)
+          window.removeEventListener('keydown', onGesture, true)
+          cleanupArmed = null
+        }
+      }
+    })
+
+    return () => {
+      off()
+      cleanupArmed?.()
+    }
+  }, [])
+
+  // 进门时曲目还没好：曲目和 <audio> 就绪后补播
+  useEffect(() => {
+    if (!pendingPlayRef.current || loading || !tracks?.length) return
+    const timer = setTimeout(() => {
+      const audio = audioRef.current
+      if (!audio || !audio.src) return
+      pendingPlayRef.current = false
+      audio.muted = false
+      safePlayRef.current()
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [loading, tracks, currentTrackIndex])
 
   // 如果没有音乐数据，显示空状态
   if (loading) {

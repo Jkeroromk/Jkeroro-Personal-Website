@@ -20,6 +20,18 @@ export function useVolume() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext
       audioContextRef.current = new AudioContext()
+      // 播放器在开场遮罩下面就挂载了，那时用户还没点过页面，AudioContext 会处于 suspended，
+      // 声音走这个 context 就是静音的。用户第一次点击/按键（比如点「进入」）时把它唤醒。
+      const ctx = audioContextRef.current
+      if (ctx.state === 'suspended') {
+        const wake = () => {
+          ctx.resume().catch(() => {})
+          window.removeEventListener('pointerdown', wake, true)
+          window.removeEventListener('keydown', wake, true)
+        }
+        window.addEventListener('pointerdown', wake, true)
+        window.addEventListener('keydown', wake, true)
+      }
       gainNodeRef.current = audioContextRef.current.createGain()
       gainNodeRef.current.connect(audioContextRef.current.destination)
 

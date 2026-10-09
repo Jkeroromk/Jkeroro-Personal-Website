@@ -7,8 +7,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      // /loading 只是过渡动画页没有可索引内容，/admin 和 /api 是后台和接口
-      disallow: ['/loading', '/admin', '/api/'],
+      // /admin 和 /api 是后台和接口
+      disallow: ['/admin', '/api/'],
     },
     sitemap: `${siteUrl}/sitemap.xml`,
   }
