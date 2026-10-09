@@ -10,7 +10,7 @@
  * enter 事件的 music:
  *   true    — 用户选了开着音乐进来，立刻播放（或者等音乐加载好再播）
  *   false   — 安静进来
- *   'armed' — 同一会话再次进入，上次开着音乐：等用户在页面上点任意处再接着放
+ *   'armed' — 同一会话再次进入，上次开着音乐：先试着自动播放，浏览器拦了就等用户点页面任意处再放
  */
 
 export type IntroPhase = 'loading' | 'ready' | 'done'
