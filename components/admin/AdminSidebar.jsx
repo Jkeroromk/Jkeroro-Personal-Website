@@ -13,6 +13,7 @@ import {
   X,
   LogOut,
   LayoutDashboard,
+  Share2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -22,6 +23,7 @@ const menuItems = [
   { id: 'projects',    label: 'Projects',    icon: FolderKanban,   category: 'Content' },
   { id: 'comments',    label: 'Comments',    icon: MessageSquare,  category: 'Content' },
   { id: 'anniversary', label: 'Anniversary', icon: Heart,          category: 'Content' },
+  { id: 'social',      label: 'Social Links', icon: Share2,        category: 'Content' },
   { id: 'supabase',    label: 'Database',    icon: Database,       category: 'System' },
 ]
 

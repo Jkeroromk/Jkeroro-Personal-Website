@@ -176,3 +176,18 @@ model Guestbook {
   @@index([createdAt])
   @@map("guestbook")
 }
+
+// 首页的社交媒体链接，在后台 Social Links 里编辑
+model SocialLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  platform  String   // 图标，对应 lib/social-platforms.ts 里的 key
+  name      String   // 悬停时显示的名字
+  url       String
+  visible   Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([order])
+  @@map("social_links")
+}
