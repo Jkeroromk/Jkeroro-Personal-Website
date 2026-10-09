@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Image, Music, FolderKanban, MessageSquare, Heart, Database } from 'lucide-react'
+import { Image, Music, FolderKanban, MessageSquare, Heart, Database, Share2 } from 'lucide-react'
 
 const tabMeta = {
   images:      { label: 'Images',      icon: Image },
@@ -9,6 +9,7 @@ const tabMeta = {
   projects:    { label: 'Projects',    icon: FolderKanban },
   comments:    { label: 'Comments',    icon: MessageSquare },
   anniversary: { label: 'Anniversary', icon: Heart },
+  social:      { label: 'Social Links', icon: Share2 },
   supabase:    { label: 'Database',    icon: Database },
 }
 
