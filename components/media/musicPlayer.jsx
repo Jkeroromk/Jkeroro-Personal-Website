@@ -11,6 +11,7 @@ import { useTracks } from '@/hooks/useTracks'
 import { useAudioPlayer } from '@/hooks/useAudioPlayer'
 import { useVolume } from '@/hooks/useVolume'
 import { useAlbumArt } from '@/hooks/useAlbumArt'
+import { onIntroEnter, readStorage, LANG_KEY } from '@/lib/intro-signal'
 import TrackInfo from './musicPlayer/TrackInfo'
 import PlayerControls from './musicPlayer/PlayerControls'
 import ProgressBar from './musicPlayer/ProgressBar'
@@ -91,57 +92,91 @@ export default function MusicPlayer() {
     return () => observer.disconnect()
   }, [playerNode])
 
-  // 检查localStorage中的音频权限设置并自动播放
+  // 开场遮罩点「进入」时决定要不要放音乐（见 lib/intro-signal.ts）
+  // true：用户点了「进入」，在那一下点击里同步调用 play()，浏览器认为是用户手势
+  // 'armed'：同一会话再次进入、上次开着音乐。没有新的点击，先直接试着自动播放；
+  //   浏览器拦了（Safari、没怎么来过这个站的 Chrome 都会拦），就等用户点页面任意处再放，并给个小提示
+  const pendingPlayRef = useRef(null) // 曲目还没加载好时记下要怎么播：'gesture' | 'auto'
+  const safePlayRef = useRef(safePlay)
+  useEffect(() => { safePlayRef.current = safePlay }, [safePlay])
+  const [needsTap, setNeedsTap] = useState(false)
+  const cleanupArmedRef = useRef(null)
+  const playNowRef = useRef(null)
+
   useEffect(() => {
-    // 确保在客户端环境运行
-    if (typeof window === 'undefined') return
-
-    // 确保有音乐数据且不在加载中
-    if (loading || !tracks || tracks.length === 0) {
-      return
+    const disarm = () => {
+      cleanupArmedRef.current?.()
+      setNeedsTap(false)
     }
 
-    // 获取当前曲目
-    const currentTrack = tracks[currentTrackIndex]
-
-    const audioPermission = localStorage.getItem('audioPermission')
-    const fromLoading = sessionStorage.getItem('fromLoading')
-
-    if (audioPermission === 'allowed' && fromLoading && !isPlaying) {
-      // 如果用户允许了音频且从loading页面跳转过来，自动播放
-      const audio = audioRef.current
-      if (audio && currentTrack?.src) {
-        audio.muted = false
-        
-        // 等待音频元素准备好
-        const tryPlay = async () => {
-          if (!audio || !audio.src) return
-          
-          // 如果音频还没加载，等待加载完成
-          if (audio.readyState < 2) {
-            audio.addEventListener('canplay', async () => {
-              if (!isPlaying) {
-                await safePlay()
-              }
-              sessionStorage.removeItem('fromLoading')
-            }, { once: true })
-            
-            // 触发加载
-            audio.load()
-          } else {
-            // 音频已准备好，直接播放
-            await safePlay()
-            sessionStorage.removeItem('fromLoading')
-          }
-        }
-        
-        // 延迟一点确保 DOM 已更新
-        const playTimer = setTimeout(tryPlay, 300)
-        
-        return () => clearTimeout(playTimer)
+    // 浏览器拦了自动播放：等第一次点击/按键。点在播放器自己的控件上不抢，交给播放器处理
+    const arm = () => {
+      if (cleanupArmedRef.current) return
+      const onGesture = (e) => {
+        const target = e.target
+        if (target instanceof Element && target.closest('[data-jk-player]')) return
+        disarm()
+        playNowRef.current?.('gesture')
       }
+      window.addEventListener('pointerdown', onGesture, true)
+      window.addEventListener('keydown', onGesture, true)
+      cleanupArmedRef.current = () => {
+        window.removeEventListener('pointerdown', onGesture, true)
+        window.removeEventListener('keydown', onGesture, true)
+        cleanupArmedRef.current = null
+      }
+      setNeedsTap(true)
     }
-  }, [loading, tracks, currentTrackIndex, isPlaying, safePlay])
+
+    const playNow = async (mode) => {
+      const audio = audioRef.current
+      if (!audio || !audio.src) {
+        pendingPlayRef.current = mode
+        return
+      }
+      audio.muted = false
+      const ok = await safePlayRef.current()
+      if (!ok && mode === 'auto') arm()
+    }
+    playNowRef.current = playNow
+
+    const off = onIntroEnter((music) => {
+      if (music === true) playNow('gesture')
+      else if (music === 'armed') playNow('auto')
+    })
+
+    return () => {
+      off()
+      cleanupArmedRef.current?.()
+    }
+  }, [])
+
+  // 用户自己按了播放键，提示就不用了
+  useEffect(() => {
+    if (!isPlaying || !cleanupArmedRef.current) return
+    cleanupArmedRef.current()
+    setNeedsTap(false)
+  }, [isPlaying])
+
+  // 进门时曲目还没好：曲目和 <audio> 就绪后补播
+  useEffect(() => {
+    if (!pendingPlayRef.current || loading || !tracks?.length) return
+    const timer = setTimeout(() => {
+      const audio = audioRef.current
+      if (!audio || !audio.src) return
+      const mode = pendingPlayRef.current
+      pendingPlayRef.current = null
+      playNowRef.current?.(mode)
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [loading, tracks, currentTrackIndex])
+
+  const resumeHint = (() => {
+    if (typeof window === 'undefined') return ''
+    const saved = readStorage('local', LANG_KEY)
+    const zh = saved ? saved === 'zh' : /^zh\b/i.test(navigator.languages?.[0] || navigator.language || '')
+    return zh ? '点一下页面，接着放音乐' : 'Tap anywhere to resume the music'
+  })()
 
   // 如果没有音乐数据，显示空状态
   if (loading) {
@@ -223,7 +258,7 @@ export default function MusicPlayer() {
         />
       )}
 
-      <div ref={playerRef} className="relative w-full sm:w-[550px] rounded-2xl text-white overflow-hidden">
+      <div ref={playerRef} data-jk-player className="relative w-full sm:w-[550px] rounded-2xl text-white overflow-hidden">
 
         <style>{`
           @keyframes cover-fadein {
@@ -298,6 +333,23 @@ export default function MusicPlayer() {
         </div>
       </div>
 
+      {/* 再次进入时浏览器拦了自动播放：底部小提示，点页面任意处（包括它自己）就接着放 */}
+      {needsTap && (
+        <div
+          role="status"
+          className="fixed left-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-black/70 backdrop-blur-md border border-white/15 text-white/80 text-sm cursor-pointer select-none"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)', transform: 'translateX(-50%)', animation: 'jk-hint-in 0.4s ease' }}
+        >
+          <span className="flex items-end gap-[2px] h-3" aria-hidden="true">
+            <i className="w-[2px] h-1 bg-emerald-300/80 rounded-sm" />
+            <i className="w-[2px] h-2.5 bg-emerald-300/80 rounded-sm" />
+            <i className="w-[2px] h-1.5 bg-emerald-300/80 rounded-sm" />
+          </span>
+          {resumeHint}
+          <style>{`@keyframes jk-hint-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }`}</style>
+        </div>
+      )}
+
       {/* ── Mini Player ── */}
       <style>{`
         @keyframes mini-slidein {
@@ -319,6 +371,7 @@ export default function MusicPlayer() {
           {/* ── 桌面：点圆球后在左侧弹出的控制卡片 ── */}
           {showMiniCard && (
           <div
+            data-jk-player
             className="hidden sm:block fixed right-[88px] z-50 w-72 rounded-2xl overflow-hidden text-white shadow-2xl"
             style={{ bottom: MINI_BALL_BOTTOM, animation: 'mini-slidein 0.3s ease forwards', transition: 'bottom 0.3s ease' }}
           >
@@ -367,6 +420,7 @@ export default function MusicPlayer() {
 
           {/* ── 圆形迷你播放器：叠在右下角 Muse 头像上方（桌面/移动端统一） ── */}
           <button
+            data-jk-player
             className={`fixed z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-2xl overflow-hidden text-white border-2 transition-colors ${
               showMiniCard ? 'border-white/70' : 'border-white/30 hover:border-white/60'
             }`}
@@ -409,7 +463,7 @@ export default function MusicPlayer() {
 
           {/* ── 移动端：展开 Modal ── */}
           {showMiniModal && (
-            <div className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
+            <div data-jk-player className="sm:hidden fixed inset-0 z-50 flex flex-col justify-end">
               {/* 遮罩 */}
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowMiniModal(false)} />
 

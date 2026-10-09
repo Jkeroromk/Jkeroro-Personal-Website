@@ -1,0 +1,286 @@
+/* 开场遮罩
+   布局：一屏黑底；中间是亮着的圆窗（Muse 头像）+ 进度环，下面是字标、三行加载日志、进门胶囊。
+   进门时遮罩像门帘一样从中间往两边拉开，首页已经在下面渲染好了。 */
+
+@property --ang {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.root {
+  --night: #050505;
+  --panel: #0c0c0d;
+  --ink: #f4f4f2;
+  --dim: #8a8a86;
+  --faint: #3a3a38;
+  --ok: #9fd8a4;
+  /* 用系统等宽字体，不在构建时去 Google 拉字体（拉失败会让整个构建挂掉） */
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  color: var(--ink);
+  color-scheme: dark;
+}
+
+/* ---------- 门帘 ---------- */
+.curtain {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50.5%;
+  background: var(--night);
+  transition: transform 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+.curtainL { left: 0; }
+.curtainR { right: 0; }
+.curtain::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(transparent, #2a2a2a 30%, #2a2a2a 70%, transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.curtainL::after { right: 0; }
+.curtainR::after { left: 0; }
+.parting .curtain::after { opacity: 1; }
+.parting .curtainL { transform: translateX(-101%); transition-delay: 0.25s; }
+.parting .curtainR { transform: translateX(101%); transition-delay: 0.25s; }
+
+/* ---------- 3D 画布 ---------- */
+.fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transition: opacity 0.5s ease 0.7s;
+}
+.parting .fx { opacity: 0; }
+
+/* ---------- 内容 ---------- */
+.content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: env(safe-area-inset-top, 0px) 16px env(safe-area-inset-bottom, 0px);
+  transition: opacity 0.3s ease, transform 0.4s ease;
+}
+.parting .content { opacity: 0; transform: scale(0.97); }
+
+/* 语言、日志这类文字等客户端知道语言后再淡入，避免先闪一下英文 */
+.late { opacity: 0; transition: opacity 0.4s ease; }
+.mounted .late { opacity: 1; }
+
+.lang {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  right: 16px;
+  background: none;
+  border: 1px solid #262626;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  color: var(--dim);
+  cursor: pointer;
+}
+.lang:hover { color: var(--ink); border-color: #444; }
+
+.window { position: relative; width: 176px; height: 176px; flex: none; }
+.window svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.window circle { fill: none; stroke-width: 2.5; }
+.track { stroke: #1a1a1a; }
+.arc { stroke: var(--ink); stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+.glass {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #fafafa center 12% / cover no-repeat;
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.06);
+}
+.glass video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 12%;
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+.glass video.on { opacity: 1; }
+
+.mark { text-align: center; }
+.mark h1 { margin: 0; font-weight: 600; font-size: clamp(2.4rem, 8vw, 3rem); letter-spacing: 0.01em; line-height: 1; }
+.mark p { margin: 8px 0 0; color: var(--dim); font-size: 0.95rem; min-height: 1.4em; }
+.quick .mark p { color: var(--ink); }
+
+.log {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--dim);
+  display: grid;
+  gap: 4px;
+  width: min(330px, 100%);
+}
+.row { display: grid; grid-template-columns: 4.5em 1fr auto; gap: 10px; align-items: baseline; }
+.rowKey { color: var(--faint); }
+.rowText { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rowVal { color: var(--faint); }
+.done .rowVal { color: var(--ok); }
+.done .rowText { color: #b9b9b5; }
+.spin::after { content: "⠋"; animation: spin 0.8s steps(1) infinite; }
+@keyframes spin {
+  0% { content: "⠋"; } 12% { content: "⠙"; } 25% { content: "⠹"; } 37% { content: "⠸"; }
+  50% { content: "⠼"; } 62% { content: "⠴"; } 75% { content: "⠦"; } 87% { content: "⠧"; }
+}
+
+/* ---------- 进门胶囊：音乐开关 + 进入 ---------- */
+.doors {
+  display: flex;
+  justify-content: center;
+  min-height: 60px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  pointer-events: none;
+}
+.doors.show { opacity: 1; transform: none; pointer-events: auto; }
+
+.dock {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: var(--panel);
+  isolation: isolate;
+}
+.dock::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  z-index: -1;
+  background: conic-gradient(from var(--ang), #262626 0 70%, rgba(255, 255, 255, 0.9) 82%, #262626 94%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: orbit 4s linear infinite;
+}
+@keyframes orbit { to { --ang: 360deg; } }
+
+.sound {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 16px 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dim);
+  font: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+.sound:hover { background: #161616; color: var(--ink); }
+.vinyl { position: relative; width: 36px; height: 36px; flex: none; }
+.vinyl svg { width: 100%; height: 100%; animation: turn 2.4s linear infinite; animation-play-state: paused; }
+.sound[aria-pressed="true"] .vinyl svg { animation-play-state: running; }
+.slash {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink);
+  border-radius: 2px;
+  transform: rotate(45deg) scaleY(0);
+  transition: transform 0.25s ease;
+  box-shadow: 0 0 0 2px var(--panel);
+}
+.sound[aria-pressed="false"] .slash { transform: rotate(45deg) scaleY(1); }
+.sound[aria-pressed="false"] .vinyl svg { opacity: 0.45; }
+@keyframes turn { to { transform: rotate(360deg); } }
+
+.soundTxt { display: grid; text-align: left; line-height: 1.15; }
+.soundTxt small { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+.soundTxt span { font-size: 0.9rem; color: inherit; white-space: nowrap; }
+.sound[aria-pressed="true"] .soundTxt span { color: var(--ink); }
+
+.eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 12px; margin-left: 2px; }
+.eq i { width: 2px; background: var(--ok); animation: eq 0.9s ease-in-out infinite; }
+.eq i:nth-child(2) { animation-delay: 0.2s; }
+.eq i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes eq { 0%, 100% { height: 3px; } 50% { height: 12px; } }
+.sound[aria-pressed="false"] .eq { display: none; }
+
+.door {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 10px 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--night);
+  font: inherit;
+  font-weight: 500;
+  font-size: 0.98rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, transform 0.15s;
+}
+.door:hover { background: #e6e6e2; }
+.door:active { transform: scale(0.97); }
+.arrow {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--night);
+  color: var(--ink);
+  transition: transform 0.25s ease;
+}
+.door:hover .arrow { transform: translateX(3px); }
+.door kbd { font-family: var(--mono); font-size: 0.66rem; opacity: 0.5; }
+
+.sound:focus-visible, .door:focus-visible, .lang:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.hint { min-height: 1.2em; font-size: 0.8rem; color: var(--dim); text-align: center; margin-top: -10px; }
+.quick .hint { margin-top: 0; font-family: var(--mono); font-size: 0.7rem; color: var(--faint); }
+
+/* 同一会话再次进入：不要日志和按钮，环快速聚拢、Muse 挥手，然后直接进门 */
+.quick .log, .quick .doors, .quick .lang { display: none; }
+
+@media (max-width: 480px) {
+  .window { width: 150px; height: 150px; }
+}
+@media (max-width: 400px) {
+  .soundTxt small, .door kbd { display: none; }
+}
+@media (hover: none) {
+  .door kbd { display: none; }
+  .keysHint { visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .curtain, .parting .curtainL, .parting .curtainR { transition: opacity 0.4s; transform: none; }
+  .parting .curtain { opacity: 0; }
+  .dock::before, .vinyl svg, .eq i, .spin::after { animation: none; }
+}

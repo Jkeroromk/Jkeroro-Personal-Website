@@ -115,6 +115,14 @@ const nextConfig: NextConfig = {
     return config;
   },
   
+  // 旧的开场流程是 / → /loading → /home，现在首页直接在 /，旧链接都转过来
+  async redirects() {
+    return [
+      { source: '/loading', destination: '/', permanent: true },
+      { source: '/home', destination: '/', permanent: true },
+    ]
+  },
+
   async headers() {
     return [
       {

@@ -1,35 +1,24 @@
-'use client'
+import HomeAuth from '@/components/home/HomeAuth'
+import HomeLayout from '@/components/home/HomeLayout'
+import HomeContent from '@/components/home/HomeContent'
+import IntroOverlay from '@/components/intro/IntroOverlay'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-
+/**
+ * 首页直接渲染在 /，开场遮罩盖在上面。
+ * 遮罩拉开时首页已经画好了，不再有 / → /loading → /home 的三次跳转，
+ * 刷新、分享链接、搜索引擎看到的都是真正的首页内容。
+ */
 export default function Home() {
-  const router = useRouter()
-  const [hasRedirected, setHasRedirected] = useState(false)
-
-  useEffect(() => {
-    // 防止重复跳转
-    if (hasRedirected) return
-    
-    // 每次访问都显示loading画面，确保用户体验一致
-    if (typeof window !== 'undefined') {
-      // 清除之前的loading标记，确保每次都是新的流程
-      sessionStorage.removeItem('loadingCompleted')
-      sessionStorage.removeItem('fromLoading')
-      sessionStorage.removeItem('loadingTimestamp')
-      
-      // 始终跳转到loading页面
-      setHasRedirected(true)
-      router.replace('/loading')
-    }
-  }, [router, hasRedirected])
-
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="text-white text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-        <p>Redirecting...</p>
+    <>
+      <div id="jk-home">
+        <HomeAuth>
+          <HomeLayout>
+            <HomeContent />
+          </HomeLayout>
+        </HomeAuth>
       </div>
-    </div>
+      <IntroOverlay />
+    </>
   )
 }
