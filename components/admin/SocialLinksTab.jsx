@@ -5,7 +5,8 @@
  * 改完点「保存」一次提交（增、删、改、排序、隐藏），首页刷新就能看到，不用改代码。
  */
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { ArrowUp, ArrowDown, Eye, EyeOff, Trash2, Plus, Save, RotateCcw, ExternalLink, Share2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { getAuthHeaders } from '@/lib/auth-client'
@@ -36,6 +37,8 @@ export default function SocialLinksTab() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState(null)
+  const [movedKey, setMovedKey] = useState(null) // 刚移动过的那一行，短暂高亮
+  const movedTimer = useRef(null)
   const { toast } = useToast()
 
   const load = async () => {
@@ -81,13 +84,20 @@ export default function SocialLinksTab() {
     update(link._key, { platform, name: keepName ? link.name : getPlatform(platform).label })
   }
 
-  const move = (index, dir) => setLinks((list) => {
-    const next = [...list]
+  const move = (index, dir) => {
     const j = index + dir
-    if (j < 0 || j >= next.length) return list
-    ;[next[index], next[j]] = [next[j], next[index]]
-    return next
-  })
+    if (j < 0 || j >= links.length) return
+    setMovedKey(links[index]._key)
+    clearTimeout(movedTimer.current)
+    movedTimer.current = setTimeout(() => setMovedKey(null), 700)
+    setLinks((list) => {
+      const next = [...list]
+      ;[next[index], next[j]] = [next[j], next[index]]
+      return next
+    })
+  }
+
+  useEffect(() => () => clearTimeout(movedTimer.current), [])
 
   const add = () => {
     if (links.length >= MAX_SOCIAL_LINKS) return
@@ -196,10 +206,17 @@ export default function SocialLinksTab() {
                 {row.map((l) => {
                   const { Icon } = getPlatform(l.platform)
                   return (
-                    <div key={l._key} className="flex flex-col items-center gap-1.5 w-14" title={l.url}>
+                    <motion.div
+                      key={l._key}
+                      layout
+                      layoutId={`preview-${l._key}`}
+                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                      className="flex flex-col items-center gap-1.5 w-14"
+                      title={l.url}
+                    >
                       <Icon size={22} className="text-white" />
                       <span className="text-[10px] text-zinc-500 truncate max-w-full">{l.name || '—'}</span>
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
@@ -210,13 +227,24 @@ export default function SocialLinksTab() {
 
       {/* Editor */}
       <div className="space-y-2">
+        <LayoutGroup>
+        <AnimatePresence initial={false}>
         {links.map((link, index) => {
           const { Icon } = getPlatform(link.platform)
           const err = errors[index]
           return (
-            <div
+            <motion.div
               key={link._key}
-              className={`rounded-xl border bg-zinc-900 p-3 transition-colors ${link.visible ? 'border-white/5 hover:border-white/10' : 'border-white/5 opacity-60'}`}
+              layout="position"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: link.visible ? 1 : 0.6, y: 0 }}
+              exit={{ opacity: 0, x: 24, transition: { duration: 0.18 } }}
+              transition={{ layout: { type: 'spring', stiffness: 520, damping: 40 }, opacity: { duration: 0.2 } }}
+              className={`relative rounded-xl border bg-zinc-900 p-3 transition-[border-color,box-shadow] duration-300 ${
+                movedKey === link._key
+                  ? 'border-indigo-500/50 shadow-[0_0_0_3px_rgba(99,102,241,0.15)] z-10'
+                  : 'border-white/5 hover:border-white/10'
+              }`}
             >
               <div className="flex flex-col lg:flex-row lg:items-start gap-3">
                 {/* order */}
@@ -315,9 +343,11 @@ export default function SocialLinksTab() {
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )
         })}
+        </AnimatePresence>
+        </LayoutGroup>
 
         {links.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-white/10 bg-white/[0.02]">
