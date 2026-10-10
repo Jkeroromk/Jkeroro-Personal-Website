@@ -2,13 +2,15 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Edit2, Trash2, Music2, GripVertical, AlertTriangle, Upload } from 'lucide-react'
+import { Edit2, Trash2, Music2, GripVertical, AlertTriangle, Upload, Eraser } from 'lucide-react'
 import FileUploadModal from '@/components/admin/modals/FileUploadModal'
+import StorageCleanupModal from '@/components/admin/modals/StorageCleanupModal'
 
 const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) => {
   const [draggedIndex, setDraggedIndex] = React.useState(null)
   const [dragOverIndex, setDragOverIndex] = React.useState(null)
   const [showUploadModal, setShowUploadModal] = React.useState(false)
+  const [showCleanupModal, setShowCleanupModal] = React.useState(false)
 
   const getFileSizeEstimate = (src) => {
     const fileName = src.split('/').pop() || ''
@@ -73,14 +75,26 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
             {tracks.length} track{tracks.length !== 1 ? 's' : ''} · ~{totalSize.toFixed(1)} MB total
           </p>
         </div>
-        <button
-          onClick={() => setShowUploadModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
-        >
-          <Upload className="w-4 h-4" />
-          上传音频
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCleanupModal(true)}
+            title="删除 Storage 里已经没有歌曲或图片在用的文件"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white text-sm font-medium transition-colors"
+          >
+            <Eraser className="w-4 h-4" />
+            清理文件
+          </button>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            上传音频
+          </button>
+        </div>
       </div>
+
+      {showCleanupModal && <StorageCleanupModal onClose={() => setShowCleanupModal(false)} />}
 
       {showUploadModal && (
         <FileUploadModal
