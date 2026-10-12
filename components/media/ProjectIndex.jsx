@@ -12,7 +12,7 @@ import { outfit, jetbrainsMono } from "@/lib/fonts";
  * 作品区：居中的项目索引 + 翻页（原来是 carousel）。
  * - 一列白色大字的项目名，每页 PER_PAGE 个，用左右按钮 / 页码翻页，不用一直往下滚
  * - 大屏且有鼠标：悬停某一行时其他行变暗，项目截图从鼠标旁边浮出来，带点延迟地跟着走
- * - 点击某一行展开：描述 + 后台填的 Problem / Approach / Result（留空的不显示）+ 链接
+ * - 点击某一行展开：描述 + 链接
  * - 手机 / 平板 / 窄窗口没有浮动预览，截图改为显示在展开的内容里
  */
 
@@ -27,17 +27,6 @@ const BLUR_DATA_URL =
 const pad = (n) => String(n).padStart(2, "0");
 
 const hasImage = (project) => Boolean(project.image && project.image.trim() !== "");
-
-// 后台没填的段落直接跳过
-const storyRows = (project) =>
-  [
-    { label: "Problem", text: project.problem },
-    { label: "Approach", text: project.approach },
-    { label: "Result", text: project.result },
-  ].filter((row) => row.text && row.text.trim() !== "");
-
-// Tailwind 需要完整类名，不能拼接
-const STORY_COLS = { 1: "sm:grid-cols-1", 2: "sm:grid-cols-2", 3: "sm:grid-cols-3" };
 
 const ProjectImage = ({ project, sizes }) =>
   hasImage(project) ? (
@@ -247,7 +236,6 @@ const ProjectIndex = () => {
               const index = start + j;
               const isOpen = openId === project.id;
               const dimmed = canFloat && hoveredId != null && hoveredId !== project.id;
-              const rows = storyRows(project);
               const panelId = `project-panel-${project.id}`;
 
               return (
@@ -307,20 +295,6 @@ const ProjectIndex = () => {
                           <p className="max-w-[600px] text-[17px] sm:text-xl leading-relaxed text-white/85">
                             {project.description}
                           </p>
-                          {rows.length > 0 && (
-                            <dl className={`w-full max-w-[760px] grid grid-cols-1 ${STORY_COLS[rows.length]} gap-5 sm:gap-8`}>
-                              {rows.map((row) => (
-                                <div key={row.label} className="flex flex-col items-center gap-2">
-                                  <dt className={`${jetbrainsMono.className} text-[11px] tracking-[0.12em] uppercase text-white/45`}>
-                                    {row.label}
-                                  </dt>
-                                  <dd className="text-[15px] leading-relaxed text-white/75 whitespace-pre-line">
-                                    {row.text}
-                                  </dd>
-                                </div>
-                              ))}
-                            </dl>
-                          )}
                           {project.link && (
                             <a
                               href={project.link}

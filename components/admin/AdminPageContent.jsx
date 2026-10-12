@@ -17,6 +17,7 @@ import CommentsTab from '@/components/admin/CommentsTab'
 import SupabaseDebugTab from '@/components/admin/SupabaseDebugTab'
 import AnniversaryTab from '@/components/admin/AnniversaryTab'
 import SocialLinksTab from '@/components/admin/SocialLinksTab'
+import TechStackTab from '@/components/admin/TechStackTab'
 import EditModal from '@/components/admin/modals/EditModal'
 
 const AdminPageContent = () => {
@@ -117,6 +118,7 @@ const AdminPageContent = () => {
                 {activeTab === 'comments'    && <CommentsTab />}
                 {activeTab === 'anniversary' && <AnniversaryTab />}
                 {activeTab === 'social'      && <SocialLinksTab />}
+                {activeTab === 'techstack'   && <TechStackTab />}
                 {activeTab === 'supabase'    && <SupabaseDebugTab />}
               </motion.div>
             </div>

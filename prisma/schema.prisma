@@ -58,9 +58,6 @@ model Project {
   image        String?
   link         String?
   category     String   @default("personal")
-  problem      String?
-  approach     String?
-  result       String?
   cropX        Float?   @default(50) @map("crop_x")
   cropY        Float?   @default(50) @map("crop_y")
   cropSize     Float?   @default(100) @map("crop_size")
@@ -186,6 +183,7 @@ model SocialLink {
   platform  String   // 图标，对应 lib/social-platforms.ts 里的 key
   name      String   // 悬停时显示的名字
   url       String
+  category  String   @default("") // 首页按分类分组显示，同名的放在一组
   visible   Boolean  @default(true)
   order     Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
@@ -193,4 +191,18 @@ model SocialLink {
 
   @@index([order])
   @@map("social_links")
+}
+
+model TechStackItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  icon      String   // 图标，对应 lib/tech-icons.ts 里的 key
+  name      String   // 图标下面显示的名字
+  category  String   @default("") // 首页按分类分组显示，同名的放在一组
+  visible   Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([order])
+  @@map("tech_stack")
 }

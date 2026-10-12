@@ -14,6 +14,7 @@ import {
   LogOut,
   LayoutDashboard,
   Share2,
+  Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -24,6 +25,7 @@ const menuItems = [
   { id: 'comments',    label: 'Comments',    icon: MessageSquare,  category: 'Content' },
   { id: 'anniversary', label: 'Anniversary', icon: Heart,          category: 'Content' },
   { id: 'social',      label: 'Social Links', icon: Share2,        category: 'Content' },
+  { id: 'techstack',   label: 'Tech Stack',  icon: Layers,         category: 'Content' },
   { id: 'supabase',    label: 'Database',    icon: Database,       category: 'System' },
 ]
 
