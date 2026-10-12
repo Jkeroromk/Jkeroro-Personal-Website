@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
         image: image || null,
         link: link || null,
         category: category || 'personal',
-        // 滚动叙事字段，留空存 null，前台会只显示 description
+        // 作品区展开内容的三段文字，留空存 null，前台会只显示 description
         problem: typeof problem === 'string' && problem.trim() ? problem.trim() : null,
         approach: typeof approach === 'string' && approach.trim() ? approach.trim() : null,
         result: typeof result === 'string' && result.trim() ? result.trim() : null,

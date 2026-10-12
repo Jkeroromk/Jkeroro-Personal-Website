@@ -5,7 +5,7 @@ import { useAuth } from "../../auth";
 import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
 import Image from "next/image";
 import DonationButton from '@/components/interactive/DonationButton';
-import ProjectStory from "@/components/media/ProjectStory";
+import ProjectIndex from "@/components/media/ProjectIndex";
 
 // 简单卡片组件（带鼠标跟踪 3D 倾斜）
 const Card3D = ({ children, className = "", href, target, rel, onMouseEnter, onMouseLeave }) => {
@@ -109,9 +109,9 @@ const Tabs = () => {
         Personal Project Collection
       </h2>
 
-      {/* 作品区：滚动叙事（原来是 carousel） */}
+      {/* 作品区：居中的项目索引 + 翻页（原来是 carousel） */}
       <div className="w-full py-8" style={{ overflow: 'visible' }}>
-        <ProjectStory />
+        <ProjectIndex />
       </div>
 
       <DonationButton />

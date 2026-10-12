@@ -52,7 +52,7 @@ export async function PATCH(
     if (image !== undefined) updateData.image = image
     if (link !== undefined) updateData.link = link
     if (category) updateData.category = category
-    // 滚动叙事字段：传了就更新，空字符串表示清空
+    // 作品区展开内容的三段文字：传了就更新，空字符串表示清空
     const storyText = (v: unknown) =>
       typeof v === 'string' && v.trim() ? v.trim() : null
     if (problem !== undefined) updateData.problem = storyText(problem)

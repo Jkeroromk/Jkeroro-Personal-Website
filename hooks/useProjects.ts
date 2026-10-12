@@ -7,7 +7,7 @@ import type { Project } from '@/types/api'
 
 /**
  * 首页作品列表：先用本地缓存秒出，再从 API 拉最新，之后通过实时订阅跟着后台改动更新。
- * 原来写在 tabs.jsx 的 carousel 里，抽出来给 ProjectStory 用。
+ * 原来写在 tabs.jsx 的 carousel 里，抽出来给作品区 ProjectIndex 用。
  */
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([])

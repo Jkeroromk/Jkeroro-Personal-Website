@@ -175,12 +175,12 @@ const ProjectEditModal = ({
             />
           </div>
           
-          {/* 作品区滚动叙事：三段都是可选的，留空时前台只显示 Description */}
+          {/* 作品区展开项目时显示的三段内容：都是可选的，留空的不显示 */}
           <div className="rounded-lg border border-gray-700 p-3 sm:p-4 space-y-3">
             <div>
               <p className="text-sm font-medium text-gray-200">Story (optional)</p>
               <p className="text-xs text-gray-400 mt-1">
-                作品区滚动叙事用。留空的段落不显示；三段都空时只显示上面的 Description。
+                在首页作品区点开项目时显示。留空的段落不显示；三段都空时只显示上面的 Description。
               </p>
             </div>
             {[
