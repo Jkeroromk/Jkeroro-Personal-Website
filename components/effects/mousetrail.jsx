@@ -4,8 +4,8 @@ import React, { useEffect, useRef } from "react";
 import '../../app/globals.css'
 
 /**
- * 墨迹拖尾：鼠标位置是一个白色小笔尖，后面拖出一条会慢慢变细、变淡的墨线，
- * 移动快时线更细，还会甩出小墨点。整层用 mix-blend-mode: difference（见 globals.css 的 .cursor），
+ * 墨迹拖尾（安静版）：鼠标位置是一个白色小笔尖，后面拖出一条很细、很快就淡掉的墨线，
+ * 只用来提示鼠标在哪，不抢页面内容的注意力。整层用 mix-blend-mode: difference（见 globals.css 的 .cursor），
  * 所以划过白色卡片时墨线会变成黑色。
  *
  * 保留了原来的行为：
@@ -15,8 +15,9 @@ import '../../app/globals.css'
  * - 系统开了"减弱动态效果"时不画墨线，只保留笔尖，这样网站隐藏了系统光标也不会找不到鼠标
  */
 
-const INK_LIFE_MS = 900; // 一段墨线从出现到完全消失的时间
-const INK_WIDTH = 12; // 慢速移动时墨线的最大粗细（px）
+const INK_LIFE_MS = 420; // 一段墨线从出现到完全消失的时间
+const INK_WIDTH = 3.5; // 墨线最粗处（px），紧贴笔尖
+const INK_OPACITY = 0.55; // 墨线最浓处的不透明度
 const MAX_POINTS = 400;
 const TIP_SIZE = 10;
 
@@ -47,7 +48,6 @@ const MouseTrail = () => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     let points = [];
-    let drops = [];
     let strokeId = 0;
     let hidden = false;
     let rafId = 0;
@@ -90,17 +90,9 @@ const MouseTrail = () => {
       const last = points[points.length - 1];
       let pressure = 1;
       if (last && last.id === strokeId) {
+        // 移动快时线稍微细一点，变化幅度很小
         const speed = (Math.hypot(x - last.x, y - last.y) / Math.max(1, now - last.t)) * 16;
-        const target = Math.max(0.35, Math.min(1.25, 1.25 - speed / 45));
-        pressure = last.p * 0.6 + target * 0.4;
-        if (speed > 26 && Math.random() < 0.45) {
-          drops.push({
-            x: x + (Math.random() - 0.5) * speed * 0.9,
-            y: y + (Math.random() - 0.5) * speed * 0.9,
-            r: 0.8 + Math.random() * 2.6,
-            t: now,
-          });
-        }
+        pressure = last.p * 0.6 + Math.max(0.6, Math.min(1, 1.1 - speed / 80)) * 0.4;
       }
       points.push({ x, y, t: now, p: pressure, id: strokeId });
       if (points.length > MAX_POINTS) points = points.slice(-MAX_POINTS);
@@ -117,11 +109,10 @@ const MouseTrail = () => {
     const draw = () => {
       const now = performance.now();
       points = points.filter((p) => now - p.t < INK_LIFE_MS);
-      drops = drops.filter((d) => now - d.t < INK_LIFE_MS * 0.8);
 
-      if (points.length || drops.length || needsClear) {
+      if (points.length || needsClear) {
         ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-        needsClear = points.length > 0 || drops.length > 0;
+        needsClear = points.length > 0;
 
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
@@ -134,21 +125,14 @@ const MouseTrail = () => {
           const from = z && z.id === a.id ? { x: (z.x + a.x) / 2, y: (z.y + a.y) / 2 } : a;
           const to = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
           const life = Math.max(0, 1 - (now - b.t) / INK_LIFE_MS);
-          ctx.strokeStyle = `rgba(255,255,255,${Math.min(1, life * 1.4).toFixed(3)})`;
-          ctx.lineWidth = Math.max(0.6, INK_WIDTH * b.p * Math.pow(life, 1.4));
+          ctx.strokeStyle = `rgba(255,255,255,${(INK_OPACITY * life).toFixed(3)})`;
+          ctx.lineWidth = Math.max(0.5, INK_WIDTH * b.p * life);
           ctx.beginPath();
           ctx.moveTo(from.x, from.y);
           ctx.quadraticCurveTo(a.x, a.y, to.x, to.y);
           ctx.stroke();
         }
 
-        for (const d of drops) {
-          const life = Math.max(0, 1 - (now - d.t) / (INK_LIFE_MS * 0.8));
-          ctx.fillStyle = `rgba(255,255,255,${(life * 0.9).toFixed(3)})`;
-          ctx.beginPath();
-          ctx.arc(d.x, d.y, d.r * (0.6 + 0.4 * life), 0, Math.PI * 2);
-          ctx.fill();
-        }
       }
       rafId = requestAnimationFrame(draw);
     };

@@ -175,37 +175,6 @@ const ProjectEditModal = ({
             />
           </div>
           
-          {/* 作品区展开项目时显示的三段内容：都是可选的，留空的不显示 */}
-          <div className="rounded-lg border border-gray-700 p-3 sm:p-4 space-y-3">
-            <div>
-              <p className="text-sm font-medium text-gray-200">Story (optional)</p>
-              <p className="text-xs text-gray-400 mt-1">
-                在首页作品区点开项目时显示。留空的段落不显示；三段都空时只显示上面的 Description。
-              </p>
-            </div>
-            {[
-              { key: 'problem', label: 'Problem', placeholder: 'What problem were you solving?' },
-              { key: 'approach', label: 'Approach', placeholder: 'How did you build it?' },
-              { key: 'result', label: 'Result', placeholder: 'What came out of it?' },
-            ].map((field) => (
-              <div key={field.key}>
-                <label
-                  htmlFor={`project-${field.key}`}
-                  className="block text-sm font-medium text-gray-300 mb-2"
-                >
-                  {field.label}
-                </label>
-                <Textarea
-                  id={`project-${field.key}`}
-                  value={formData[field.key] ?? ''}
-                  onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value })}
-                  placeholder={field.placeholder}
-                  className="bg-gray-800 border-gray-600 text-white min-h-[60px] sm:min-h-[80px]"
-                />
-              </div>
-            ))}
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Link
