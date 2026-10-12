@@ -105,12 +105,8 @@ const Tabs = () => {
         </Card3D>
       </div>
 
-      <h2 className="flex justify-center text-white font-extrabold text-2xl mt-20">
-        Personal Project Collection
-      </h2>
-
-      {/* 作品区：居中的项目索引 + 翻页（原来是 carousel） */}
-      <div className="w-full py-8" style={{ overflow: 'visible' }}>
+      {/* 作品区：居中的项目索引 + 翻页（原来是 carousel），标题在组件里 */}
+      <div className="w-full mt-16 sm:mt-20 py-8" style={{ overflow: 'visible' }}>
         <ProjectIndex />
       </div>
 

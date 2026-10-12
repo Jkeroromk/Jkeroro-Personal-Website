@@ -6,13 +6,14 @@ import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useProjects } from "@/hooks/useProjects";
+import { outfit, jetbrainsMono } from "@/lib/fonts";
 
 /**
  * 作品区：居中的项目索引 + 翻页（原来是 carousel）。
  * - 一列白色大字的项目名，每页 PER_PAGE 个，用左右按钮 / 页码翻页，不用一直往下滚
- * - 有鼠标的设备：悬停某一行时其他行变暗，项目截图从鼠标旁边浮出来，带点延迟地跟着走
+ * - 大屏且有鼠标：悬停某一行时其他行变暗，项目截图从鼠标旁边浮出来，带点延迟地跟着走
  * - 点击某一行展开：描述 + 后台填的 Problem / Approach / Result（留空的不显示）+ 链接
- * - 触屏设备没有悬停，截图改为显示在展开的内容里
+ * - 手机 / 平板 / 窄窗口没有浮动预览，截图改为显示在展开的内容里
  */
 
 const PER_PAGE = 4;
@@ -63,6 +64,7 @@ const FloatingPreview = ({ items, hoveredId, reduceMotion }) => {
   const target = useRef({ x: 0, y: 0 });
   const pos = useRef({ x: 0, y: 0, rot: 0 });
   const wasVisible = useRef(false);
+  const hiddenAt = useRef(0);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -77,16 +79,20 @@ const FloatingPreview = ({ items, hoveredId, reduceMotion }) => {
 
   useEffect(() => {
     if (hoveredId == null) {
-      wasVisible.current = false;
+      // 从一行移到相邻一行时会短暂变成 null，不立刻重置，预览继续平滑滑过去
+      hiddenAt.current = performance.now();
       return;
     }
+    if (performance.now() - hiddenAt.current > 300) wasVisible.current = false;
     let raf = 0;
     const tick = () => {
       const el = ref.current;
       if (el) {
         const { x, y } = target.current;
+        const maxX = window.innerWidth - PREVIEW_W - 16;
         let tx = x + 32;
-        if (tx + PREVIEW_W > window.innerWidth - 16) tx = x - PREVIEW_W - 32;
+        if (tx > maxX) tx = x - PREVIEW_W - 32;
+        tx = Math.max(16, Math.min(maxX, tx));
         const ty = Math.max(16, Math.min(window.innerHeight - PREVIEW_H - 16, y - PREVIEW_H / 2));
 
         // 刚出现时直接放到鼠标旁边，不从上一次的位置飞过来
@@ -146,12 +152,15 @@ const ProjectIndex = () => {
   const [direction, setDirection] = useState(1);
   const [openId, setOpenId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
-  const [canHover, setCanHover] = useState(false);
+  const [canFloat, setCanFloat] = useState(false);
 
-  // 只有真正有鼠标的设备才做悬停预览
+  // 只有大屏且有鼠标时才做跟随鼠标的预览；窄窗口放不下 420px 的预览，会挡住文字
   useEffect(() => {
-    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
-    const update = () => setCanHover(mq.matches);
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 1024px)");
+    const update = () => {
+      setCanFloat(mq.matches);
+      if (!mq.matches) setHoveredId(null);
+    };
     update();
     mq.addEventListener?.("change", update);
     return () => mq.removeEventListener?.("change", update);
@@ -178,15 +187,22 @@ const ProjectIndex = () => {
     [currentPage, pageCount]
   );
 
-  if (error) {
-    return <p className="text-red-600 font-bold text-center py-8">{error}</p>;
-  }
+  const heading = (
+    <h2 className="text-white font-bold text-[28px] sm:text-3xl tracking-[-0.01em] text-center">
+      Personal Project Collection
+    </h2>
+  );
 
-  if (!projects.length) {
+  if (error || !projects.length) {
     return (
-      <p className="text-white/70 font-bold text-center py-8">
-        {loaded ? "No projects yet." : "Loading projects..."}
-      </p>
+      <div className={`${outfit.className} w-full flex flex-col items-center gap-6`}>
+        {heading}
+        {error ? (
+          <p className="text-red-600 font-bold text-center">{error}</p>
+        ) : (
+          <p className="text-white/70 text-center">{loaded ? "No projects yet." : "Loading projects..."}</p>
+        )}
+      </div>
     );
   }
 
@@ -205,13 +221,14 @@ const ProjectIndex = () => {
     "before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent";
 
   return (
-    <div className="w-full flex flex-col items-center">
-      <p className="text-xs font-semibold tracking-[0.14em] uppercase text-white/50 text-center">
-        {pad(projects.length)} projects · {canHover ? "hover to preview, click to open" : "tap to open"}
+    <div className={`${outfit.className} w-full flex flex-col items-center`}>
+      {heading}
+      <p className={`${jetbrainsMono.className} mt-2.5 text-[11px] tracking-[0.12em] uppercase text-white/45 text-center px-4`}>
+        {pad(projects.length)} projects · {canFloat ? "hover to preview, click to open" : "tap or click to open"}
       </p>
 
       <div
-        className={`relative w-full max-w-[880px] mt-8 ${
+        className={`relative w-full max-w-[880px] mt-7 sm:mt-9 ${
           pageCount > 1 ? "min-h-[400px] sm:min-h-[460px] lg:min-h-[504px]" : ""
         }`}
         onMouseLeave={() => setHoveredId(null)}
@@ -229,7 +246,7 @@ const ProjectIndex = () => {
             {items.map((project, j) => {
               const index = start + j;
               const isOpen = openId === project.id;
-              const dimmed = canHover && hoveredId != null && hoveredId !== project.id;
+              const dimmed = canFloat && hoveredId != null && hoveredId !== project.id;
               const rows = storyRows(project);
               const panelId = `project-panel-${project.id}`;
 
@@ -244,13 +261,17 @@ const ProjectIndex = () => {
                     type="button"
                     aria-expanded={isOpen}
                     aria-controls={panelId}
-                    onClick={() => setOpenId(isOpen ? null : project.id)}
-                    onMouseEnter={() => canHover && setHoveredId(project.id)}
-                    onMouseLeave={() => canHover && setHoveredId(null)}
+                    onClick={() => {
+                      setOpenId(isOpen ? null : project.id);
+                      // 展开后内容就在下面，不再让浮动预览挡住它
+                      setHoveredId(null);
+                    }}
+                    onMouseEnter={() => canFloat && !isOpen && setHoveredId(project.id)}
+                    onMouseLeave={() => canFloat && setHoveredId(null)}
                     onFocus={() => setHoveredId(null)}
-                    className="w-full flex flex-col items-center gap-3 py-5 sm:py-[22px] px-2 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4 rounded-md"
+                    className="w-full flex flex-col items-center gap-2.5 sm:gap-3 py-[18px] sm:py-[22px] px-2 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-4 rounded-md"
                   >
-                    <span className="flex items-center gap-2.5 text-xs font-semibold tracking-[0.14em] uppercase text-white/50">
+                    <span className={`${jetbrainsMono.className} flex items-center gap-2.5 text-[11px] sm:text-xs tracking-[0.14em] uppercase text-white/50`}>
                       {pad(index + 1)} · {project.category || "project"}
                       <Plus
                         className={`w-3 h-3 transition-transform duration-300 ${isOpen ? "rotate-45" : ""}`}
@@ -258,9 +279,9 @@ const ProjectIndex = () => {
                       />
                     </span>
                     <span
-                      className={`text-3xl sm:text-5xl lg:text-[54px] font-extrabold tracking-tight leading-none transition-[opacity,transform] duration-500 ${
+                      className={`text-[34px] sm:text-5xl lg:text-[54px] font-bold tracking-[-0.03em] leading-none transition-[opacity,transform] duration-500 ${
                         dimmed ? "opacity-30" : "opacity-100"
-                      } ${canHover && hoveredId === project.id ? "scale-[1.04]" : "scale-100"}`}
+                      } ${canFloat && hoveredId === project.id ? "scale-[1.04]" : "scale-100"}`}
                     >
                       {project.title}
                     </span>
@@ -277,20 +298,20 @@ const ProjectIndex = () => {
                         transition={{ duration: reduceMotion ? 0 : 0.4, ease: [0.22, 1, 0.36, 1] }}
                         className="overflow-hidden"
                       >
-                        <div className="flex flex-col items-center text-center gap-6 px-2 pt-1 pb-10">
-                          {!canHover && hasImage(project) && (
-                            <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-2xl overflow-hidden border border-white/15">
+                        <div className="flex flex-col items-center text-center gap-5 sm:gap-6 px-1 sm:px-2 pt-1 pb-8 sm:pb-10">
+                          {!canFloat && hasImage(project) && (
+                            <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-xl sm:rounded-2xl overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
                               <ProjectImage project={project} sizes="(max-width: 640px) 100vw, 560px" />
                             </div>
                           )}
-                          <p className="max-w-[600px] text-base sm:text-xl leading-relaxed text-white/85">
+                          <p className="max-w-[600px] text-[17px] sm:text-xl leading-relaxed text-white/85">
                             {project.description}
                           </p>
                           {rows.length > 0 && (
-                            <dl className={`w-full max-w-[760px] grid grid-cols-1 ${STORY_COLS[rows.length]} gap-6 sm:gap-8`}>
+                            <dl className={`w-full max-w-[760px] grid grid-cols-1 ${STORY_COLS[rows.length]} gap-5 sm:gap-8`}>
                               {rows.map((row) => (
                                 <div key={row.label} className="flex flex-col items-center gap-2">
-                                  <dt className="text-[11px] font-semibold tracking-[0.14em] uppercase text-white/45">
+                                  <dt className={`${jetbrainsMono.className} text-[11px] tracking-[0.12em] uppercase text-white/45`}>
                                     {row.label}
                                   </dt>
                                   <dd className="text-[15px] leading-relaxed text-white/75 whitespace-pre-line">
@@ -323,7 +344,7 @@ const ProjectIndex = () => {
       </div>
 
       {pageCount > 1 && (
-        <nav aria-label="Project pages" className="flex items-center gap-4 sm:gap-6 mt-6">
+        <nav aria-label="Project pages" className="flex items-center gap-3 sm:gap-6 mt-5 sm:mt-6">
           <button
             type="button"
             aria-label="Previous page"
@@ -353,7 +374,7 @@ const ProjectIndex = () => {
             ))}
           </div>
 
-          <span className="min-w-[64px] text-center text-xs font-semibold tracking-[0.14em] text-white">
+          <span className={`${jetbrainsMono.className} min-w-[56px] text-center text-[11px] sm:text-xs tracking-[0.12em] text-white`}>
             {pad(currentPage + 1)} / {pad(pageCount)}
           </span>
 
@@ -369,7 +390,7 @@ const ProjectIndex = () => {
         </nav>
       )}
 
-      {canHover && <FloatingPreview items={items} hoveredId={hoveredId} reduceMotion={reduceMotion} />}
+      {canFloat && <FloatingPreview items={items} hoveredId={hoveredId} reduceMotion={reduceMotion} />}
     </div>
   );
 };
