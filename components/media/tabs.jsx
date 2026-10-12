@@ -1,26 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-import Autoplay from "embla-carousel-autoplay";
-import { ArrowLeft, ArrowRight } from "lucide-react";
-import { getRealtimeClient } from '@/lib/realtime-client';
-// No longer using Firebase - using API instead
+import React from "react";
 import { useAuth } from "../../auth";
 import { motion, useMotionValue, useTransform, useSpring } from "framer-motion";
-import DataManager from "@/lib/data-manager";
 import Image from "next/image";
 import DonationButton from '@/components/interactive/DonationButton';
-
-// 通用模糊占位 dataURL（灰色单像素 JPEG）
-const BLUR_DATA_URL =
-  "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAIBAAAQQCAgMAAAAAAAAAAAAAAQIDBAUREiExQf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwGq2JuQhsO5bMxjKmTKFe7YGfRtW6p0cXhAUHFFKlKJ3wBJJ9mvpSlApSlApSlB//2Q==";
+import ProjectIndex from "@/components/media/ProjectIndex";
 
 // 简单卡片组件（带鼠标跟踪 3D 倾斜）
 const Card3D = ({ children, className = "", href, target, rel, onMouseEnter, onMouseLeave }) => {
@@ -69,118 +54,7 @@ const Card3D = ({ children, className = "", href, target, rel, onMouseEnter, onM
 };
 
 const Tabs = () => {
-  const { isAdmin, loading } = useAuth();
-  const [carouselItems, setCarouselItems] = useState([]);
-  const [fetchError, setFetchError] = useState(null);
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [emblaApi, setEmblaApi] = useState(null);
-  const autoplayPlugin = useRef(Autoplay({ delay: 3000, stopOnInteraction: false }));
-
-  // 获取标签颜色的辅助函数
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case 'personal':
-        return 'bg-purple-700/30 border-purple-600 text-purple-800';
-      case 'work':
-        return 'bg-green-700/30 border-green-600 text-green-800';
-      case 'school':
-        return 'bg-blue-700/30 border-blue-600 text-blue-800';
-      default:
-        return 'bg-gray-700/30 border-gray-600 text-gray-800';
-    }
-  };
-
-  const fetchCarouselItems = async () => {
-    try {
-      const response = await fetch('/api/media/projects');
-      if (!response.ok) {
-        throw new Error('Failed to fetch projects');
-      }
-      
-      const items = await response.json();
-      setCarouselItems(items);
-      setFetchError(null);
-      
-      // 更新缓存
-      if (typeof window !== "undefined") {
-        const dataManager = DataManager.getInstance();
-        dataManager.saveProjects(items);
-      }
-    } catch (error) {
-      console.error("Error fetching carousel items:", error);
-      // 如果 API 失败，尝试使用缓存数据
-      if (typeof window !== "undefined") {
-        const dataManager = DataManager.getInstance();
-        const cachedProjects = dataManager.getProjects();
-        if (cachedProjects && cachedProjects.length > 0) {
-          setCarouselItems(cachedProjects);
-          setFetchError(null);
-          return;
-        }
-      }
-      setFetchError("Failed to load projects: " + (error.message || 'Unknown error'));
-    }
-  };
-
-  // 使用 SSE 实时更新获取数据变化
-  useEffect(() => {
-    // 先使用缓存数据（如果存在）
-    if (typeof window !== "undefined") {
-      const dataManager = DataManager.getInstance();
-      const cachedProjects = dataManager.getProjects();
-      if (cachedProjects && cachedProjects.length > 0) {
-        setCarouselItems(cachedProjects);
-      }
-    }
-    
-    // 然后从 API 更新
-    fetchCarouselItems();
-    
-    // 使用 SSE 实时更新
-    const realtimeClient = getRealtimeClient();
-    const unsubscribe = realtimeClient.subscribe('projects', (items) => {
-      setCarouselItems(items);
-      setFetchError(null);
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (emblaApi) {
-      const onSelect = () => {
-        setCurrentSlide(emblaApi.selectedScrollSnap());
-      };
-      
-      emblaApi.on('select', onSelect);
-      onSelect(); // 初始化时设置当前slide
-      
-      return () => {
-        emblaApi.off('select', onSelect);
-      };
-    }
-  }, [emblaApi]);
-
-
-  const resetAutoplay = () => {
-    if (autoplayPlugin.current) {
-      autoplayPlugin.current.reset();
-    }
-  };
-
-  const pauseAutoplay = () => {
-    if (autoplayPlugin.current) {
-      autoplayPlugin.current.stop();
-    }
-  };
-
-  const resumeAutoplay = () => {
-    if (autoplayPlugin.current) {
-      autoplayPlugin.current.play();
-    }
-  };
+  const { loading } = useAuth();
 
   if (loading) {
     return (
@@ -231,153 +105,10 @@ const Tabs = () => {
         </Card3D>
       </div>
 
-      <h1 className="flex justify-center text-white font-extrabold text-2xl mt-20">
-        Personal Project Collection
-      </h1>
-
-      <div className="flex justify-center w-full py-8 ml-[20px]" style={{ overflow: 'visible' }}>
-        <div className="w-full sm:w-[600px]" style={{ overflow: 'visible' }}>
-          <Carousel
-            className="mt-1 w-full"
-            opts={{ 
-              loop: true,
-              align: "center"
-            }}
-            plugins={[autoplayPlugin.current]}
-            setApi={setEmblaApi}
-            style={{ overflow: 'visible' }}
-          >
-        <CarouselContent className="w-full" style={{ overflow: 'visible' }}>
-          {fetchError ? (
-            <p className="text-red-600 font-bold text-center">{fetchError}</p>
-          ) : carouselItems.length > 0 ? (
-            carouselItems.map((item) => (
-              <CarouselItem key={item.id} className="flex justify-center w-full relative z-30">
-                <div className="w-full sm:w-[550px] mx-auto group">
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-white bg-opacity-80 border-2 border-black rounded-3xl overflow-hidden transition-all duration-300 h-[360px] sm:h-[500px] flex flex-col relative z-30 group-hover:shadow-[0_0_20px_white] my-4"
-                    onMouseEnter={pauseAutoplay}
-                    onMouseLeave={resumeAutoplay}
-                  >
-                      {/* 图片区域 */}
-                      <div className="relative h-72 sm:h-[400px] overflow-hidden bg-gray-800">
-                        {item.image && item.image.trim() !== '' ? (
-                          <>
-                            <Image
-                              src={item.image}
-                              alt={item.title}
-                              fill
-                              className="object-cover"
-                              style={{
-                                objectPosition: `${item.cropX ?? 50}% ${item.cropY ?? 50}%`
-                              }}
-                              placeholder="blur"
-                              blurDataURL={BLUR_DATA_URL}
-                              unoptimized={item.image.startsWith('/api/file/') || item.image.startsWith('https://')}
-                            />
-                            {/* 渐变遮罩 */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <div className="text-center">
-                              <div className="text-sm">No image</div>
-                            </div>
-                          </div>
-                        )}
-                        
-                        
-                        {/* 悬停指示器 */}
-                        <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <div className="flex items-center gap-2 px-3 py-2 bg-black/70 backdrop-blur-sm rounded-full border border-white/30">
-                            <span className="text-white text-sm font-medium">View Project</span>
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* 文字内容区域 */}
-                      <div className="p-4 flex-1 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center gap-3 mb-3">
-                            <h1 className="text-xl sm:text-2xl font-bold text-black group-hover:text-gray-800 transition-colors duration-300 leading-tight">
-                              {item.title}
-                            </h1>
-                            {item.category && (
-                              <span className={`px-2 py-0.5 mt-1 border-l-2 text-xs font-light tracking-wide uppercase ${getCategoryColor(item.category)}`}>
-                                {item.category}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-gray-700 text-sm sm:text-base leading-relaxed group-hover:text-gray-800 transition-colors duration-300 line-clamp-3">
-                            {item.description}
-                          </p>
-                        </div>
-                        
-                        {/* 底部装饰线 */}
-                        <div className="flex items-center gap-2 mt-2">
-                          <div className="flex-1 h-px bg-gradient-to-r from-black/30 to-transparent"></div>
-                          <div className="w-1.5 h-1.5 bg-black/60 rounded-full"></div>
-                          <div className="flex-1 h-px bg-gradient-to-l from-black/30 to-transparent"></div>
-                        </div>
-                      </div>
-                  </a>
-                </div>
-              </CarouselItem>
-            ))
-          ) : (
-            <p className="text-white ml-56 font-bold">Loading projects...</p>
-          )}
-        </CarouselContent>
-        
-        {/* Swap me 和 Dot指示器 */}
-        <div className="flex flex-col items-center mt-4 gap-3">
-          {/* Swap me */}
-          <div className="flex justify-center items-center gap-x-3">
-            <ArrowLeft className="text-white/60 hover:text-white/80 transition-all duration-300 cursor-pointer hover:scale-110" onClick={resetAutoplay} />
-            
-            <h2 className="text-white/50 text-sm font-medium tracking-wide">
-              Swap me
-            </h2>
-            
-            <ArrowRight className="text-white/60 hover:text-white/80 transition-all duration-300 cursor-pointer hover:scale-110" onClick={resetAutoplay} />
-          </div>
-          
-          {/* Dot指示器 */}
-          {carouselItems.length > 1 && (
-            <div className="flex justify-center gap-3 px-4">
-              {carouselItems.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    if (emblaApi) {
-                      emblaApi.scrollTo(index);
-                      setCurrentSlide(index);
-                    }
-                  }}
-                  aria-label={`跳转到第${index + 1}张图片`}
-                  className="p-2 rounded-full transition-all duration-300 flex items-center justify-center hover:bg-white/10"
-                >
-                  <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                    index === currentSlide 
-                      ? 'bg-white scale-125' 
-                      : 'bg-white/50 hover:bg-white/70'
-                  }`} />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-          </Carousel>
-        </div>
+      {/* 作品区：居中的项目索引 + 翻页（原来是 carousel），标题在组件里 */}
+      <div className="w-full mt-16 sm:mt-20 py-8" style={{ overflow: 'visible' }}>
+        <ProjectIndex />
       </div>
-
-
 
       <DonationButton />
     </div>

@@ -8,6 +8,7 @@ const DEFAULT_FORM = {
   title: '', subtitle: '', src: '', alt: '', cover: '',
   width: 550, height: 384,
   description: '', link: '', category: 'personal',
+  problem: '', approach: '', result: '',
   cropX: 50, cropY: 50, cropSize: 100,
   imageOffsetX: 0, imageOffsetY: 0, scale: 1,
 }
@@ -65,6 +66,7 @@ export const useAdminData = () => {
         title: item.title, description: item.description,
         src: item.image, link: item.link,
         category: item.category || 'personal',
+        problem: item.problem ?? '', approach: item.approach ?? '', result: item.result ?? '',
         cropX: item.cropX ?? 50, cropY: item.cropY ?? 50, cropSize: item.cropSize ?? 100,
         imageOffsetX: item.imageOffsetX ?? 0, imageOffsetY: item.imageOffsetY ?? 0,
         scale: item.scale ?? 1,

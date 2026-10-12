@@ -144,17 +144,29 @@
   top: 0;
   left: 0;
   z-index: 100000;
+  transition: opacity 0.2s ease;
 }
 
-.circle {
-  position: absolute;
-  display: block;
-  width: 26px;
-  height: 26px;
+/* 墨迹拖尾（components/effects/mousetrail.jsx）：画布铺满屏幕，笔尖跟着鼠标 */
+
+.ink-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+.ink-tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background-color: #fff;
-  z-index: 100000; 
   pointer-events: none;
+  will-change: transform;
 }
 
 html {
@@ -189,7 +201,8 @@ body {
 /* Hide custom cursor on touch/mobile devices */
 @media (hover: none) and (pointer: coarse) {
   .cursor,
-  .circle {
+  .ink-canvas,
+  .ink-tip {
     display: none !important;
   }
   body,
