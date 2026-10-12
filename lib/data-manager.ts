@@ -22,6 +22,9 @@ export interface Project {
   image: string
   link: string
   category: string
+  problem?: string | null
+  approach?: string | null
+  result?: string | null
 }
 
 class DataManager {

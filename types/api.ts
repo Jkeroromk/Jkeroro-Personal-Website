@@ -49,6 +49,9 @@ export interface Project {
   image: string | null
   link: string | null
   category: string
+  problem: string | null
+  approach: string | null
+  result: string | null
   cropX: number | null
   cropY: number | null
   cropSize: number | null

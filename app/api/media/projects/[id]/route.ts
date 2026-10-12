@@ -18,6 +18,9 @@ export async function PATCH(
       image,
       link,
       category,
+      problem,
+      approach,
+      result,
       order,
       cropX,
       cropY,
@@ -33,6 +36,9 @@ export async function PATCH(
       image?: string | null
       link?: string | null
       category?: string
+      problem?: string | null
+      approach?: string | null
+      result?: string | null
       order?: number
       cropX?: number
       cropY?: number
@@ -46,6 +52,12 @@ export async function PATCH(
     if (image !== undefined) updateData.image = image
     if (link !== undefined) updateData.link = link
     if (category) updateData.category = category
+    // 滚动叙事字段：传了就更新，空字符串表示清空
+    const storyText = (v: unknown) =>
+      typeof v === 'string' && v.trim() ? v.trim() : null
+    if (problem !== undefined) updateData.problem = storyText(problem)
+    if (approach !== undefined) updateData.approach = storyText(approach)
+    if (result !== undefined) updateData.result = storyText(result)
     if (order !== undefined) updateData.order = order
     if (cropX !== undefined) updateData.cropX = cropX
     if (cropY !== undefined) updateData.cropY = cropY

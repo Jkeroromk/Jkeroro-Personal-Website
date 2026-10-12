@@ -58,6 +58,9 @@ model Project {
   image        String?
   link         String?
   category     String   @default("personal")
+  problem      String?
+  approach     String?
+  result       String?
   cropX        Float?   @default(50) @map("crop_x")
   cropY        Float?   @default(50) @map("crop_y")
   cropSize     Float?   @default(100) @map("crop_size")
