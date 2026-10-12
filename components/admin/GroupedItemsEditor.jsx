@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * GroupedItemsEditor — 后台编辑「分类 + 图标条目」列表，Social Links 和 Tech Stack 共用。
+ * GroupedItemsEditor — 后台编辑「分类 + 图标条目」列表（Tech Stack 在用；withUrl 可以给带链接的条目用）。
  * 分类可以新增、改名、排序、删除；条目可以新增、编辑、排序、隐藏、移到别的分类。
  * 改完点「保存」一次提交，首页刷新就能看到，不用改代码。
  *

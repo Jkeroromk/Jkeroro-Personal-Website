@@ -3,10 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
 import { requireAuth } from '@/lib/requireAuth'
 import { isKnownPlatform, MAX_SOCIAL_LINKS } from '@/lib/social-platforms'
-import { cleanCategory, MAX_CATEGORY_LENGTH } from '@/lib/link-groups'
 
 // 首页社交媒体链接
-// GET：公开，按顺序返回全部（含隐藏的，前台自己过滤 visible），每项带分类
+// GET：公开，按顺序返回全部（含隐藏的，前台自己过滤 visible）
 // PUT：后台保存，整份替换（增、删、改、排序一次提交）
 
 export async function GET() {
@@ -16,7 +15,7 @@ export async function GET() {
       8000
     )
     return NextResponse.json(
-      links.map(({ id, platform, name, url, category, visible }) => ({ id, platform, name, url, category, visible }))
+      links.map(({ id, platform, name, url, visible }) => ({ id, platform, name, url, visible }))
     )
   } catch (error) {
     const info = getDbErrorInfo(error)
@@ -32,11 +31,10 @@ interface IncomingLink {
   platform?: unknown
   name?: unknown
   url?: unknown
-  category?: unknown
   visible?: unknown
 }
 
-function validate(body: unknown): { links: { platform: string; name: string; url: string; category: string; visible: boolean }[] } | { error: string } {
+function validate(body: unknown): { links: { platform: string; name: string; url: string; visible: boolean }[] } | { error: string } {
   const list = (body as { links?: unknown })?.links
   if (!Array.isArray(list)) return { error: 'links must be an array' }
   if (list.length > MAX_SOCIAL_LINKS) return { error: `At most ${MAX_SOCIAL_LINKS} links` }
@@ -57,9 +55,7 @@ function validate(body: unknown): { links: { platform: string; name: string; url
     } catch {
       return { error: `Link ${n} (${name}): URL must start with https://` }
     }
-    const category = cleanCategory(item.category)
-    if (category === null) return { error: `Link ${n} (${name}): category must be at most ${MAX_CATEGORY_LENGTH} characters` }
-    links.push({ platform, name, url, category, visible: item.visible !== false })
+    links.push({ platform, name, url, visible: item.visible !== false })
   }
   return { links }
 }
@@ -90,7 +86,7 @@ export async function PUT(request: NextRequest) {
     )
     const links = await prisma.socialLink.findMany({ orderBy: { order: 'asc' } })
     return NextResponse.json(
-      links.map(({ id, platform, name, url, category, visible }) => ({ id, platform, name, url, category, visible }))
+      links.map(({ id, platform, name, url, visible }) => ({ id, platform, name, url, visible }))
     )
   } catch (error) {
     const info = getDbErrorInfo(error)

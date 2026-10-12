@@ -1,5 +1,5 @@
 /**
- * 首页 Social Links 和 Tech Stack 共用的分组逻辑。
+ * 首页 Tech Stack 的分组逻辑。
  * 数据库里每一项存一个 category 字符串，按顺序排；首页按第一次出现的顺序分组显示。
  */
 
