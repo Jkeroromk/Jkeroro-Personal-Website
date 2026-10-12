@@ -20,14 +20,13 @@ const PER_PAGE = 4;
 const PREVIEW_W = 420;
 const PREVIEW_H = 262; // 16:10，和网站截图的比例一致
 
-// 通用模糊占位 dataURL（灰色单像素 JPEG）
-const BLUR_DATA_URL =
-  "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABgUEA/8QAIBAAAQQCAgMAAAAAAAAAAAAAAQIDBAUREiExQf/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCwGq2JuQhsO5bMxjKmTKFe7YGfRtW6p0cXhAUHFFKlKJ3wBJJ9mvpSlApSlApSlB//2Q==";
-
 const pad = (n) => String(n).padStart(2, "0");
 
 const hasImage = (project) => Boolean(project.image && project.image.trim() !== "");
 
+// 截图只在展开项目 / 悬停预览时才渲染，所以直接加载（loading="eager"）。
+// 用 lazy 的话，iOS Safari 对一开始高度为 0、正在展开动画里的图片判断不出"已进入视口"，
+// 会一直不去加载，只剩下模糊占位。模糊占位也去掉了：Safari 渲染它会变成一片蓝色。
 const ProjectImage = ({ project, sizes }) =>
   hasImage(project) ? (
     <Image
@@ -35,10 +34,9 @@ const ProjectImage = ({ project, sizes }) =>
       alt=""
       fill
       sizes={sizes}
+      loading="eager"
       className="object-cover"
       style={{ objectPosition: `${project.cropX ?? 50}% ${project.cropY ?? 50}%` }}
-      placeholder="blur"
-      blurDataURL={BLUR_DATA_URL}
       unoptimized={project.image.startsWith("/api/file/") || project.image.startsWith("https://")}
     />
   ) : (
@@ -288,7 +286,7 @@ const ProjectIndex = () => {
                       >
                         <div className="flex flex-col items-center text-center gap-5 sm:gap-6 px-1 sm:px-2 pt-1 pb-8 sm:pb-10">
                           {!canFloat && hasImage(project) && (
-                            <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-xl sm:rounded-2xl overflow-hidden border border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
+                            <div className="relative w-full max-w-[560px] aspect-[16/10] rounded-xl sm:rounded-2xl overflow-hidden border border-white/15 bg-neutral-900 shadow-[0_20px_50px_rgba(0,0,0,0.45)]">
                               <ProjectImage project={project} sizes="(max-width: 640px) 100vw, 560px" />
                             </div>
                           )}
