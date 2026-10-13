@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { moderate } from '@/lib/moderation'
 
 /**
  * GET /api/guestbook
@@ -8,7 +9,7 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     const entries = await prisma.comment.findMany({
-      where: { name: { not: null } },
+      where: { name: { not: null }, hidden: false },
       orderBy: [{ pinned: 'desc' }, { createdAt: 'desc' }],
       take: 50,
       select: { id: true, name: true, text: true, emoji: true, createdAt: true },
@@ -48,11 +49,16 @@ export async function POST(req: NextRequest) {
 
     const safeEmoji = ALLOWED_EMOJIS.includes(emoji) ? emoji : '👋'
 
+    // 自动过滤：可疑的先隐藏，后台放行后才显示
+    const check = await moderate([name, message])
+
     const entry = await prisma.comment.create({
       data: {
         text: message.trim(),
         name: name.trim(),
         emoji: safeEmoji,
+        hidden: check.hidden,
+        flagReason: check.reason,
         likes: 0,
         fires: 0,
         hearts: 0,
@@ -61,6 +67,11 @@ export async function POST(req: NextRequest) {
       },
       select: { id: true, name: true, text: true, emoji: true, createdAt: true },
     })
+
+    if (check.hidden) {
+      // 不把命中的原因告诉提交的人，只说要等审核
+      return NextResponse.json({ id: entry.id, pending: true }, { status: 202 })
+    }
 
     return NextResponse.json(
       { ...entry, message: entry.text },

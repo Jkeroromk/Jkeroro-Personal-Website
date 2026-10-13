@@ -13,6 +13,7 @@ type Translations = {
   cancel: string
   addEntry: string
   success: string
+  pending: string
   namePlaceholder: string
   messagePlaceholder: string
   emptyError: string
@@ -35,6 +36,7 @@ const translations: Record<string, Translations> = {
     cancel: '取消',
     addEntry: '+ 留言',
     success: '留言成功，谢谢你的到来！🎉',
+    pending: '收到啦，审核后就会显示 🙏',
     namePlaceholder: '你的名字（最多20字）',
     messagePlaceholder: '留下你想说的话（最多150字）',
     emptyError: '名字和留言都不能为空',
@@ -55,6 +57,7 @@ const translations: Record<string, Translations> = {
     cancel: 'Cancel',
     addEntry: '+ Sign',
     success: 'Signed! Thanks for visiting! 🎉',
+    pending: 'Got it! It will show up after a quick review 🙏',
     namePlaceholder: 'Your name (max 20 chars)',
     messagePlaceholder: 'Leave a message (max 150 chars)',
     emptyError: 'Name and message are required',
@@ -75,6 +78,7 @@ const translations: Record<string, Translations> = {
     cancel: 'キャンセル',
     addEntry: '+ 記入',
     success: '記入完了！ご来訪ありがとう！🎉',
+    pending: '受け付けました！確認後に表示されます 🙏',
     namePlaceholder: 'お名前（20文字以内）',
     messagePlaceholder: 'メッセージを残してね（150文字以内）',
     emptyError: 'お名前とメッセージを入力してください',
@@ -95,6 +99,7 @@ const translations: Record<string, Translations> = {
     cancel: '취소',
     addEntry: '+ 작성',
     success: '작성 완료! 방문해 주셔서 감사해요! 🎉',
+    pending: '접수됐어요! 확인 후 표시돼요 🙏',
     namePlaceholder: '이름 (최대 20자)',
     messagePlaceholder: '메시지를 남겨주세요 (최대 150자)',
     emptyError: '이름과 메시지를 입력해주세요',
@@ -115,6 +120,7 @@ const translations: Record<string, Translations> = {
     cancel: 'Annuler',
     addEntry: '+ Signer',
     success: 'Signé ! Merci de votre visite ! 🎉',
+    pending: 'Reçu ! Il apparaîtra après vérification 🙏',
     namePlaceholder: 'Votre nom (max 20 caractères)',
     messagePlaceholder: 'Laissez un message (max 150 caractères)',
     emptyError: 'Le nom et le message sont requis',
@@ -135,6 +141,7 @@ const translations: Record<string, Translations> = {
     cancel: 'Cancelar',
     addEntry: '+ Firmar',
     success: '¡Firmado! ¡Gracias por tu visita! 🎉',
+    pending: '¡Recibido! Aparecerá tras una revisión 🙏',
     namePlaceholder: 'Tu nombre (máx. 20 caracteres)',
     messagePlaceholder: 'Deja un mensaje (máx. 150 caracteres)',
     emptyError: 'El nombre y el mensaje son obligatorios',
@@ -251,6 +258,7 @@ export default function GuestbookWall() {
   const [emoji, setEmoji] = useState('👋')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [pendingNotice, setPendingNotice] = useState(false)
 
   const { handleReaction, hasUserReaction } = useCommentReactions()
 
@@ -299,6 +307,13 @@ export default function GuestbookWall() {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || t.submitError); return }
+      // 被自动过滤暂时隐藏的留言：提示等审核，不加进列表
+      if (data.pending) {
+        setName(''); setMessage(''); setEmoji('👋')
+        setPendingNotice(true); setSuccess(true); setShowForm(false)
+        setTimeout(() => { setSuccess(false); setPendingNotice(false) }, 4000)
+        return
+      }
       const newEntry: GuestbookEntry = {
         id: data.id,
         name: data.name,
@@ -348,7 +363,7 @@ export default function GuestbookWall() {
         {/* 成功提示 */}
         {success && (
           <div className="mb-3 text-xs text-green-400 bg-green-400/10 border border-green-400/20 rounded-lg px-3 py-2">
-            {t.success}
+            {pendingNotice ? t.pending : t.success}
           </div>
         )}
 

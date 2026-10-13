@@ -1,18 +1,8 @@
 import { NextRequest } from 'next/server';
 import { SYSTEM_PROMPT } from '@/lib/ai/prompt';
 import { checkChatLimit, getClientIp } from '@/lib/ai/rate-limit';
+import { PROVIDER } from '@/lib/ai/provider';
 
-// 优先使用 Meta Model API（Muse Spark，OpenAI 兼容）；未配置 MODEL_API_KEY 时回退到 Fireworks
-// trim + 去掉误粘贴的引号，防止复制 key 时带上空格/换行
-const cleanKey = (v?: string) => v?.trim().replace(/^['"]|['"]$/g, '') || undefined;
-const META_API_KEY = cleanKey(process.env.MODEL_API_KEY);
-const META_MODEL = process.env.MUSE_MODEL || 'muse-spark-1.3';
-const FIREWORKS_API_KEY = cleanKey(process.env.PROVIDER_API_KEY);
-const FIREWORKS_MODEL = process.env.MODEL_NAME || 'accounts/fireworks/models/gpt-oss-120b';
-
-const PROVIDER = META_API_KEY
-  ? { url: 'https://api.meta.ai/v1/chat/completions', key: META_API_KEY, model: META_MODEL }
-  : { url: 'https://api.fireworks.ai/inference/v1/chat/completions', key: FIREWORKS_API_KEY, model: FIREWORKS_MODEL };
 
 // 防滥用：限制上下文长度和输出长度，避免被当成免费的通用 AI 接口
 const MAX_MESSAGES = 16; // 最多带最近 16 条历史

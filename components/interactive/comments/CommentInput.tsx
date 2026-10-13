@@ -26,7 +26,7 @@ export default function CommentInput({ onCommentAdded }: CommentInputProps) {
 
     setSubmitting(true)
     try {
-      const result = await apiRequest('/api/comments', {
+      const result = await apiRequest<{ pending?: boolean }>('/api/comments', {
         method: 'POST',
         body: JSON.stringify({ text: comment.trim() }),
       })
@@ -37,6 +37,16 @@ export default function CommentInput({ onCommentAdded }: CommentInputProps) {
 
       setComment('')
       setCommentError(false)
+
+      // 被自动过滤暂时隐藏的评论：提示等审核，不刷新列表
+      if (result.data?.pending) {
+        toast({
+          title: 'Comment received',
+          description: 'It will appear after a quick review.',
+        })
+        return
+      }
+
       onCommentAdded()
 
       toast({

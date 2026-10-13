@@ -11,11 +11,13 @@ export async function PATCH(
   if (authError) return authError
   try {
     const { id } = await params
-    const { text, pinned } = await request.json()
+    const { text, pinned, hidden } = await request.json()
 
     interface UpdateCommentData {
       text?: string
       pinned?: boolean
+      hidden?: boolean
+      flagReason?: string | null
     }
 
     const data: UpdateCommentData = {}
@@ -24,6 +26,12 @@ export async function PATCH(
     }
     if (typeof pinned === 'boolean') {
       data.pinned = pinned
+    }
+    // 后台放行被自动过滤隐藏的留言（或手动隐藏）
+    if (typeof hidden === 'boolean') {
+      data.hidden = hidden
+      if (!hidden) data.flagReason = null
+      else data.flagReason = 'Hidden by admin'
     }
 
     if (Object.keys(data).length === 0) {

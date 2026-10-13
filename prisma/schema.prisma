@@ -83,6 +83,8 @@ model Comment {
   laughs    Int               @default(0)
   wows      Int               @default(0)
   pinned    Boolean           @default(false)
+  hidden     Boolean          @default(false) // 自动过滤判定可疑时先隐藏，后台放行后才显示
+  flagReason String?          @map("flag_reason") // 被隐藏的原因（规则命中 / AI 判断）
   createdAt DateTime          @default(now()) @map("created_at")
   updatedAt DateTime          @updatedAt @map("updated_at")
   reactions CommentReaction[]
@@ -204,4 +206,26 @@ model TechStackItem {
 
   @@index([order])
   @@map("tech_stack")
+}
+
+// 定时任务（Vercel Cron）每次运行的记录，后台月报里会汇总
+model CronRun {
+  id     String   @id @default(uuid()) @db.Uuid
+  job    String   // 'storage-cleanup' | 'monthly-report'
+  ok     Boolean  @default(true)
+  result Json     @default("{}")
+  ranAt  DateTime @default(now()) @map("ran_at")
+
+  @@index([job, ranAt])
+  @@map("cron_runs")
+}
+
+// 每月 1 号生成的月报快照；累计数据（访问量、各国访问）要靠上个月的快照算出当月增量
+model MonthlyReport {
+  id        String   @id @default(uuid()) @db.Uuid
+  month     String   @unique // 'YYYY-MM'，报告所属的月份
+  data      Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("monthly_reports")
 }

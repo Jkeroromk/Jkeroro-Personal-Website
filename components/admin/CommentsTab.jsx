@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Edit2, Trash2, MessageSquare, ThumbsUp, Flame, Heart, Laugh, Eye, RefreshCw, Check, X, Pin, PinOff } from 'lucide-react'
+import { Edit2, Trash2, MessageSquare, ThumbsUp, Flame, Heart, Laugh, Eye, RefreshCw, Check, X, Pin, PinOff, ShieldAlert, ShieldCheck, EyeOff } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { getAuthHeaders } from '@/lib/auth-client'
@@ -20,12 +20,15 @@ const CommentsTab = () => {
   const [loading, setLoading]               = useState(true)
   const [editingComment, setEditingComment] = useState(null)
   const [editText, setEditText]             = useState('')
+  const [filter, setFilter]                 = useState('all') // 'all' | 'review'
   const { toast } = useToast()
 
   const fetchComments = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/comments')
+      // ?all=1 + 登录：连同被自动过滤隐藏的留言一起拿
+      const authHeaders = await getAuthHeaders()
+      const res = await fetch('/api/comments?all=1', { headers: authHeaders, cache: 'no-store' })
       if (!res.ok) throw new Error('Failed to fetch comments')
       const data = await res.json()
       setComments(data.map(c => ({
@@ -98,6 +101,23 @@ const CommentsTab = () => {
     }
   }
 
+  // 放行被自动过滤隐藏的留言，或者手动隐藏
+  const handleVisibility = async (id, hidden) => {
+    try {
+      const authHeaders = await getAuthHeaders()
+      const res = await fetch(`/api/comments/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ hidden }),
+      })
+      if (!res.ok) throw new Error((await res.json()).error || 'Failed')
+      setComments(c => c.map(x => (x.id === id ? { ...x, hidden, flagReason: hidden ? 'Hidden by admin' : null } : x)))
+      toast({ title: hidden ? 'Hidden' : 'Approved', description: hidden ? 'No longer shown on the homepage.' : 'Now shown on the homepage.' })
+    } catch (err) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' })
+    }
+  }
+
   const formatTime = (ts) => {
     if (!ts) return 'Unknown'
     const date = new Date(ts)
@@ -125,13 +145,19 @@ const CommentsTab = () => {
     )
   }
 
+  const reviewCount = comments.filter(c => c.hidden).length
+  const shown = filter === 'review' ? comments.filter(c => c.hidden) : comments
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-white">Comments</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">{comments.length} comment{comments.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            {comments.length} comment{comments.length !== 1 ? 's' : ''}
+            {reviewCount > 0 && <span className="text-amber-400"> · {reviewCount} hidden by the auto-filter</span>}
+          </p>
         </div>
         <button
           onClick={fetchComments}
@@ -141,6 +167,31 @@ const CommentsTab = () => {
           Refresh
         </button>
       </div>
+
+      {/* 筛选：全部 / 待审核 */}
+      <div className="flex gap-1 p-1 rounded-lg bg-zinc-900 border border-white/5 w-fit">
+        {[
+          { id: 'all', label: 'All' },
+          { id: 'review', label: `Needs review${reviewCount ? ` (${reviewCount})` : ''}` },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setFilter(tab.id)}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+              filter === tab.id ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {filter === 'review' && shown.length === 0 && comments.length > 0 && (
+        <div className="flex items-center gap-2 py-6 justify-center text-sm text-zinc-500">
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          Nothing waiting for review.
+        </div>
+      )}
 
       {/* Empty state */}
       {comments.length === 0 && (
@@ -154,15 +205,17 @@ const CommentsTab = () => {
       )}
 
       {/* Comment list */}
-      {comments.length > 0 && (
+      {shown.length > 0 && (
         <div className="space-y-2">
-          {comments.map((comment, index) => (
+          {shown.map((comment, index) => (
             <motion.div
               key={comment.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, delay: index * 0.04 }}
-              className="rounded-xl border border-white/5 bg-zinc-900 p-4 hover:border-white/10 transition-colors"
+              className={`rounded-xl border bg-zinc-900 p-4 transition-colors ${
+                comment.hidden ? 'border-amber-500/30 bg-amber-500/[0.03]' : 'border-white/5 hover:border-white/10'
+              }`}
             >
               {editingComment === comment.id ? (
                 <div className="space-y-3">
@@ -194,6 +247,15 @@ const CommentsTab = () => {
                   <div className="flex items-start justify-between gap-4 mb-3">
                     <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
+                        {comment.hidden && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-amber-200 bg-amber-500/20 flex-shrink-0"
+                            title="Not shown on the homepage until you approve it"
+                          >
+                            <ShieldAlert className="w-3 h-3" />
+                            Hidden{comment.flagReason ? ` · ${comment.flagReason}` : ''}
+                          </span>
+                        )}
                         {comment.pinned && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider text-amber-100 bg-amber-500/20 flex-shrink-0">
                             <Pin className="w-3 h-3 mr-1" /> 置顶
@@ -209,6 +271,25 @@ const CommentsTab = () => {
                       <p className="text-sm text-zinc-200 leading-relaxed">{comment.text}</p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
+                      {comment.hidden ? (
+                        <button
+                          onClick={() => handleVisibility(comment.id, false)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                          title="Show on the homepage"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Approve
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleVisibility(comment.id, true)}
+                          className="p-1.5 rounded-md text-zinc-500 hover:text-amber-300 hover:bg-white/10 transition-colors"
+                          title="Hide from the homepage"
+                          aria-label="Hide from the homepage"
+                        >
+                          <EyeOff className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handlePin(comment.id, !comment.pinned)}
                         className="p-1.5 rounded-md text-zinc-500 hover:text-amber-300 hover:bg-white/10 transition-colors"
