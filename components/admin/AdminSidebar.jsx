@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Share2,
   Layers,
+  BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,6 +27,7 @@ const menuItems = [
   { id: 'anniversary', label: 'Anniversary', icon: Heart,          category: 'Content' },
   { id: 'social',      label: 'Social Links', icon: Share2,        category: 'Content' },
   { id: 'techstack',   label: 'Tech Stack',  icon: Layers,         category: 'Content' },
+  { id: 'reports',     label: 'Monthly Report', icon: BarChart3,   category: 'System' },
   { id: 'supabase',    label: 'Database',    icon: Database,       category: 'System' },
 ]
 

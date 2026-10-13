@@ -14,7 +14,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "postinstall": "node scripts/check-accelerate.js",
-    "vercel-build": "node scripts/check-accelerate.js && (node scripts/run-with-ssl.js prisma migrate deploy || echo '⚠️ Migration skipped (may already be applied)') && next build"
+    "vercel-build": "node scripts/check-accelerate.js && node scripts/migrate-production-only.js && next build"
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",

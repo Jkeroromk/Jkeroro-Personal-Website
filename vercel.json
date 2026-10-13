@@ -44,5 +44,15 @@
         }
       ]
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/storage-cleanup",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/monthly-report",
+      "schedule": "0 10 1 * *"
+    }
   ]
 }
