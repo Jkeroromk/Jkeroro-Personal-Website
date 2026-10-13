@@ -4,7 +4,7 @@
  * 首页 Tech Stack 的分组图标网格。
  * 每组：分类标题（两侧渐变细线）+ 图标网格，每行 5 个，不满一行时居中。
  * 图标沿用原来 Tech Stack 的悬停效果：GSAP 翻转一圈并放大 2 倍、变成品牌色，名字在下面淡入。
- * 后台的预览也用这个组件（compact：小尺寸、名字常驻、不做动画）。
+ * 后台的预览也直接用这个组件，和首页显示完全一样（包括悬停效果）。
  *
  * groups: [{ title, items: [{ key, name, Icon, hover, href? }] }]
  */
@@ -70,45 +70,19 @@ const Tile = ({ item }) => {
   )
 }
 
-// 后台预览用：小尺寸、名字常驻，方便核对
-const CompactTile = ({ item }) => {
-  const { Icon, name } = item
-  return (
-    <div className="flex flex-col items-center gap-1.5 w-14">
-      <Icon size={22} className="text-white" aria-hidden="true" />
-      <span className="text-[10px] text-zinc-500 truncate max-w-full">{name}</span>
-    </div>
-  )
-}
-
-const GroupTitle = ({ title, compact }) => (
-  <div className={`flex items-center gap-4 px-4 w-full ${compact ? 'mb-3' : 'mb-2'}`}>
+const GroupTitle = ({ title }) => (
+  <div className="flex items-center gap-4 px-4 w-full mb-2">
     <span aria-hidden="true" className="h-px flex-1 bg-gradient-to-r from-transparent to-white/30" />
-    <h3 className={`${compact ? 'text-xs' : 'text-sm sm:text-base'} font-bold text-white/90 tracking-wide whitespace-nowrap`}>
+    <h3 className="text-sm sm:text-base font-bold text-white/90 tracking-wide whitespace-nowrap">
       {title}
     </h3>
     <span aria-hidden="true" className="h-px flex-1 bg-gradient-to-l from-transparent to-white/30" />
   </div>
 )
 
-const IconGroups = ({ groups, compact = false, className = '' }) => {
+const IconGroups = ({ groups, className = '' }) => {
   const visibleGroups = groups.filter((g) => g.items.length > 0)
   if (visibleGroups.length === 0) return null
-
-  if (compact) {
-    return (
-      <div className={`flex flex-col items-center w-full gap-6 ${className}`}>
-        {visibleGroups.map((group, i) => (
-          <section key={`${group.title}-${i}`} className="w-full max-w-[600px]">
-            {group.title && <GroupTitle title={group.title} compact />}
-            <div className="flex flex-wrap justify-center gap-3 px-2">
-              {group.items.map((item) => <CompactTile key={item.key} item={item} />)}
-            </div>
-          </section>
-        ))}
-      </div>
-    )
-  }
 
   return (
     <div className={`flex flex-col items-center w-full gap-14 ${className}`}>
