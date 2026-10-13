@@ -1,14 +1,12 @@
 'use client'
 
 import React from 'react'
-import { motion } from 'framer-motion'
+import { SortableList, SortableItem, SortableHandle } from '@/components/admin/Sortable'
 import { Edit2, Trash2, Music2, GripVertical, AlertTriangle, Upload, Eraser } from 'lucide-react'
 import FileUploadModal from '@/components/admin/modals/FileUploadModal'
 import StorageCleanupModal from '@/components/admin/modals/StorageCleanupModal'
 
 const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) => {
-  const [draggedIndex, setDraggedIndex] = React.useState(null)
-  const [dragOverIndex, setDragOverIndex] = React.useState(null)
   const [showUploadModal, setShowUploadModal] = React.useState(false)
   const [showCleanupModal, setShowCleanupModal] = React.useState(false)
 
@@ -31,39 +29,6 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
   const totalSize = tracks.reduce((t, track) => {
     return t + parseFloat(getFileSizeEstimate(track.src).replace(/[~MB\s]/g, ''))
   }, 0)
-
-  const handleDragStart = (e, index) => {
-    e.dataTransfer.setData('text/plain', index)
-    e.dataTransfer.effectAllowed = 'move'
-    const ghost = document.createElement('img')
-    ghost.style.display = 'none'
-    document.body.appendChild(ghost)
-    e.dataTransfer.setDragImage(ghost, 0, 0)
-    setTimeout(() => document.body.contains(ghost) && document.body.removeChild(ghost), 0)
-    setDraggedIndex(index)
-  }
-
-  const handleDragEnd = () => {
-    setDraggedIndex(null)
-    setDragOverIndex(null)
-  }
-
-  const handleDragOver = (e, index) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    if (index !== draggedIndex) setDragOverIndex(index)
-  }
-
-  const handleDragLeave = (e) => {
-    if (!e.currentTarget.contains(e.relatedTarget)) setDragOverIndex(null)
-  }
-
-  const handleDrop = (e, dropIndex) => {
-    e.preventDefault()
-    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'))
-    if (dragIndex !== dropIndex && onReorder) onReorder(dragIndex, dropIndex)
-    setDragOverIndex(null)
-  }
 
   return (
     <div className="space-y-4">
@@ -123,79 +88,64 @@ const MusicTab = ({ tracks, onEdit, onDelete, onAdd, onReorder, onImported }) =>
             <Music2 className="w-5 h-5 text-zinc-500" />
           </div>
           <p className="text-sm font-medium text-white mb-1">No tracks yet</p>
-          <p className="text-xs text-zinc-500 mb-4">使用上方 YouTube 导入按钮添加曲目</p>
+          <p className="text-xs text-zinc-500 mb-4">点上方「上传音频」添加曲目</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-white/5 bg-zinc-900 overflow-hidden">
-          {tracks.map((track, index) => {
-            const isDragging = draggedIndex === index
-            const isDragOver = dragOverIndex === index
+        <SortableList
+          items={tracks}
+          getKey={(t) => t.id}
+          onReorder={onReorder}
+          axis="y"
+          className="rounded-xl border border-white/5 bg-zinc-900 divide-y divide-white/5"
+        >
+          {(track, index) => (
+            <SortableItem
+              key={track.id}
+              id={track.id}
+              className="flex items-center gap-3 px-4 py-3 group bg-zinc-900 first:rounded-t-xl last:rounded-b-xl hover:bg-zinc-800/60 transition-colors"
+              draggingClassName="!bg-zinc-800 rounded-xl ring-1 ring-indigo-500/40"
+            >
+              <SortableHandle className="-ml-1 p-1 rounded-md text-zinc-600 group-hover:text-zinc-400 hover:!text-white hover:bg-white/5 flex-shrink-0 transition-colors">
+                <GripVertical className="w-4 h-4" />
+              </SortableHandle>
 
-            return (
-              <motion.div
-                key={track.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: index * 0.04 }}
-              >
-                {/* Main row */}
-                <div
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, index)}
-                  className={[
-                    'flex items-center gap-3 px-4 py-3 group cursor-grab active:cursor-grabbing transition-colors',
-                    index !== tracks.length - 1 ? 'border-b border-white/5' : '',
-                    isDragging ? 'bg-indigo-500/10 opacity-60' :
-                    isDragOver ? 'bg-white/5' :
-                                 'hover:bg-white/[0.03]',
-                  ].join(' ')}
+              <span className="w-5 text-center text-xs font-mono text-zinc-600 flex-shrink-0 tabular-nums">
+                {index + 1}
+              </span>
+
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                <Music2 className="w-4 h-4 text-indigo-400" />
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">{track.title}</p>
+                <p className="text-xs text-zinc-500 truncate">{track.subtitle}</p>
+              </div>
+
+              <span className="text-xs text-zinc-600 flex-shrink-0 hidden sm:block">
+                {getFileSizeEstimate(track.src)}
+              </span>
+
+              {/* Actions */}
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => onEdit(track, 'track')}
+                  aria-label="Edit track"
+                  className="p-1.5 rounded-md text-zinc-400 sm:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-white hover:bg-white/10 transition"
                 >
-                  <GripVertical className="w-4 h-4 text-zinc-700 group-hover:text-zinc-500 flex-shrink-0 transition-colors" />
-
-                  <span className="w-5 text-center text-xs font-mono text-zinc-600 flex-shrink-0">
-                    {index + 1}
-                  </span>
-
-                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
-                    <Music2 className="w-4 h-4 text-indigo-400" />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{track.title}</p>
-                    <p className="text-xs text-zinc-500 truncate">{track.subtitle}</p>
-                  </div>
-
-                  <span className="text-xs text-zinc-600 flex-shrink-0 hidden sm:block">
-                    {getFileSizeEstimate(track.src)}
-                  </span>
-
-                  {/* Actions */}
-                  <div
-                    className="flex items-center gap-1 flex-shrink-0"
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() => onEdit(track, 'track')}
-                      className="p-1.5 rounded-md text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10 transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(track.id, 'track')}
-                      className="p-1.5 rounded-md text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )
-          })}
-        </div>
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => onDelete(track.id, 'track')}
+                  aria-label="Delete track"
+                  className="p-1.5 rounded-md text-zinc-400 sm:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-red-400 hover:bg-red-500/10 transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </SortableItem>
+          )}
+        </SortableList>
       )}
     </div>
   )

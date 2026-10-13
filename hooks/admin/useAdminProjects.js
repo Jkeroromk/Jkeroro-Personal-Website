@@ -76,19 +76,25 @@ export const useAdminProjects = () => {
   }
 
   const handleReorderProjects = async (dragIndex, dropIndex) => {
-    const newProjects = [...(apiProjects || [])]
-    const [dragged] = newProjects.splice(dragIndex, 1)
-    newProjects.splice(dropIndex, 0, dragged)
-    setApiProjects(newProjects)
-    await Promise.all(
-      newProjects.map((project, i) =>
-        fetch(`/api/media/projects/${project.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ order: i }),
-        })
-      )
-    )
+    const prev = [...(apiProjects || [])]
+    const moved = [...prev]
+    const [dragged] = moved.splice(dragIndex, 1)
+    moved.splice(dropIndex, 0, dragged)
+    const next = moved.map((item, i) => ({ ...item, order: i }))
+    setApiProjects(next)
+    // 只更新 order 不对的那几条；一定要带登录 token，否则接口 401、刷新后顺序会变回去
+    const changed = next
+      .map((item, i) => ({ item, i }))
+      .filter(({ item, i }) => prev.find((p) => p.id === item.id)?.order !== i)
+    try {
+      await Promise.all(changed.map(({ item, i }) => apiCall(`/api/media/projects/${item.id}`, 'PATCH', { order: i })))
+    } catch (err) {
+      console.error('[reorder] failed, reverting', err)
+      setApiProjects(prev)
+      await loadProjects?.().catch(() => {})
+      alert(`排序没保存成功：${err.message || err}`)
+      return
+    }
   }
 
   return {

@@ -11,12 +11,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import {
-  ArrowUp, ArrowDown, Eye, EyeOff, Trash2, Plus, Save, RotateCcw, ExternalLink, FolderPlus,
+  ArrowUp, ArrowDown, GripVertical, Eye, EyeOff, Trash2, Plus, Save, RotateCcw, ExternalLink, FolderPlus,
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { getAuthHeaders } from '@/lib/auth-client'
 import { groupByCategory, MAX_CATEGORY_LENGTH } from '@/lib/link-groups'
 import IconGroups from '@/components/interactive/IconGroups'
+import { SortableList, SortableItem, SortableHandle } from './Sortable'
 
 let tempId = 0
 const nextKey = (prefix) => `${prefix}-${++tempId}`
@@ -204,6 +205,19 @@ export default function GroupedItemsEditor({
     if (j < 0 || j >= items.length) return
     flash(items[iIndex]._key)
     setGroups((list) => list.map((g, gi) => (gi === gIndex ? { ...g, items: swap(g.items, iIndex, j) } : g)))
+  }
+
+  // 拖拽排序：松手后一次挪到目标位置
+  const reorderItem = (gKey, from, to) => {
+    const movedKey = groups.find((g) => g._key === gKey)?.items[from]?._key
+    if (movedKey) flash(movedKey)
+    setGroups((list) => list.map((g) => {
+      if (g._key !== gKey) return g
+      const items = [...g.items]
+      const [moved] = items.splice(from, 1)
+      items.splice(to, 0, moved)
+      return { ...g, items }
+    }))
   }
 
   const moveItemToGroup = (fromKey, item, toKey) => {
@@ -410,20 +424,24 @@ export default function GroupedItemsEditor({
                   </div>
 
                   {/* 条目 */}
-                  <div className="space-y-2">
-                    <AnimatePresence initial={false}>
-                      {group.items.map((item, iIndex) => {
+                  <SortableList
+                    items={group.items}
+                    getKey={(item) => item._key}
+                    onReorder={(from, to) => reorderItem(group._key, from, to)}
+                    axis="y"
+                    className="space-y-2 mb-2"
+                  >
+                      {(item, iIndex) => {
                         const { Icon } = getOption(item[iconField])
                         const err = itemErrors[item._key] || {}
                         return (
-                          <motion.div
+                          <SortableItem
                             key={item._key}
-                            layout="position"
-                            initial={{ opacity: 0, y: -6 }}
+                            id={item._key}
                             animate={{ opacity: item.visible !== false ? 1 : 0.6, y: 0 }}
                             exit={{ opacity: 0, x: 24, transition: { duration: 0.18 } }}
-                            transition={{ layout: { type: 'spring', stiffness: 520, damping: 40 }, opacity: { duration: 0.2 } }}
-                            className={`relative rounded-xl border bg-zinc-900 p-3 transition-[border-color,box-shadow] duration-300 ${
+                            draggingClassName="!border-indigo-500/50 !bg-zinc-800"
+                            className={`relative rounded-xl border bg-zinc-900 p-3 transition-[border-color,box-shadow,background-color] duration-300 ${
                               flashKey === item._key
                                 ? 'border-indigo-500/50 shadow-[0_0_0_3px_rgba(99,102,241,0.15)] z-10'
                                 : 'border-white/5 hover:border-white/10'
@@ -432,6 +450,9 @@ export default function GroupedItemsEditor({
                             <div className="flex flex-col lg:flex-row lg:items-start gap-3">
                               {/* 组内排序 */}
                               <div className="flex lg:flex-col items-center gap-1 lg:pt-1">
+                                <SortableHandle className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-white/5">
+                                  <GripVertical className="w-3.5 h-3.5" />
+                                </SortableHandle>
                                 <span className="text-[11px] text-zinc-500 tabular-nums w-5 text-center">{iIndex + 1}</span>
                                 <button onClick={() => moveItem(gIndex, iIndex, -1)} disabled={iIndex === 0} aria-label="Move up" className={iconButton}>
                                   <ArrowUp className="w-3.5 h-3.5" />
@@ -530,11 +551,12 @@ export default function GroupedItemsEditor({
                                 </button>
                               </div>
                             </div>
-                          </motion.div>
+                          </SortableItem>
                         )
-                      })}
-                    </AnimatePresence>
+                      }}
+                  </SortableList>
 
+                  <div>
                     <button
                       onClick={() => addItem(group._key)}
                       disabled={totalItems >= maxItems}
