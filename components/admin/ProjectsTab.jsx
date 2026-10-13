@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { SortableList, SortableItem, SortableHandle } from '@/components/admin/Sortable'
 import { Edit2, Trash2, FolderKanban, Plus, GripVertical, ExternalLink } from 'lucide-react'
 import Image from 'next/image'
 
@@ -12,53 +12,6 @@ const categoryStyles = {
 }
 
 const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew, onReorder }) => {
-  const [draggedIndex, setDraggedIndex] = React.useState(null)
-  const [dragOverIndex, setDragOverIndex] = React.useState(null)
-  const [localProjects, setLocalProjects] = React.useState(projects)
-
-  React.useEffect(() => {
-    setLocalProjects(projects)
-  }, [projects])
-
-  const handleDragStart = (e, index) => {
-    e.dataTransfer.setData('text/plain', index.toString())
-    e.dataTransfer.effectAllowed = 'move'
-    const ghost = document.createElement('div')
-    ghost.style.cssText = 'position:absolute;top:-9999px;width:80px;height:80px;background:rgba(99,102,241,0.2);border:2px dashed #6366f1;border-radius:8px;'
-    document.body.appendChild(ghost)
-    e.dataTransfer.setDragImage(ghost, 40, 40)
-    setTimeout(() => document.body.contains(ghost) && document.body.removeChild(ghost), 0)
-    setDraggedIndex(index)
-    e.currentTarget.style.opacity = '0.4'
-  }
-
-  const handleDragEnd = (e) => {
-    e.currentTarget.style.opacity = '1'
-    setDraggedIndex(null)
-    setDragOverIndex(null)
-  }
-
-  const handleDragOver = (e, index) => {
-    e.preventDefault()
-    e.stopPropagation()
-    e.dataTransfer.dropEffect = 'move'
-    if (index !== draggedIndex && draggedIndex !== null) setDragOverIndex(index)
-  }
-
-  const handleDragLeave = (e) => {
-    if (!e.currentTarget.contains(e.relatedTarget)) setDragOverIndex(null)
-  }
-
-  const handleDrop = (e, dropIndex) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'))
-    if (dragIndex !== dropIndex && dragIndex !== null && onReorder) onReorder(dragIndex, dropIndex)
-    setDraggedIndex(null)
-    setDragOverIndex(null)
-    setLocalProjects(projects)
-  }
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -97,37 +50,27 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew, onReorder }) => {
       {/* Desktop grid */}
       {projects.length > 0 && (
         <>
-          <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <AnimatePresence mode="popLayout">
-              {localProjects.map((project, index) => {
-                const isDragging = draggedIndex === index
-                const isDragOver = dragOverIndex === index
-                const originalIndex = projects.findIndex(p => p.id === project.id)
+          <SortableList
+            items={projects}
+            getKey={(project) => project.id}
+            onReorder={onReorder}
+            axis="grid"
+            className="hidden md:grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+          >
+            {(project) => {
                 const catStyle = categoryStyles[project.category] || 'bg-zinc-700/30 text-zinc-400 border border-zinc-600/20'
-
                 return (
-                  <motion.div
+                  <SortableItem
                     key={project.id}
-                    layout
+                    id={project.id}
+                    dragFromAnywhere
                     initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: isDragging ? 0.4 : 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.15 }}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, originalIndex)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={(e) => handleDragOver(e, originalIndex)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, originalIndex)}
-                    className={[
-                      'group relative rounded-xl overflow-hidden border transition-all duration-150 cursor-grab active:cursor-grabbing bg-zinc-900',
-                      isDragging ? 'border-indigo-500/50 ring-1 ring-indigo-500/30' :
-                      isDragOver ? 'border-indigo-400/60 ring-1 ring-indigo-400/20 scale-[1.02]' :
-                                   'border-white/5 hover:border-white/10',
-                    ].join(' ')}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="group relative rounded-xl overflow-hidden border border-white/5 hover:border-white/10 bg-zinc-900 transition-colors"
+                    draggingClassName="!border-indigo-500/60 ring-1 ring-indigo-500/30"
                   >
                     {/* Drag handle */}
-                    <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                       <div className="p-1 rounded bg-black/60 backdrop-blur-sm">
                         <GripVertical className="w-3.5 h-3.5 text-white" />
                       </div>
@@ -142,6 +85,7 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew, onReorder }) => {
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                           className="object-contain transition-transform duration-300 group-hover:scale-105"
+                          draggable={false}
                           unoptimized={project.image.startsWith('/api/file/') || project.image.startsWith('https://')}
                         />
                       ) : (
@@ -189,41 +133,31 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew, onReorder }) => {
                         )}
                       </div>
                     </div>
-                  </motion.div>
+                  </SortableItem>
                 )
-              })}
-            </AnimatePresence>
-          </div>
+              }}
+          </SortableList>
 
           {/* Mobile list */}
-          <div className="md:hidden rounded-xl border border-white/5 bg-zinc-900 overflow-hidden">
-            <AnimatePresence mode="popLayout">
-              {localProjects.map((project, index) => {
-                const isDragging = draggedIndex === index
-                const isDragOver = dragOverIndex === index
-                const originalIndex = projects.findIndex(p => p.id === project.id)
+          <SortableList
+            items={projects}
+            getKey={(project) => project.id}
+            onReorder={onReorder}
+            axis="y"
+            className="md:hidden rounded-xl border border-white/5 bg-zinc-900 divide-y divide-white/5"
+          >
+            {(project) => {
                 const catStyle = categoryStyles[project.category] || 'bg-zinc-700/30 text-zinc-400 border border-zinc-600/20'
-
                 return (
-                  <motion.div
+                  <SortableItem
                     key={project.id}
-                    layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: isDragging ? 0.4 : 1 }}
-                    exit={{ opacity: 0 }}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, originalIndex)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={(e) => handleDragOver(e, originalIndex)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, originalIndex)}
-                    className={[
-                      'flex items-center gap-3 px-4 py-3 transition-colors cursor-grab',
-                      index !== localProjects.length - 1 ? 'border-b border-white/5' : '',
-                      isDragOver ? 'bg-white/5' : 'hover:bg-white/[0.03]',
-                    ].join(' ')}
+                    id={project.id}
+                    className="flex items-center gap-3 px-4 py-3 bg-zinc-900 first:rounded-t-xl last:rounded-b-xl"
+                    draggingClassName="!bg-zinc-800 rounded-xl ring-1 ring-indigo-500/40"
                   >
-                    <GripVertical className="w-4 h-4 text-zinc-700 flex-shrink-0" />
+                    <SortableHandle className="-ml-1 p-1.5 rounded-md text-zinc-500 hover:text-white hover:bg-white/5 flex-shrink-0">
+                      <GripVertical className="w-4 h-4" />
+                    </SortableHandle>
                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 relative flex-shrink-0">
                       {project.image?.trim() ? (
                         <Image
@@ -262,11 +196,10 @@ const ProjectsTab = ({ projects, onEdit, onDelete, onAddNew, onReorder }) => {
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  </motion.div>
+                  </SortableItem>
                 )
-              })}
-            </AnimatePresence>
-          </div>
+              }}
+          </SortableList>
         </>
       )}
     </div>

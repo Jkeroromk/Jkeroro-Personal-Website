@@ -79,20 +79,25 @@ export const useAdminTracks = () => {
   }
 
   const handleReorderTracks = async (dragIndex, dropIndex) => {
-    const newTracks = [...(tracks || [])]
-    const [dragged] = newTracks.splice(dragIndex, 1)
-    newTracks.splice(dropIndex, 0, dragged)
-    setTracks(newTracks)
-    const authHeaders = await getAuthHeaders()
-    await Promise.all(
-      newTracks.map((track, i) =>
-        fetch(`/api/media/tracks/${track.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', ...authHeaders },
-          body: JSON.stringify({ order: i }),
-        })
-      )
-    )
+    const prev = [...(tracks || [])]
+    const moved = [...prev]
+    const [dragged] = moved.splice(dragIndex, 1)
+    moved.splice(dropIndex, 0, dragged)
+    const next = moved.map((item, i) => ({ ...item, order: i }))
+    setTracks(next)
+    // 只更新 order 不对的那几条；一定要带登录 token，否则接口 401、刷新后顺序会变回去
+    const changed = next
+      .map((item, i) => ({ item, i }))
+      .filter(({ item, i }) => prev.find((p) => p.id === item.id)?.order !== i)
+    try {
+      await Promise.all(changed.map(({ item, i }) => apiCall(`/api/media/tracks/${item.id}`, 'PATCH', { order: i })))
+    } catch (err) {
+      console.error('[reorder] failed, reverting', err)
+      setTracks(prev)
+      await loadTracks?.().catch(() => {})
+      alert(`排序没保存成功：${err.message || err}`)
+      return
+    }
     triggerMusicDataChange()
   }
 

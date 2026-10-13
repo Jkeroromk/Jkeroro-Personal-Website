@@ -6,10 +6,11 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
-import { ArrowUp, ArrowDown, Eye, EyeOff, Trash2, Plus, Save, RotateCcw, ExternalLink, Share2 } from 'lucide-react'
+import { motion, LayoutGroup } from 'framer-motion'
+import { ArrowUp, ArrowDown, GripVertical, Eye, EyeOff, Trash2, Plus, Save, RotateCcw, ExternalLink, Share2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { getAuthHeaders } from '@/lib/auth-client'
+import { SortableList, SortableItem, SortableHandle } from './Sortable'
 import { PLATFORMS, getPlatform, MAX_SOCIAL_LINKS, LINKS_PER_ROW } from '@/lib/social-platforms'
 
 let tempId = 0
@@ -93,6 +94,19 @@ export default function SocialLinksTab() {
     setLinks((list) => {
       const next = [...list]
       ;[next[index], next[j]] = [next[j], next[index]]
+      return next
+    })
+  }
+
+  // 拖拽排序：松手后一次挪到目标位置
+  const reorder = (from, to) => {
+    if (links[from]) setMovedKey(links[from]._key)
+    clearTimeout(movedTimer.current)
+    movedTimer.current = setTimeout(() => setMovedKey(null), 700)
+    setLinks((list) => {
+      const next = [...list]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
       return next
     })
   }
@@ -228,19 +242,18 @@ export default function SocialLinksTab() {
       {/* Editor */}
       <div className="space-y-2">
         <LayoutGroup>
-        <AnimatePresence initial={false}>
-        {links.map((link, index) => {
+        <SortableList items={links} getKey={(l) => l._key} onReorder={reorder} axis="y" className="space-y-2">
+        {(link, index) => {
           const { Icon } = getPlatform(link.platform)
           const err = errors[index]
           return (
-            <motion.div
+            <SortableItem
               key={link._key}
-              layout="position"
-              initial={{ opacity: 0, y: -6 }}
+              id={link._key}
               animate={{ opacity: link.visible ? 1 : 0.6, y: 0 }}
               exit={{ opacity: 0, x: 24, transition: { duration: 0.18 } }}
-              transition={{ layout: { type: 'spring', stiffness: 520, damping: 40 }, opacity: { duration: 0.2 } }}
-              className={`relative rounded-xl border bg-zinc-900 p-3 transition-[border-color,box-shadow] duration-300 ${
+              draggingClassName="!border-indigo-500/50 !bg-zinc-800"
+              className={`relative rounded-xl border bg-zinc-900 p-3 transition-[border-color,box-shadow,background-color] duration-300 ${
                 movedKey === link._key
                   ? 'border-indigo-500/50 shadow-[0_0_0_3px_rgba(99,102,241,0.15)] z-10'
                   : 'border-white/5 hover:border-white/10'
@@ -249,6 +262,9 @@ export default function SocialLinksTab() {
               <div className="flex flex-col lg:flex-row lg:items-start gap-3">
                 {/* order */}
                 <div className="flex lg:flex-col items-center gap-1 lg:pt-1">
+                  <SortableHandle className="p-1 rounded-md text-zinc-500 hover:text-white hover:bg-white/5">
+                    <GripVertical className="w-3.5 h-3.5" />
+                  </SortableHandle>
                   <span className="text-[11px] text-zinc-500 tabular-nums w-5 text-center">{index + 1}</span>
                   <button
                     onClick={() => move(index, -1)}
@@ -343,10 +359,10 @@ export default function SocialLinksTab() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </SortableItem>
           )
-        })}
-        </AnimatePresence>
+        }}
+        </SortableList>
         </LayoutGroup>
 
         {links.length === 0 && (
