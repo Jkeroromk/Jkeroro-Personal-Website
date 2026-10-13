@@ -345,7 +345,10 @@ export default function GroupedItemsEditor({
         {shownItems === 0 ? (
           <p className="text-xs text-zinc-500">Nothing is shown. This section is hidden on the homepage.</p>
         ) : (
-          <IconGroups groups={previewGroups} compact />
+          // 和首页同一个组件、同样的参数，显示和悬停效果都一样；底部留出最后一行名字淡入的位置
+          <div className="pb-10">
+            <IconGroups groups={previewGroups} className="mt-4" />
+          </div>
         )}
       </div>
 
