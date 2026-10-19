@@ -8,6 +8,7 @@ import HomeSection from './HomeSection'
 // 首屏组件直接导入
 import Stack from "@/components/media/stack"
 import MusicPlayer from "@/components/media/musicPlayer"
+import CvCard from "@/components/interactive/CvCard"
 
 // 折叠下方组件延迟加载，减少首屏 JS 体积
 const Tabs = dynamic(() => import("@/components/media/tabs"), { ssr: false })
@@ -25,6 +26,10 @@ const HomeContent = () => {
         <LinkforBio/>
       </HomeSection>
       
+      <HomeSection delay={0.15}>
+        <CvCard />
+      </HomeSection>
+
       <HomeSection delay={0.2}>
         <Stack/>
       </HomeSection>

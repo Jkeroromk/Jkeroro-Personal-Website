@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Heart } from 'lucide-react'
-import IndexRow from './IndexRow'
+import LinkCard from './LinkCard'
 
 const DonationDialog = dynamic(() => import('./DonationButton'), { ssr: false })
 
@@ -13,7 +13,7 @@ export default function SupportRow() {
 
   return (
     <div className="w-full mt-14 sm:mt-16">
-      <IndexRow eyebrow="Support" title="Buy me a coffee" icon={Heart} onClick={() => setOpen(true)} />
+      <LinkCard title="Buy me a coffee" sub="Support my work" icon={Heart} onClick={() => setOpen(true)} />
       {open && <DonationDialog open onOpenChange={setOpen} />}
     </div>
   )
