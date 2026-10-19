@@ -7,6 +7,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
+import { resolveCountry } from '@/lib/countries'
 
 export interface Totals {
   views: number
@@ -42,6 +43,16 @@ export function previousMonthKey(date: Date): string {
   return monthKey(new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 1, 1)))
 }
 
+// 同一个国家的旧写法（The Netherlands / Netherlands 等）合并成一个名字，免得被算成“新国家”
+function mergeCountryNames(entries: [string, number][]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const [name, count] of entries) {
+    const key = resolveCountry(name)?.name ?? name
+    out[key] = (out[key] ?? 0) + count
+  }
+  return out
+}
+
 async function currentTotals(): Promise<Totals> {
   const [view, countries, comments] = await Promise.all([
     prisma.viewCount.findUnique({ where: { id: 'main' } }),
@@ -50,7 +61,7 @@ async function currentTotals(): Promise<Totals> {
   ])
   return {
     views: view?.count ?? 0,
-    countries: Object.fromEntries(countries.map((c) => [c.country, c.count])),
+    countries: mergeCountryNames(countries.map((c) => [c.country, c.count])),
     comments,
   }
 }
@@ -62,7 +73,8 @@ async function previousSnapshot(month: string): Promise<Totals | null> {
     orderBy: { month: 'desc' },
   })
   const data = prev?.data as unknown as ReportData | undefined
-  return data?.totals ?? null
+  if (!data?.totals) return null
+  return { ...data.totals, countries: mergeCountryNames(Object.entries(data.totals.countries ?? {})) }
 }
 
 export async function buildReport(month: string, partial: boolean): Promise<ReportData> {

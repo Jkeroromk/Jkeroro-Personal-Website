@@ -1,385 +1,518 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-// No longer using Firebase - using API instead
-import ReactECharts from "echarts-for-react";
-import { registerMap } from "echarts";
+// 访客地图：点阵 3D 地球 / 点阵平面地图两种视图 + 国家排行榜。
+// 不再用 ECharts 和 1MB 的 world.json：陆地是 lib/land-mask.ts 里 8KB 的点阵，canvas 自己画。
+// 数据来自 /api/stats/countries（已合并旧写法并带好坐标）。
+
+import { useEffect, useMemo, useRef, useState } from "react";
 import DataManager from "@/lib/data-manager";
+import { isLand } from "@/lib/land-mask";
+import styles from "./AudienceMap.module.css";
 
-const WorldMapDialog = () => {
-  const [countryData, setCountryData] = useState({});
-  const [mapLoaded, setMapLoaded] = useState(false);
-  const [mapHeight, setMapHeight] = useState("300px");
-  const [mapWidth, setMapWidth] = useState("100%");
-  const [topCountries, setTopCountries] = useState([]);
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [isZoomed, setIsZoomed] = useState(false);
+const DAY = 864e5;
+const INK = "244,244,242";
+const OK = "159,216,164";
+const GRID = { latTop: 78, latBot: -58, step: 2.5 };
 
-  // 处理国家数据
-  const processCountryData = (data) => {
-        // Convert array to object format for compatibility
-        const countryDataObj = {};
-        data.forEach((item) => {
-          countryDataObj[item.country] = {
-            count: item.count,
-            lastUpdated: item.lastUpdated,
-            lastVisit: item.lastVisit,
-          };
-        });
-        
-        setCountryData(countryDataObj);
+function ago(ms) {
+  const m = Math.floor(ms / 6e4);
+  if (m < 1) return "now";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12) return `${mo}mo`;
+  return `${Math.floor(d / 365)}y`;
+}
 
-        // Extract top 3 most visited countries
-        const sortedCountries = data
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 3)
-          .map((item) => [item.country, { count: item.count, lastUpdated: item.lastUpdated, lastVisit: item.lastVisit }]);
+const markerRadius = (v) => 1.6 + Math.log10(v + 1) * 2.6;
 
-        setTopCountries(sortedCountries);
-        
-    // 移除数据流动动画
-    // setDataFlowAnimation(true);
-    // setTimeout(() => setDataFlowAnimation(false), 2000);
-  };
+// 地球上的陆地点：斐波那契球面均匀取点，再用陆地点阵过滤（只算一次）
+let globePoints = null;
+function getGlobePoints() {
+  if (globePoints) return globePoints;
+  const N = 16000;
+  const ga = Math.PI * (3 - Math.sqrt(5));
+  const pts = [];
+  for (let i = 0; i < N; i++) {
+    const y = 1 - (2 * (i + 0.5)) / N;
+    const r = Math.sqrt(1 - y * y);
+    const t = ga * i;
+    const lat = Math.asin(y);
+    const lng = Math.atan2(Math.sin(t) * r, Math.cos(t) * r);
+    if (isLand((lat * 180) / Math.PI, (lng * 180) / Math.PI)) pts.push([lat, lng]);
+  }
+  globePoints = pts;
+  return pts;
+}
 
-  useEffect(() => {
-    const dataManager = DataManager.getInstance();
-    
-    // 先使用缓存数据立即显示
-    const cachedCountries = dataManager.getCountries();
-    if (cachedCountries && cachedCountries.length > 0) {
-      processCountryData(cachedCountries);
-    }
-
-    const fetchCountries = async () => {
-      try {
-        const response = await fetch('/api/stats/countries');
-        if (!response.ok) throw new Error('Failed to fetch countries');
-        
-        const data = await response.json();
-        
-        // 保存到缓存
-        dataManager.saveCountries(data);
-        
-        // 更新显示
-        processCountryData(data);
-      } catch (error) {
-        console.error('Error fetching countries:', error);
+// 平面点阵：每个陆地格子离访客国家越近越亮
+function buildGridCells(points, maxV) {
+  const { latTop, latBot, step } = GRID;
+  const cols = 360 / step;
+  const rows = (latTop - latBot) / step;
+  const cells = [];
+  const maxLog = Math.log10(maxV + 1) || 1;
+  for (let j = 0; j < rows; j++) {
+    const lat = latTop - (j + 0.5) * step;
+    for (let i = 0; i < cols; i++) {
+      const lng = -180 + (i + 0.5) * step;
+      if (!isLand(lat, lng)) continue;
+      let heat = 0;
+      for (const d of points) {
+        const dl = lat - d.lat;
+        const dn = ((lng - d.lng + 540) % 360) - 180;
+        const dist = dl * dl + dn * dn;
+        const reach = 18 + Math.log10(d.v + 1) * 40;
+        if (dist < reach) {
+          heat = Math.max(heat, (1 - dist / reach) * (0.35 + (Math.log10(d.v + 1) / maxLog) * 0.65));
+        }
       }
-    };
+      cells.push([i, j, heat]);
+    }
+  }
+  return { cells, cols, rows };
+}
 
-    // 异步获取最新数据（仅首次加载）
-    fetchCountries();
-    
-    // 注意：不再需要轮询，因为已经有 SSE 实时更新了
-    // 如果需要实时更新，可以通过 SSE 事件来更新数据
-  }, []);
+// 接口新旧两种格式都能读（旧缓存里没有坐标，只是先不画点）
+function normalize(rows, now) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((r) => r && r.country && r.count > 0)
+    .map((r) => {
+      const ts = Date.parse(r.lastVisit || r.lastUpdated) || 0;
+      return {
+        key: r.code || r.country,
+        name: r.country,
+        code: r.code || r.country.slice(0, 2).toUpperCase(),
+        v: r.count,
+        ts,
+        age: now - ts,
+        fresh: now - ts < 7 * DAY,
+        lat: typeof r.lat === "number" ? r.lat : null,
+        lng: typeof r.lng === "number" ? r.lng : null,
+      };
+    })
+    .sort((a, b) => b.v - a.v);
+}
+
+const AudienceMap = () => {
+  const [raw, setRaw] = useState(() => DataManager.getInstance().getCountries() || []);
+  const [mode, setMode] = useState("globe");
+  const [order, setOrder] = useState("top");
+  const [expanded, setExpanded] = useState(false);
+  const [focusKey, setFocusKey] = useState(null);
+  const [now] = useState(() => Date.now());
+
+  const stageRef = useRef(null);
+  const canvasRef = useRef(null);
+  const tipRef = useRef(null);
+  const live = useRef({ mode: "globe", focus: null, hover: null, points: [], grid: null });
 
   useEffect(() => {
-    fetch("/world.json")
-      .then((response) => response.json())
+    let alive = true;
+    fetch("/api/stats/countries")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((data) => {
-        registerMap("world", data);
-        setMapLoaded(true);
+        if (!alive) return;
+        DataManager.getInstance().saveCountries(data);
+        setRaw(data);
       })
-      .catch((error) => console.error("Error loading world map:", error));
+      .catch((err) => console.error("Error fetching countries:", err));
+    return () => {
+      alive = false;
+    };
   }, []);
 
+  const data = useMemo(() => normalize(raw, now), [raw, now]);
+  const total = useMemo(() => data.reduce((s, d) => s + d.v, 0), [data]);
+  const latest = useMemo(() => data.reduce((a, b) => (!a || b.ts > a.ts ? b : a), null), [data]);
+  const maxV = data[0]?.v || 1;
+
+  // 动画循环从 ref 里读最新状态，不随 React 渲染重启
   useEffect(() => {
-    const updateSize = () => {
-      if (window.innerWidth >= 1024) {
-        setMapHeight("300px");
-        setMapWidth("100%");
-      } else {
-        setMapHeight("300px");
-        setMapWidth("95%");
+    const L = live.current;
+    L.points = data.filter((d) => d.lat !== null);
+    L.grid = null;
+    L.maxV = maxV;
+    L.focus = L.points.find((d) => d.key === focusKey) || null;
+  }, [data, maxV, focusKey]);
+
+  useEffect(() => {
+    live.current.mode = mode;
+  }, [mode]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    const cv = canvasRef.current;
+    const tip = tipRef.current;
+    if (!stage || !cv || !tip) return;
+    const ctx = cv.getContext("2d");
+    const L = live.current;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const gp = getGlobePoints();
+
+    let W = 0;
+    let H = 0;
+    const resize = () => {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = stage.clientWidth;
+      H = stage.clientHeight;
+      cv.width = W * dpr;
+      cv.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(stage);
+
+    // 起始角度：美国在左边一点，地球慢慢往右转
+    let rot = (98.5 * Math.PI) / 180 - 0.45;
+    let tilt = 0.42;
+    let tRot = rot;
+    let tTilt = tilt;
+    let lastFocus = null;
+    const spin = reduce ? 0 : 0.0016;
+    let drag = null;
+    let onScreen = [];
+
+    const project = (lat, lng) => {
+      const l = lng + rot;
+      const cl = Math.cos(lat);
+      const x = cl * Math.sin(l);
+      const y = Math.sin(lat);
+      const z = cl * Math.cos(l);
+      const ct = Math.cos(tilt);
+      const st = Math.sin(tilt);
+      return [x, y * ct - z * st, y * st + z * ct];
+    };
+
+    const drawMarker = (d, px, py, r, z, t) => {
+      const on = L.focus === d || L.hover === d;
+      const glow = ctx.createRadialGradient(px, py, 0, px, py, r * 3.2);
+      glow.addColorStop(0, `rgba(${INK},${0.28 * z})`);
+      glow.addColorStop(1, `rgba(${INK},0)`);
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(px, py, r * 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `rgba(${INK},${0.55 + 0.45 * z})`;
+      ctx.beginPath();
+      ctx.arc(px, py, Math.max(1.4, r * 0.55), 0, Math.PI * 2);
+      ctx.fill();
+      if (d.fresh) {
+        const p = reduce ? 0.5 : (t / 1600 + (d.ts % 1000) / 1000) % 1;
+        ctx.strokeStyle = `rgba(${OK},${(1 - p) * 0.9 * z})`;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(px, py, r * 0.8 + p * r * 2.4 + 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (on) {
+        ctx.strokeStyle = `rgb(${INK})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(px, py, r * 0.55 + 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(${INK},.35)`;
+        ctx.beginPath();
+        ctx.moveTo(px - r - 14, py); ctx.lineTo(px - r - 6, py);
+        ctx.moveTo(px + r + 6, py); ctx.lineTo(px + r + 14, py);
+        ctx.moveTo(px, py - r - 14); ctx.lineTo(px, py - r - 6);
+        ctx.moveTo(px, py + r + 6); ctx.lineTo(px, py + r + 14);
+        ctx.stroke();
       }
     };
 
-    updateSize();
-    window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
+    const drawGlobe = (t) => {
+      const R = Math.min(W, H) * 0.43;
+      const cx = W / 2;
+      const cy = H / 2 + 4;
+      const atmo = ctx.createRadialGradient(cx, cy, R * 0.92, cx, cy, R * 1.22);
+      atmo.addColorStop(0, `rgba(${INK},.07)`);
+      atmo.addColorStop(1, `rgba(${INK},0)`);
+      ctx.fillStyle = atmo;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * 1.22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#08080a";
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(${INK},.08)`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      for (const [la, lo] of gp) {
+        const [x, y, z] = project(la, lo);
+        if (z <= 0) continue;
+        ctx.fillStyle = `rgba(170,170,166,${0.22 + z * 0.7})`;
+        const s = 1.1 + z * 1.1;
+        ctx.fillRect(cx + x * R - s / 2, cy - y * R - s / 2, s, s);
+      }
+      onScreen = [];
+      for (let i = L.points.length - 1; i >= 0; i--) {
+        const d = L.points[i];
+        const [x, y, z] = project((d.lat * Math.PI) / 180, (d.lng * Math.PI) / 180);
+        if (z <= 0.02) continue;
+        const px = cx + x * R;
+        const py = cy - y * R;
+        const r = markerRadius(d.v) * (0.7 + 0.3 * z);
+        drawMarker(d, px, py, r, z, t);
+        onScreen.push({ d, x: px, y: py, r });
+      }
+    };
+
+    const drawGrid = (t) => {
+      if (!L.grid) L.grid = buildGridCells(L.points, L.maxV || 1);
+      const { cells, cols, rows } = L.grid;
+      const { latTop, step } = GRID;
+      const cell = Math.min(W / cols, (H - 20) / rows);
+      const ox = (W - cols * cell) / 2;
+      const oy = (H - rows * cell) / 2;
+      for (const [i, j, heat] of cells) {
+        ctx.fillStyle = heat > 0 ? `rgba(${INK},${0.16 + heat * 0.55})` : "rgba(138,138,134,.22)";
+        ctx.beginPath();
+        ctx.arc(ox + (i + 0.5) * cell, oy + (j + 0.5) * cell, cell * (0.26 + heat * 0.16), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      onScreen = [];
+      for (let k = L.points.length - 1; k >= 0; k--) {
+        const d = L.points[k];
+        const px = ox + ((d.lng + 180) / step) * cell;
+        const py = oy + ((latTop - d.lat) / step) * cell;
+        const r = markerRadius(d.v) * 0.85;
+        drawMarker(d, px, py, r, 1, t);
+        onScreen.push({ d, x: px, y: py, r });
+      }
+    };
+
+    const showTip = (m) => {
+      if (!m) {
+        tip.hidden = true;
+        return;
+      }
+      tip.hidden = false;
+      tip.style.left = `${m.x}px`;
+      tip.style.top = `${m.y - m.r * 0.4}px`;
+      const key = `${m.d.key}:${m.d.v}`;
+      if (tip.dataset.key !== key) {
+        tip.dataset.key = key;
+        tip.firstChild.textContent = m.d.name;
+        tip.lastChild.textContent = `${m.d.v.toLocaleString("en-US")} visit${m.d.v > 1 ? "s" : ""} · ${ago(m.d.age)} ago`;
+      }
+    };
+
+    let raf = 0;
+    const frame = (t) => {
+      ctx.clearRect(0, 0, W, H);
+      if (L.mode === "globe") {
+        if (L.focus !== lastFocus) {
+          lastFocus = L.focus;
+          if (L.focus) {
+            const target = -(L.focus.lng * Math.PI) / 180;
+            const diff = ((((target - rot) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+            tRot = rot + diff;
+            tTilt = Math.max(-1.1, Math.min(1.1, (L.focus.lat * Math.PI) / 180));
+          }
+        }
+        if (!drag) {
+          if (L.focus) {
+            rot += (tRot - rot) * 0.08;
+            tilt += (tTilt - tilt) * 0.08;
+          } else {
+            rot += spin;
+          }
+        }
+        drawGlobe(t);
+      } else {
+        drawGrid(t);
+      }
+      const target = L.hover || L.focus;
+      showTip(target ? onScreen.find((m) => m.d === target) : null);
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+
+    const pick = (e) => {
+      const b = stage.getBoundingClientRect();
+      const x = e.clientX - b.left;
+      const y = e.clientY - b.top;
+      let best = null;
+      let bd = Infinity;
+      for (const m of onScreen) {
+        const dd = Math.hypot(m.x - x, m.y - y);
+        if (dd < Math.max(12, m.r + 6) && dd < bd) {
+          bd = dd;
+          best = m;
+        }
+      }
+      return best;
+    };
+    const onDown = (e) => {
+      if (L.mode !== "globe") return;
+      drag = { x: e.clientX, y: e.clientY, r: rot, t: tilt, moved: false };
+      stage.setPointerCapture(e.pointerId);
+      stage.dataset.dragging = "true";
+    };
+    const onMove = (e) => {
+      if (drag) {
+        const dx = e.clientX - drag.x;
+        const dy = e.clientY - drag.y;
+        if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true;
+        rot = drag.r + dx * 0.008;
+        tilt = Math.max(-1.1, Math.min(1.1, drag.t + dy * 0.006));
+        tRot = rot;
+        tTilt = tilt;
+        return;
+      }
+      const m = pick(e);
+      L.hover = m ? m.d : null;
+      stage.dataset.pointer = m ? "true" : "false";
+    };
+    const onUp = (e) => {
+      const moved = drag && drag.moved;
+      drag = null;
+      delete stage.dataset.dragging;
+      if (!moved) {
+        const m = pick(e);
+        setFocusKey((k) => (m ? (k === m.d.key ? null : m.d.key) : null));
+      }
+    };
+    const onLeave = () => {
+      L.hover = null;
+    };
+    stage.addEventListener("pointerdown", onDown);
+    stage.addEventListener("pointermove", onMove);
+    stage.addEventListener("pointerup", onUp);
+    stage.addEventListener("pointerleave", onLeave);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      stage.removeEventListener("pointerdown", onDown);
+      stage.removeEventListener("pointermove", onMove);
+      stage.removeEventListener("pointerup", onUp);
+      stage.removeEventListener("pointerleave", onLeave);
+    };
   }, []);
 
-  // 格式化访问时间
-  const formatLastVisit = (timestamp) => {
-    if (!timestamp) return 'Never';
-    const now = new Date();
-    const visitTime = new Date(timestamp);
-    const diffMs = now - visitTime;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return visitTime.toLocaleDateString();
-  };
-
-  // 国家坐标映射（主要国家的经纬度）
-  const countryCoordinates = {
-    'United States': [-95.7129, 37.0902],
-    'China': [104.1954, 35.8617],
-    'Japan': [138.2529, 36.2048],
-    'Germany': [10.4515, 51.1657],
-    'United Kingdom': [-3.4360, 55.3781],
-    'France': [2.2137, 46.2276],
-    'Canada': [-106.3468, 56.1304],
-    'Australia': [133.7751, -25.2744],
-    'Brazil': [-51.9253, -14.2350],
-    'India': [78.9629, 20.5937],
-    'Russia': [105.3188, 61.5240],
-    'South Korea': [127.7669, 35.9078],
-    'Italy': [12.5674, 41.8719],
-    'Spain': [-3.7492, 40.4637],
-    'Netherlands': [5.2913, 52.1326],
-    'Sweden': [18.6435, 60.1282],
-    'Norway': [8.4689, 60.4720],
-    'Denmark': [9.5018, 56.2639],
-    'Finland': [25.7482, 61.9241],
-    'Switzerland': [8.2275, 46.8182],
-    'Austria': [14.5501, 47.5162],
-    'Belgium': [4.4699, 50.5039],
-    'Poland': [19.1349, 51.9194],
-    'Czech Republic': [15.4730, 49.8175],
-    'Hungary': [19.5033, 47.1625],
-    'Portugal': [-8.2245, 39.3999],
-    'Greece': [21.8243, 39.0742],
-    'Turkey': [35.2433, 38.9637],
-    'Israel': [34.8516, 31.0461],
-    'United Arab Emirates': [53.8478, 23.4241],
-    'Saudi Arabia': [45.0792, 23.8859],
-    'South Africa': [22.9375, -30.5595],
-    'Egypt': [30.8025, 26.0975],
-    'Nigeria': [8.6753, 9.0820],
-    'Kenya': [37.9062, -0.0236],
-    'Mexico': [-102.5528, 23.6345],
-    'Argentina': [-63.6167, -38.4161],
-    'Chile': [-71.5430, -35.6751],
-    'Colombia': [-74.2973, 4.5709],
-    'Peru': [-75.0152, -9.1900],
-    'Venezuela': [-66.5897, 6.4238],
-    'Thailand': [100.9925, 15.8700],
-    'Vietnam': [108.2772, 14.0583],
-    'Malaysia': [101.9758, 4.2105],
-    'Singapore': [103.8198, 1.3521],
-    'Indonesia': [113.9213, -0.7893],
-    'Philippines': [121.7740, 12.8797],
-    'New Zealand': [174.8860, -40.9006],
-    'Taiwan': [120.9605, 23.6978],
-    'Hong Kong': [114.1095, 22.3964],
-  };
-
-  // 处理国家点击事件
-  const handleCountryClick = (params) => {
-    const countryName = params.name;
-    const countryInfo = countryData[countryName];
-    
-    if (countryInfo) {
-      setSelectedCountry({
-        name: countryName,
-        count: countryInfo.count,
-        lastUpdated: countryInfo.lastUpdated,
-        lastVisit: countryInfo.lastVisit,
-        coordinates: countryCoordinates[countryName] || [0, 0]
-      });
-      setIsZoomed(true);
-    }
-  };
-
-  // 返回世界视图
-  const handleBackToWorld = () => {
-    setSelectedCountry(null);
-    setIsZoomed(false);
-  };
-
-  const getMapOption = () => ({
-    backgroundColor: "#000",
-    tooltip: {
-      show: true,
-      trigger: "item",
-      backgroundColor: "#333",
-      borderColor: "#fff",
-      textStyle: {
-        color: "#fff",
-      },
-      formatter: ({ name, value }) => {
-        const countryInfo = countryData[name];
-        if (!countryInfo) return `${name}: No data`;
-        const lastVisit = countryInfo.lastVisit || countryInfo.lastUpdated;
-        return `${name}: ${value} visits<br/>Last: ${formatLastVisit(lastVisit)}`;
-      },
-    },
-    visualMap: {
-      min: 0,
-      max: 50,
-      left: "left",
-      top: "bottom",
-      text: ["High", "Low"],
-      calculable: true,
-      textStyle: {
-        color: "#fff",
-        fontWeight: "bold",
-      },
-      inRange: {
-        color: ["#2c7bb6", "#abd9e9", "#ffffbf", "#fdae61", "#d73027"],
-      },
-      itemWidth: 2,
-      itemHeight: 40,
-    },
-    series: [
-      {
-        name: "Visitor Locations",
-        type: "map",
-        map: "world",
-        roam: true,
-        zoom: isZoomed ? 3 : 1,
-        center: selectedCountry ? selectedCountry.coordinates : undefined,
-        emphasis: {
-          disabled: true,
-        },
-        select: {
-          disabled: true,
-        },
-        data: Object.keys(countryData).map((country) => ({
-          name: country,
-          value: countryData[country].count || 0,
-        })),
-      },
-    ],
-  });
+  const list = useMemo(
+    () => [...data].sort(order === "top" ? (a, b) => b.v - a.v : (a, b) => b.ts - a.ts),
+    [data, order]
+  );
+  const shown = expanded ? list : list.slice(0, 6);
+  const maxLog = Math.log10(maxV + 1) || 1;
 
   return (
-    <div className="w-full flex flex-col items-center">
-      {mapLoaded ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="w-full"
-        >
-          <div data-map-container className="w-full">
-            <ReactECharts
-              option={getMapOption()}
-              style={{
-                height: mapHeight,
-                width: mapWidth,
-              }}
-              onEvents={{
-                click: handleCountryClick,
-              }}
-            />
-          </div>
-
-          {/* 返回按钮 */}
-          {isZoomed && (
-            <button
-              onClick={handleBackToWorld}
-              className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
-            >
-              ← Back to World View
-            </button>
-          )}
-        </motion.div>
-      ) : (
-        <div className="flex flex-col items-center justify-center h-[300px] gap-4">
-          {/* 地球轮廓动画 */}
-          <motion.div
-            className="relative w-16 h-16"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-          >
-            {/* 外圈 */}
-            <div className="absolute inset-0 rounded-full border-2 border-gray-600" />
-            {/* 旋转的高亮弧 */}
-            <motion.div
-              className="absolute inset-0 rounded-full border-2 border-transparent"
-              style={{
-                borderTopColor: "white",
-                borderRightColor: "rgba(255,255,255,0.3)",
-              }}
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-            />
-            {/* 经线 */}
-            <div className="absolute inset-[6px] rounded-full border border-gray-700" style={{ borderRadius: "50% / 50%", transform: "scaleX(0.5)" }} />
-            <div className="absolute inset-[6px] rounded-full border border-gray-700" style={{ borderRadius: "50% / 50%", transform: "scaleX(0.8)" }} />
-            {/* 纬线 */}
-            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-gray-700" />
-            <div className="absolute left-1 right-1 top-[35%] h-px bg-gray-700/60" />
-            <div className="absolute left-1 right-1 top-[65%] h-px bg-gray-700/60" />
-          </motion.div>
-
-          {/* 文字 */}
-          <div className="text-center">
-            <motion.p
-              className="text-white/70 text-sm font-medium"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            >
-              Loading World Map
-            </motion.p>
-            {/* 进度点 */}
-            <div className="flex justify-center gap-1 mt-2">
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-1 h-1 rounded-full bg-white/60"
-                  animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.2, 0.8] }}
-                  transition={{
-                    duration: 1.2,
-                    repeat: Infinity,
-                    delay: i * 0.3,
-                    ease: "easeInOut",
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+    <div className={styles.root}>
+      <div className={styles.stats}>
+        <div className={styles.stat}>
+          <span className={styles.k}>Visits</span>
+          <span className={styles.v}>{total.toLocaleString("en-US")}</span>
         </div>
-      )}
-
-      {/* 选中国家的详细信息 */}
-      {selectedCountry && (
-        <div className="mt-6 w-full max-w-md bg-gray-800 rounded-lg p-4 text-white">
-          <h3 className="text-lg font-bold text-center mb-3">{selectedCountry.name}</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-300">Total Visits:</span>
-              <span className="text-sm font-semibold">{selectedCountry.count}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-300">Last Visit:</span>
-              <span className="text-sm font-semibold">{formatLastVisit(selectedCountry.lastVisit || selectedCountry.lastUpdated)}</span>
-            </div>
-          </div>
+        <div className={styles.stat}>
+          <span className={styles.k}>Countries</span>
+          <span className={styles.v}>{data.length}</span>
         </div>
-      )}
-
-      {/* ✅ Display Top 3 Countries Under the Map */}
-      {!selectedCountry && (
-        <div className="mt-6 w-full max-w-md text-white text-center">
-          <h2 className="text-sm font-bold">Top 3 Visiting Countries</h2>
-          <p className="text-xs text-gray-400 mb-2">Click on any country to see details</p>
-          <ul className="mt-2 space-y-2">
-            {topCountries.length > 0 ? (
-              topCountries.map(([country, data], index) => (
-                <li key={index} className="flex justify-between p-2 rounded-md bg-gray-800">
-                  <span className="text-xs">{index + 1}. {country}</span>
-                  <span className="text-xs">{data.count} visits</span>
-                </li>
-              ))
+        <div className={styles.stat}>
+          <span className={styles.k}>Last visit</span>
+          <span className={styles.v}>
+            {latest ? (
+              <>
+                {ago(latest.age)} <small>{latest.code}</small>
+              </>
             ) : (
-              <p className="text-gray-400 text-sm">No data yet.</p>
+              "–"
             )}
-          </ul>
+          </span>
         </div>
-      )}
+      </div>
+
+      <div className={styles.bar}>
+        <div className={styles.seg} role="group" aria-label="Map style">
+          <button type="button" aria-pressed={mode === "globe"} onClick={() => setMode("globe")}>
+            Globe
+          </button>
+          <button type="button" aria-pressed={mode === "grid"} onClick={() => setMode("grid")}>
+            Dot grid
+          </button>
+        </div>
+        <span className={styles.hint}>{mode === "globe" ? "drag to spin" : "tap a dot"}</span>
+      </div>
+
+      <div ref={stageRef} className={styles.stage} data-mode={mode}>
+        <canvas ref={canvasRef} className={styles.canvas} aria-label="Visitor map" role="img" />
+        <div ref={tipRef} className={styles.tip} hidden>
+          <span className={styles.tipName} />
+          <span className={styles.tipMeta} />
+        </div>
+      </div>
+
+      <div className={styles.legend}>
+        <span><i className={styles.land} />land</span>
+        <span><i className={styles.dot} />visitors · size by visits</span>
+        <span><i className={styles.ring} />visited in the last 7 days</span>
+      </div>
+
+      <div className={styles.ledger}>
+        <div className={styles.bar}>
+          <div className={styles.seg} role="group" aria-label="Sort countries">
+            <button type="button" aria-pressed={order === "top"} onClick={() => setOrder("top")}>
+              Top
+            </button>
+            <button type="button" aria-pressed={order === "recent"} onClick={() => setOrder("recent")}>
+              Recent
+            </button>
+          </div>
+          <span className={styles.hint}>{order === "top" ? "bar = log scale" : "newest first"}</span>
+        </div>
+
+        {data.length === 0 ? (
+          <p className={styles.empty}>No visits recorded yet.</p>
+        ) : (
+          <ul className={styles.rows}>
+            {shown.map((d, i) => {
+              const toggle = () => setFocusKey((k) => (k === d.key ? null : d.key));
+              return (
+                <li
+                  key={d.key}
+                  tabIndex={0}
+                  className={`${styles.row} ${d.fresh ? styles.fresh : ""} ${focusKey === d.key ? styles.on : ""}`}
+                  onClick={toggle}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggle();
+                    }
+                  }}
+                  onMouseEnter={() => { live.current.hover = live.current.points.find((p) => p.key === d.key) || null; }}
+                  onMouseLeave={() => { live.current.hover = null; }}
+                >
+                  <span className={styles.rk}>{i + 1}</span>
+                  <span className={styles.cc}>{d.code}</span>
+                  <span className={styles.nm}>
+                    <span>{d.name}</span>
+                    <span className={styles.track}>
+                      <i style={{ width: `${Math.max(2, (Math.log10(d.v + 1) / maxLog) * 100)}%` }} />
+                    </span>
+                  </span>
+                  <span className={styles.ct}>{d.v.toLocaleString("en-US")}</span>
+                  <span className={styles.ago}>{ago(d.age)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        {data.length > 6 && (
+          <button type="button" className={styles.more} onClick={() => setExpanded((x) => !x)}>
+            {expanded ? "Show less" : `All ${data.length} countries`}
+          </button>
+        )}
+      </div>
     </div>
   );
 };
 
-export default WorldMapDialog;
+export default AudienceMap;

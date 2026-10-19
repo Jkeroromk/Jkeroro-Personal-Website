@@ -1,38 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
-
-// ISO 3166-1 alpha-2 国家代码 → ECharts 世界地图国家名称映射
-const CODE_TO_NAME: Record<string, string> = {
-  AF: 'Afghanistan', AL: 'Albania', DZ: 'Algeria', AO: 'Angola', AR: 'Argentina',
-  AM: 'Armenia', AU: 'Australia', AT: 'Austria', AZ: 'Azerbaijan', BD: 'Bangladesh',
-  BY: 'Belarus', BE: 'Belgium', BJ: 'Benin', BO: 'Bolivia', BA: 'Bosnia and Herzegovina',
-  BW: 'Botswana', BR: 'Brazil', BN: 'Brunei', BG: 'Bulgaria', KH: 'Cambodia',
-  CM: 'Cameroon', CA: 'Canada', CF: 'Central African Republic', TD: 'Chad', CL: 'Chile',
-  CN: 'China', CO: 'Colombia', CG: 'Congo', CR: 'Costa Rica', HR: 'Croatia',
-  CU: 'Cuba', CZ: 'Czech Republic', DK: 'Denmark', DO: 'Dominican Republic', EC: 'Ecuador',
-  EG: 'Egypt', SV: 'El Salvador', ET: 'Ethiopia', FI: 'Finland', FR: 'France',
-  GA: 'Gabon', GE: 'Georgia', DE: 'Germany', GH: 'Ghana', GR: 'Greece',
-  GT: 'Guatemala', GN: 'Guinea', HT: 'Haiti', HN: 'Honduras', HK: 'Hong Kong',
-  HU: 'Hungary', IS: 'Iceland', IN: 'India', ID: 'Indonesia', IR: 'Iran',
-  IQ: 'Iraq', IE: 'Ireland', IL: 'Israel', IT: 'Italy', JM: 'Jamaica',
-  JP: 'Japan', JO: 'Jordan', KZ: 'Kazakhstan', KE: 'Kenya', KW: 'Kuwait',
-  KG: 'Kyrgyzstan', LA: 'Laos', LB: 'Lebanon', LY: 'Libya', LT: 'Lithuania',
-  LU: 'Luxembourg', MK: 'Macedonia', MG: 'Madagascar', MW: 'Malawi', MY: 'Malaysia',
-  ML: 'Mali', MR: 'Mauritania', MX: 'Mexico', MD: 'Moldova', MN: 'Mongolia',
-  MA: 'Morocco', MZ: 'Mozambique', MM: 'Myanmar', NA: 'Namibia', NP: 'Nepal',
-  NL: 'Netherlands', NZ: 'New Zealand', NI: 'Nicaragua', NE: 'Niger', NG: 'Nigeria',
-  NO: 'Norway', OM: 'Oman', PK: 'Pakistan', PA: 'Panama', PY: 'Paraguay',
-  PE: 'Peru', PH: 'Philippines', PL: 'Poland', PT: 'Portugal', PR: 'Puerto Rico',
-  QA: 'Qatar', RO: 'Romania', RU: 'Russia', RW: 'Rwanda', SA: 'Saudi Arabia',
-  SN: 'Senegal', RS: 'Serbia', SL: 'Sierra Leone', SK: 'Slovakia', SO: 'Somalia',
-  ZA: 'South Africa', KR: 'South Korea', SS: 'South Sudan', ES: 'Spain', LK: 'Sri Lanka',
-  SD: 'Sudan', SE: 'Sweden', CH: 'Switzerland', SY: 'Syria', TW: 'Taiwan',
-  TJ: 'Tajikistan', TZ: 'Tanzania', TH: 'Thailand', TG: 'Togo', TN: 'Tunisia',
-  TR: 'Turkey', TM: 'Turkmenistan', UG: 'Uganda', UA: 'Ukraine', AE: 'United Arab Emirates',
-  GB: 'United Kingdom', US: 'United States', UY: 'Uruguay', UZ: 'Uzbekistan',
-  VE: 'Venezuela', VN: 'Vietnam', YE: 'Yemen', ZM: 'Zambia', ZW: 'Zimbabwe',
-}
+import { countryNameFromCode, resolveCountry } from '@/lib/countries'
 
 // 记录访客位置
 export async function POST(request: NextRequest) {
@@ -40,14 +9,12 @@ export async function POST(request: NextRequest) {
     let country: string | null = null
 
     const body = await request.json().catch(() => ({}))
-    if (body.country) {
-      country = body.country
+    if (typeof body.country === 'string') {
+      // 只接受认得出来的国家名，免得有人往表里塞任意字符串
+      country = resolveCountry(body.country)?.name ?? null
     } else {
       // 直接从 Vercel 注入的请求头读取国家代码，零延迟
-      const countryCode = request.headers.get('x-vercel-ip-country')
-      if (countryCode) {
-        country = CODE_TO_NAME[countryCode.toUpperCase()] ?? null
-      }
+      country = countryNameFromCode(request.headers.get('x-vercel-ip-country'))
     }
 
     if (!country || country === 'Unknown') {
@@ -109,7 +76,36 @@ export async function GET() {
       8000
     )
 
-    return NextResponse.json(countries)
+    // 同一个国家在库里可能有几种旧写法（比如 The Netherlands / Netherlands），这里合并成一行，
+    // 并带上国家代码和坐标，前端地图直接用，不用再自己带一张国家表
+    const merged = new Map<string, {
+      country: string
+      code: string | null
+      lat: number | null
+      lng: number | null
+      count: number
+      lastVisit: Date
+    }>()
+    for (const row of countries) {
+      const info = resolveCountry(row.country)
+      const key = info?.code ?? row.country
+      const prev = merged.get(key)
+      if (prev) {
+        prev.count += row.count
+        if (row.lastVisit > prev.lastVisit) prev.lastVisit = row.lastVisit
+      } else {
+        merged.set(key, {
+          country: info?.name ?? row.country,
+          code: info?.code ?? null,
+          lat: info?.lat ?? null,
+          lng: info?.lng ?? null,
+          count: row.count,
+          lastVisit: row.lastVisit,
+        })
+      }
+    }
+
+    return NextResponse.json([...merged.values()].sort((a, b) => b.count - a.count))
   } catch (error) {
     const errorInfo = getDbErrorInfo(error)
     
