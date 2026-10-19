@@ -13,6 +13,7 @@ import MusicPlayer from "@/components/media/musicPlayer"
 const Tabs = dynamic(() => import("@/components/media/tabs"), { ssr: false })
 const GuestbookWall = dynamic(() => import("@/components/interactive/GuestbookWall"), { ssr: false })
 const Album = dynamic(() => import("@/components/media/album"), { ssr: false })
+const SupportRow = dynamic(() => import("@/components/interactive/SupportRow"), { ssr: false })
 const AnniversaryCounter = dynamic(() => import("@/components/interactive/AnniversaryCounter"), { ssr: false })
 import Footer from "@/components/layout/footer"
 
@@ -46,6 +47,10 @@ const HomeContent = () => {
       
       <HomeSection delay={0.6}>
         <Album />
+      </HomeSection>
+
+      <HomeSection delay={0.65}>
+        <SupportRow />
       </HomeSection>
 
       <HomeSection delay={0.7}>

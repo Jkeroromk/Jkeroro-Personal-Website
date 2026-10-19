@@ -3,9 +3,13 @@
 import React from "react";
 import { useAuth } from "../../auth";
 import ProjectIndex from "@/components/media/ProjectIndex";
+import IndexRow from "@/components/interactive/IndexRow";
 
-// 作品区。原来上面还有 Personal Cv / KillCam 两张大卡片、下面有 Donation 卡片：
-// CV 和 Support 挪到了首屏的 QuickLinks，KillCam 放进项目列表（后台 Projects 里管理）。
+// 作品区。原来上面有 Personal Cv / KillCam 两张亮灰色大卡片、下面有 Donation 卡片：
+// CV 改成项目列表下面同款的一行，Support 挪到页面最底部，KillCam 放进项目列表（后台 Projects 里管理）。
+
+const CV_URL = "https://3d-portfolio-jade-xi.vercel.app/";
+
 const Tabs = () => {
   const { loading } = useAuth();
 
@@ -23,6 +27,8 @@ const Tabs = () => {
       <div className="w-full mt-16 sm:mt-20 py-8" style={{ overflow: "visible" }}>
         <ProjectIndex />
       </div>
+
+      <IndexRow eyebrow="Resume · Job only" title="Personal CV" href={CV_URL} className="mt-6" />
     </div>
   );
 };

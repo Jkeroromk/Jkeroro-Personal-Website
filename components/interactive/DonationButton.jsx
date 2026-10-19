@@ -1,6 +1,6 @@
 'use client'
 
-// 打赏弹窗（Support）。触发按钮在首屏的 QuickLinks 里，这里只管弹窗本身。
+// 打赏弹窗（Support）。入口是页面最底部的 SupportRow，这里只管弹窗本身。
 // 样式跟访客地图同一套：深色面板、等宽小标题。
 
 import { useState } from 'react'
