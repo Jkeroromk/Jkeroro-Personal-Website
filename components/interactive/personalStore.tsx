@@ -40,7 +40,7 @@ const PersonalStore = ({ open, onOpenChange }: Props) => {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="bg-transparent w-[88vw] max-w-[400px] sm:w-[500px] sm:max-w-[500px]">
+      <SheetContent className="bg-[#0c0c0d]/95 backdrop-blur-md border-l border-[#202020] w-[88vw] max-w-[400px] sm:w-[500px] sm:max-w-[500px]">
         <SheetHeader>
           <SheetTitle className="text-white font-extrabold">Jkeroro'Store</SheetTitle>
           <SheetDescription className="text-gray-200">
