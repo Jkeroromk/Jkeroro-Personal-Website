@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
     // 启用更详细的源映射
     esmExternals: true,
     // 优化包大小
-    optimizePackageImports: ['lucide-react', 'framer-motion', 'react-icons', 'echarts', '@radix-ui/react-dialog', '@radix-ui/react-accordion'],
+    optimizePackageImports: ['lucide-react', 'framer-motion', 'react-icons', '@radix-ui/react-dialog', '@radix-ui/react-accordion'],
   },
   
   // 优化图片
@@ -100,12 +100,6 @@ const nextConfig: NextConfig = {
               name: 'react-icons',
               chunks: 'all',
               priority: 15,
-            },
-            echarts: {
-              test: /[\\/]node_modules[\\/](echarts|echarts-for-react|zrender)[\\/]/,
-              name: 'echarts',
-              chunks: 'all',
-              priority: 20,
             },
           },
         },

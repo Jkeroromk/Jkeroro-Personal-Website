@@ -3,24 +3,24 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { Button } from '../ui/button'
-import { Eye } from 'lucide-react'
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from '@/components/ui/alert-dialog'
+import { Eye, X } from 'lucide-react'
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogCancel } from '@/components/ui/alert-dialog'
 import { getRealtimeClient } from '@/lib/realtime-client'
 import DataManager from '@/lib/data-manager'
 
-// 延迟加载 WorldMap（含 ECharts ~500KB），仅在弹窗打开时加载
+// 延迟加载访客地图，仅在弹窗打开时加载
 const WorldMapDialog = dynamic(() => import('@/components/effects/worldMap'), {
   ssr: false,
   loading: () => (
-    <div className="flex flex-col items-center justify-center h-[300px] gap-3">
-      <div className="relative w-12 h-12">
-        <div className="absolute inset-0 rounded-full border-2 border-gray-600" />
+    <div className="flex flex-col items-center justify-center h-[420px] gap-3">
+      <div className="relative w-10 h-10">
+        <div className="absolute inset-0 rounded-full border border-[#3a3a38]" />
         <div
-          className="absolute inset-0 rounded-full border-2 border-transparent animate-spin"
-          style={{ borderTopColor: "white", animationDuration: "1.5s" }}
+          className="absolute inset-0 rounded-full border border-transparent animate-spin"
+          style={{ borderTopColor: '#f4f4f2', animationDuration: '1.5s' }}
         />
       </div>
-      <p className="text-gray-400 text-sm animate-pulse">Loading map...</p>
+      <p className="font-mono text-[11px] tracking-[0.14em] uppercase text-[#8a8a86]">Loading map</p>
     </div>
   ),
 })
@@ -146,17 +146,28 @@ const ViewerStats = () => {
           <Eye /> {viewerError ? "N/A" : viewerCount} Viewers
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="bg-black text-white border border-gray-400 shadow-lg scale-[0.9] sm:scale-[1]">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="text-base font-semibold">Audience Map</AlertDialogTitle>
-          <AlertDialogDescription className="text-gray-300">
-            View the geographic distribution of your audience across the world.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+      <AlertDialogContent className="block w-[calc(100vw-24px)] max-w-[560px] max-h-[90dvh] overflow-y-auto overscroll-contain p-0 gap-0 rounded-[14px] sm:rounded-[14px] bg-[#0c0c0d] text-[#f4f4f2] border border-[#202020] shadow-2xl">
+        <div className="flex items-center justify-between gap-3 px-[18px] pt-4">
+          <AlertDialogTitle className="font-mono text-[11px] font-semibold tracking-[0.18em] uppercase">
+            Audience Map
+          </AlertDialogTitle>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-[7px] font-mono text-[11px] tracking-[0.08em] text-[#8a8a86]">
+              <i className="w-1.5 h-1.5 rounded-full bg-[#9fd8a4] animate-pulse motion-reduce:animate-none" />
+              LIVE
+            </span>
+            <AlertDialogCancel
+              aria-label="Close"
+              className="mt-0 sm:mt-0 h-7 w-7 p-0 rounded-full border border-[#202020] bg-transparent text-[#8a8a86] hover:bg-[#141415] hover:text-[#f4f4f2]"
+            >
+              <X className="h-3.5 w-3.5" />
+            </AlertDialogCancel>
+          </div>
+        </div>
+        <AlertDialogDescription className="sr-only">
+          Where visitors to this site come from, by country.
+        </AlertDialogDescription>
         <WorldMapDialog />
-        <AlertDialogFooter>
-          <AlertDialogCancel className="bg-black text-white hover:bg-red-400">Close</AlertDialogCancel>
-        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   )
