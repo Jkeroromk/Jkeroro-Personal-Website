@@ -56,6 +56,7 @@ export interface Project {
   imageOffsetY: number | null
   scale: number | null
   order: number
+  pinned?: boolean
   createdAt: string
   updatedAt: string
 }

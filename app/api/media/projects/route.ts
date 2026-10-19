@@ -15,44 +15,15 @@ export async function GET() {
       8000
     )
 
-    // 尝试按 order 排序，如果 order 字段不存在则按创建时间排序
-    let sortedProjects = allProjects
-    try {
-      // 检查是否有 order 字段
-      const hasOrderField = allProjects.length === 0 || 'order' in allProjects[0]
-      
-      if (hasOrderField) {
-        // 分离有 order 和没有 order 的项目
-        const projectsWithOrder = allProjects.filter(p => p.order !== null && p.order !== undefined)
-        const projectsWithoutOrder = allProjects.filter(p => p.order === null || p.order === undefined)
-
-        // 按 order 排序有 order 的项目
-        projectsWithOrder.sort((a, b) => a.order! - b.order!)
-
-        // 合并并排序
-        sortedProjects = [...projectsWithOrder, ...projectsWithoutOrder]
-          .sort((a, b) => {
-            const aOrder = a.order ?? Number.MAX_SAFE_INTEGER
-            const bOrder = b.order ?? Number.MAX_SAFE_INTEGER
-            if (aOrder !== bOrder) {
-              return aOrder - bOrder
-            }
-            // 如果 order 相同，按创建时间排序
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          })
-      } else {
-        // 如果没有 order 字段，只按创建时间排序
-        sortedProjects = allProjects.sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
-      }
-    } catch (error) {
-      // 如果访问 order 字段出错，只按创建时间排序
-      console.warn('Error accessing order field, sorting by createdAt only:', error)
-      sortedProjects = allProjects.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-    }
+    // 排序：置顶的在前；同一组里按后台拖拽的 order；order 一样再按创建时间（新的在前）
+    const sortedProjects = [...allProjects].sort((a, b) => {
+      const pin = Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
+      if (pin !== 0) return pin
+      const aOrder = a.order ?? Number.MAX_SAFE_INTEGER
+      const bOrder = b.order ?? Number.MAX_SAFE_INTEGER
+      if (aOrder !== bOrder) return aOrder - bOrder
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
 
     return NextResponse.json(sortedProjects)
   } catch (error) {
@@ -102,6 +73,7 @@ export async function POST(request: NextRequest) {
       imageOffsetX,
       imageOffsetY,
       scale,
+      pinned,
     } = body
 
     if (!title || !description) {
@@ -142,6 +114,7 @@ export async function POST(request: NextRequest) {
         imageOffsetX: imageOffsetX || 0,
         imageOffsetY: imageOffsetY || 0,
         scale: scale || 1,
+        pinned: Boolean(pinned),
       },
     })
 

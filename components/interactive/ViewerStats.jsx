@@ -167,7 +167,8 @@ const ViewerStats = () => {
         <AlertDialogDescription className="sr-only">
           Where visitors to this site come from, by country.
         </AlertDialogDescription>
-        <WorldMapDialog />
+        {/* 跟按钮上的数字用同一个来源，两处显示一致 */}
+        <WorldMapDialog totalViews={viewerError ? null : viewerCount} />
       </AlertDialogContent>
     </AlertDialog>
   )

@@ -8,12 +8,13 @@ import HomeSection from './HomeSection'
 // 首屏组件直接导入
 import Stack from "@/components/media/stack"
 import MusicPlayer from "@/components/media/musicPlayer"
+import CvCard from "@/components/interactive/CvCard"
 
 // 折叠下方组件延迟加载，减少首屏 JS 体积
 const Tabs = dynamic(() => import("@/components/media/tabs"), { ssr: false })
 const GuestbookWall = dynamic(() => import("@/components/interactive/GuestbookWall"), { ssr: false })
-const PersonalStore = dynamic(() => import("@/components/interactive/personalStore"), { ssr: false })
 const Album = dynamic(() => import("@/components/media/album"), { ssr: false })
+const SupportRow = dynamic(() => import("@/components/interactive/SupportRow"), { ssr: false })
 const AnniversaryCounter = dynamic(() => import("@/components/interactive/AnniversaryCounter"), { ssr: false })
 import Footer from "@/components/layout/footer"
 
@@ -25,6 +26,10 @@ const HomeContent = () => {
         <LinkforBio/>
       </HomeSection>
       
+      <HomeSection delay={0.15}>
+        <CvCard />
+      </HomeSection>
+
       <HomeSection delay={0.2}>
         <Stack/>
       </HomeSection>
@@ -41,16 +46,16 @@ const HomeContent = () => {
         <Tabs />
       </HomeSection>
       
-      <HomeSection delay={0.5}>
-        <PersonalStore/>
-      </HomeSection>
-      
       <HomeSection delay={0.55}>
         <AnniversaryCounter />
       </HomeSection>
       
       <HomeSection delay={0.6}>
         <Album />
+      </HomeSection>
+
+      <HomeSection delay={0.65}>
+        <SupportRow />
       </HomeSection>
 
       <HomeSection delay={0.7}>

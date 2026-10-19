@@ -65,6 +65,7 @@ export const useAdminProjects = () => {
         imageOffsetX: formData.imageOffsetX,
         imageOffsetY: formData.imageOffsetY,
         scale: formData.scale,
+        pinned: Boolean(formData.pinned),
       })
     )
     setTimeout(() => loadProjects(), 300)
@@ -97,8 +98,25 @@ export const useAdminProjects = () => {
     }
   }
 
+  // 置顶 / 取消置顶：先在界面上改，接口失败再改回去
+  const handleTogglePin = async (project) => {
+    const pinned = !project.pinned
+    const prev = [...(apiProjects || [])]
+    const next = prev
+      .map((p) => (p.id === project.id ? { ...p, pinned } : p))
+      .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || (a.order ?? 0) - (b.order ?? 0))
+    setApiProjects(next)
+    try {
+      await apiCall(`/api/media/projects/${project.id}`, 'PATCH', { pinned })
+    } catch (err) {
+      console.error('[pin] failed, reverting', err)
+      setApiProjects(prev)
+      alert(`置顶没保存成功：${err.message || err}`)
+    }
+  }
+
   return {
     projects, apiProjects, loadProjects,
-    handleSaveProject, handleDeleteProject, handleReorderProjects,
+    handleSaveProject, handleDeleteProject, handleReorderProjects, handleTogglePin,
   }
 }
