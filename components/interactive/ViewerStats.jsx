@@ -146,7 +146,7 @@ const ViewerStats = () => {
           <Eye /> {viewerError ? "N/A" : viewerCount} Viewers
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="block w-[calc(100vw-24px)] max-w-[560px] max-h-[90dvh] overflow-y-auto overscroll-contain p-0 gap-0 rounded-[14px] sm:rounded-[14px] bg-[#0c0c0d] text-[#f4f4f2] border border-[#202020] shadow-2xl">
+      <AlertDialogContent className="block w-[calc(100vw-24px)] max-w-[560px] max-h-[90dvh] overflow-y-auto overscroll-contain [color-scheme:dark] [scrollbar-width:thin] [scrollbar-color:#3a3a38_transparent] p-0 gap-0 rounded-[14px] sm:rounded-[14px] bg-[#0c0c0d] text-[#f4f4f2] border border-[#202020] shadow-2xl">
         <div className="flex items-center justify-between gap-3 px-[18px] pt-4">
           <AlertDialogTitle className="font-mono text-[11px] font-semibold tracking-[0.18em] uppercase">
             Audience Map

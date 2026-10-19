@@ -76,7 +76,13 @@
   touch-action: none;
   cursor: grab;
 }
-.stage[data-mode="grid"] { cursor: default; touch-action: auto; }
+.stage[data-mode="grid"] {
+  /* 平面地图是扁的，按比例给高度，手机上不留大片空白 */
+  height: auto;
+  aspect-ratio: 2.3 / 1;
+  cursor: default;
+  touch-action: auto;
+}
 .stage[data-pointer="true"] { cursor: pointer; }
 .stage[data-dragging="true"] { cursor: grabbing; }
 .canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -166,5 +172,5 @@
 @media (max-width: 440px) {
   .row { grid-template-columns: 18px 28px minmax(0, 1fr) 46px 48px; gap: 8px; }
   .v { font-size: 17px; }
-  .stage { height: 300px; }
+  .stage:not([data-mode="grid"]) { height: 300px; }
 }
