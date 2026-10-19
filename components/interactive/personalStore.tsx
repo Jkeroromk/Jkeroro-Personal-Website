@@ -9,7 +9,6 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet";
 import {
   Carousel,
@@ -20,7 +19,10 @@ import {
 import Image from "next/image";
 import { Button } from "../ui/button";
 
-const PersonalStore = () => {
+// 触发按钮在首屏的 QuickLinks（Services）里，这里只管侧边栏本身
+type Props = { open: boolean; onOpenChange: (open: boolean) => void };
+
+const PersonalStore = ({ open, onOpenChange }: Props) => {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
   const [current, setCurrent] = React.useState<number>(0);
   const [count, setCount] = React.useState<number>(0);
@@ -37,18 +39,8 @@ const PersonalStore = () => {
   }, [api]);
 
   return (
-    <Sheet>
-      <div className="flex flex-col items-center w-full px-4">
-        <SheetTrigger className="flex flex-col items-center bg-white bg-opacity-80 border-2 border-black py-6 rounded-3xl mt-10 w-full sm:w-[550px] transition-transform duration-300 hover:scale-105 hover:shadow-[0_0_20px_white]">
-          <h1 className="text-xl font-extrabold text-black hover:text-blue-600 transition-colors duration-300">
-            Personal Brand
-          </h1>
-          <h2 className="text-sm font-semibold text-black hover:text-blue-600 transition-colors duration-300">
-            Services
-          </h2>
-        </SheetTrigger>
-      </div>
-      <SheetContent className="bg-transparent w-[400px] sm:w-[500px]">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="bg-transparent w-[88vw] max-w-[400px] sm:w-[500px] sm:max-w-[500px]">
         <SheetHeader>
           <SheetTitle className="text-white font-extrabold">Jkeroro'Store</SheetTitle>
           <SheetDescription className="text-gray-200">

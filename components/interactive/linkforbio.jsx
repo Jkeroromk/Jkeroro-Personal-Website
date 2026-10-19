@@ -6,6 +6,7 @@ import { useAuth } from "../../auth";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import ViewerStats from "./ViewerStats";
 import SocialLinks from "./SocialLinks";
+import QuickLinks from "./QuickLinks";
 
 const Car = dynamic(() => import("../media/car"), { ssr: false, loading: () => <p>Loading...</p> });
 
@@ -63,6 +64,9 @@ export default function LinkforBio() {
 
       {/* Social Links */}
       <SocialLinks />
+
+      {/* CV / Services / Support */}
+      <QuickLinks />
     </>
   );
 }

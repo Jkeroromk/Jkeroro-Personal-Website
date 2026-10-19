@@ -97,7 +97,9 @@ function normalize(rows, now) {
     .sort((a, b) => b.v - a.v);
 }
 
-const AudienceMap = () => {
+// totalViews：按钮上 “N Viewers” 的那个数（view_count 表）。地图上的国家只统计认出国家的访问，
+// 所以各国加起来会比它少；顶部显示跟按钮一样的总数，列表下面注明有多少次认出了国家。
+const AudienceMap = ({ totalViews = null }) => {
   const [raw, setRaw] = useState(() => DataManager.getInstance().getCountries() || []);
   const [mode, setMode] = useState("globe");
   const [order, setOrder] = useState("top");
@@ -408,8 +410,8 @@ const AudienceMap = () => {
     <div className={styles.root}>
       <div className={styles.stats}>
         <div className={styles.stat}>
-          <span className={styles.k}>Visits</span>
-          <span className={styles.v}>{total.toLocaleString("en-US")}</span>
+          <span className={styles.k}>Viewers</span>
+          <span className={styles.v}>{(typeof totalViews === "number" && totalViews > 0 ? totalViews : total).toLocaleString("en-US")}</span>
         </div>
         <div className={styles.stat}>
           <span className={styles.k}>Countries</span>
@@ -503,6 +505,12 @@ const AudienceMap = () => {
               );
             })}
           </ul>
+        )}
+
+        {data.length > 0 && (
+          <p className={styles.note}>
+            {total.toLocaleString("en-US")} visits with a known country
+          </p>
         )}
 
         {data.length > 6 && (

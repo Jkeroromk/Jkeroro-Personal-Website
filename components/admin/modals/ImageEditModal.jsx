@@ -166,12 +166,12 @@ const ImageEditModal = ({
           
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Alt Text
+              Caption
             </label>
             <Input
               value={formData.alt}
               onChange={(e) => setFormData({...formData, alt: e.target.value})}
-              placeholder="Image description"
+              placeholder="Shown under the photo on the homepage, e.g. desk setup"
               className="bg-gray-800 border-gray-600 text-white"
             />
           </div>
