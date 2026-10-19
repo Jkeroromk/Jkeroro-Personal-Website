@@ -45,6 +45,7 @@ const AdminPageContent = () => {
     handleTrackReorder,
     handleImageReorder,
     handleProjectReorder,
+    handleProjectTogglePin,
     handleAddTrack,
     handleTrackImported,
   } = useAdminData()
@@ -114,6 +115,7 @@ const AdminPageContent = () => {
                     onDelete={handleDelete}
                     onAddNew={handleAddNew}
                     onReorder={handleProjectReorder}
+                    onTogglePin={handleProjectTogglePin}
                   />
                 )}
                 {activeTab === 'comments'    && <CommentsTab />}

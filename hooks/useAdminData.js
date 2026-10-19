@@ -10,6 +10,7 @@ const DEFAULT_FORM = {
   description: '', link: '', category: 'personal',
   cropX: 50, cropY: 50, cropSize: 100,
   imageOffsetX: 0, imageOffsetY: 0, scale: 1,
+  pinned: false,
 }
 
 export const useAdminData = () => {
@@ -68,6 +69,7 @@ export const useAdminData = () => {
         cropX: item.cropX ?? 50, cropY: item.cropY ?? 50, cropSize: item.cropSize ?? 100,
         imageOffsetX: item.imageOffsetX ?? 0, imageOffsetY: item.imageOffsetY ?? 0,
         scale: item.scale ?? 1,
+        pinned: Boolean(item.pinned),
       })
     }
     setEditingItem(item)
@@ -100,6 +102,7 @@ export const useAdminData = () => {
     handleTrackReorder: trackHook.handleReorderTracks,
     handleImageReorder: imageHook.handleReorderImages,
     handleProjectReorder: projectHook.handleReorderProjects,
+    handleProjectTogglePin: projectHook.handleTogglePin,
     handleAddTrack,
     handleTrackImported: trackHook.handleTrackImported,
   }

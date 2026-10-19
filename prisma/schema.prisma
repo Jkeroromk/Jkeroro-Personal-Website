@@ -67,6 +67,8 @@ model Project {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
   order        Int      @default(0)
+  // 置顶：置顶的项目排在最前面（多个置顶之间仍按 order 排）
+  pinned       Boolean  @default(false)
 
   @@index([order])
   @@map("projects")

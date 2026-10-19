@@ -259,6 +259,7 @@ const ProjectIndex = () => {
                   >
                     <span className={`${jetbrainsMono.className} flex items-center gap-2.5 text-[11px] sm:text-xs tracking-[0.14em] uppercase text-white/50`}>
                       {pad(index + 1)} · {project.category || "project"}
+                      {project.pinned && <span className="text-white/80">· featured</span>}
                       <Plus
                         className={`w-3 h-3 transition-transform duration-300 ${isOpen ? "rotate-45" : ""}`}
                         aria-hidden="true"

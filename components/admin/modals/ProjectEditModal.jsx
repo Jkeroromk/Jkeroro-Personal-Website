@@ -225,6 +225,20 @@ const ProjectEditModal = ({
                 </span>
               </div>
             </div>
+
+            {/* 置顶 */}
+            <label className="mt-3 flex items-start gap-3 rounded-lg border border-gray-700 bg-gray-800/60 px-3 py-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={Boolean(formData.pinned)}
+                onChange={(e) => setFormData({ ...formData, pinned: e.target.checked })}
+                className="mt-0.5 h-4 w-4 accent-amber-400"
+              />
+              <span>
+                <span className="block text-sm font-medium text-white">Pin to top</span>
+                <span className="block text-xs text-gray-400">Pinned projects always show first on the homepage.</span>
+              </span>
+            </label>
           </div>
         </div>
 

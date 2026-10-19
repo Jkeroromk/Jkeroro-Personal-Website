@@ -25,6 +25,7 @@ export async function PATCH(
       imageOffsetX,
       imageOffsetY,
       scale,
+      pinned,
     } = body
 
     const updateData: {
@@ -40,6 +41,7 @@ export async function PATCH(
       imageOffsetX?: number
       imageOffsetY?: number
       scale?: number
+      pinned?: boolean
     } = {}
     if (title) updateData.title = title
     if (description) updateData.description = description
@@ -53,6 +55,7 @@ export async function PATCH(
     if (imageOffsetX !== undefined) updateData.imageOffsetX = imageOffsetX
     if (imageOffsetY !== undefined) updateData.imageOffsetY = imageOffsetY
     if (scale !== undefined) updateData.scale = scale
+    if (typeof pinned === 'boolean') updateData.pinned = pinned
 
     const project = await prisma.project.update({
       where: { id },
