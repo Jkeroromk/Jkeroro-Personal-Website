@@ -21,8 +21,7 @@ const WeChatIcon = () => (
 
 const donationMethods = [
   { name: 'WeChat Pay', description: '微信支付', qrCode: '/wechatqr.JPG', icon: <WeChatIcon /> },
-  // TODO: 换成真实的 PayPal.me 链接
-  { name: 'PayPal', description: 'PayPal 支付', url: 'https://paypal.me/yourusername', icon: <FaPaypal className="w-5 h-5 text-[#8a8a86]" /> },
+  { name: 'PayPal', description: 'PayPal 支付', qrCode: '/paypal_qr.png', icon: <FaPaypal className="w-5 h-5 text-[#8a8a86]" /> },
 ]
 
 const row =
