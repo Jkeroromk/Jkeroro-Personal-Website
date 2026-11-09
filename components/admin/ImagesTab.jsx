@@ -26,7 +26,7 @@ const ToolButton = ({ label, onClick, disabled, active, danger, children }) => (
     }`}
   >
     {children}
-    <span className="pointer-events-none absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-950 border border-white/10 px-1.5 py-0.5 text-[10px] text-zinc-200 opacity-0 group-hover/tb:opacity-100 transition-opacity">
+    <span className="pointer-events-none absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-950/95 border border-white/10 px-2 py-1 text-[11px] leading-none font-medium tracking-wide text-zinc-100 shadow-lg shadow-black/40 opacity-0 group-hover/tb:opacity-100 transition-opacity">
       {label}
     </span>
   </button>
@@ -263,14 +263,14 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
 
                     {/* Info */}
                     <div className="px-3 py-2.5 bg-zinc-900">
-                      <p className={`text-xs font-medium truncate ${image.alt ? 'text-white' : 'text-zinc-600 italic'}`}>{image.alt || 'No caption'}</p>
+                      <p className={`text-[13px] font-medium leading-tight truncate ${image.alt ? 'text-zinc-100' : 'text-zinc-600 italic font-normal'}`}>{image.alt || 'No caption'}</p>
                       {linked[image.id] ? (
-                        <p className="text-[10px] text-sky-400/90 mt-0.5 flex items-center gap-1 truncate">
+                        <p className="text-[11px] text-sky-400/90 mt-1 flex items-center gap-1 truncate">
                           <Cloud className="w-3 h-3 flex-shrink-0" />
                           <span className="truncate">{linked[image.id]} · 每天换</span>
                         </p>
                       ) : (
-                        <p className="text-[10px] text-zinc-500 mt-0.5">{image.width} × {image.height}</p>
+                        <p className="text-[11px] text-zinc-500 mt-1 tabular-nums">{image.width} × {image.height}</p>
                       )}
                     </div>
                   </SortableItem>
