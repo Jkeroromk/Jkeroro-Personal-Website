@@ -1,7 +1,8 @@
 # jkeroro.com NAS 自动换图 —— 配置
 # 改完重启容器生效（docker restart jkeroro-nas-sync）
 
-site = "https://jkeroro.com"
+# 要用 www：jkeroro.com 会 308 跳转到 www，跳转时 requests 会丢掉 Authorization 头，结果 401
+site = "https://www.jkeroro.com"
 
 # 每天几点换（按 docker-compose 里的 TZ，默认美东时间）
 sync_time = "04:00"
