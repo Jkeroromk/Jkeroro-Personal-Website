@@ -29,6 +29,8 @@ model Image {
   priority     Boolean  @default(false)
   imageOffsetX Float    @default(50) @map("image_offset_x")
   imageOffsetY Float    @default(50) @map("image_offset_y")
+  // 'manual' = 后台手动上传；'nas' = 这一格由 NAS 每天自动换图
+  source       String   @default("manual")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

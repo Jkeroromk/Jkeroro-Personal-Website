@@ -5,9 +5,11 @@ import { X, File, Image, Music } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { getAuthHeaders } from '@/lib/auth-client'
+import { uploadImage } from '@/lib/upload-image'
 
 interface FileUploadProps {
-  onFileSelect: (file: File, filePath?: string) => void
+  // 图片会先在浏览器里压缩，meta 里是压缩后的真实宽高
+  onFileSelect: (file: File, filePath?: string, meta?: { width: number; height: number }) => void
   accept?: string
   maxSize?: number // in MB
   type?: 'image' | 'audio' | 'any'
@@ -47,18 +49,19 @@ const FileUpload: React.FC<FileUploadProps> = ({
   }
 
   const validateFile = (file: File): boolean => {
-    // 检查文件大小
-    if (file.size > maxSize * 1024 * 1024) {
+    // 图片会先压缩，原图大一点没关系（手机原图经常超过 10MB）
+    const limit = type === 'image' ? Math.max(maxSize, 40) : maxSize
+    if (file.size > limit * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: `File size must be less than ${maxSize}MB`,
+        description: `File size must be less than ${limit}MB`,
         variant: "destructive"
       })
       return false
     }
 
     // 检查文件类型
-    if (type === 'image' && !file.type.startsWith('image/')) {
+    if (type === 'image' && !file.type.startsWith('image/') && !/\.(heic|heif)$/i.test(file.name)) {
       toast({
         title: "Invalid file type",
         description: "Please select an image file",
@@ -84,6 +87,13 @@ const FileUpload: React.FC<FileUploadProps> = ({
       setSelectedFile(file)
       
       try {
+        if (type === 'image') {
+          const uploaded = await uploadImage(file)
+          onFileSelect(file, uploaded.src, { width: uploaded.width, height: uploaded.height })
+          toast({ title: "Upload successful", description: `${uploaded.width}×${uploaded.height}, compressed automatically` })
+          return
+        }
+
         // 创建FormData并上传文件
         const formData = new FormData()
         formData.append('file', file)
@@ -182,13 +192,18 @@ const FileUpload: React.FC<FileUploadProps> = ({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={handleClick}
+          onPaste={(e) => {
+            const f = e.clipboardData?.files?.[0]
+            if (f) { e.preventDefault(); handleFileSelect(f) }
+          }}
+          tabIndex={0}
         >
           <div className="flex flex-col items-center space-y-2">
             {getIcon()}
             <div className="text-sm text-gray-300">
               <p className="font-medium">Click to upload or drag and drop</p>
               <p className="text-gray-500">
-                {type === 'image' && 'PNG, JPG, WEBP up to 10MB'}
+                {type === 'image' && 'PNG, JPG, WEBP — auto-compressed · click here then ⌘V/Ctrl+V to paste'}
                 {type === 'audio' && 'MP3, WAV, OGG up to 10MB'}
                 {type === 'any' && 'Any file up to 10MB'}
               </p>

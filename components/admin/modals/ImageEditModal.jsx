@@ -51,9 +51,13 @@ const ImageEditModal = ({
             </label>
             <FileUpload
               type="image"
-              onFileSelect={(file, filePath) => {
+              onFileSelect={(file, filePath, meta) => {
                 setUploadedFile(file)
-                setFormData({...formData, src: filePath || `/uploads/${file.name}`})
+                setFormData({
+                  ...formData,
+                  src: filePath || `/uploads/${file.name}`,
+                  ...(meta ? { width: meta.width, height: meta.height } : {}),
+                })
               }}
             />
             
@@ -166,7 +170,7 @@ const ImageEditModal = ({
           
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Caption
+              Caption <span className="text-gray-500 font-normal">(optional)</span>
             </label>
             <Input
               value={formData.alt}

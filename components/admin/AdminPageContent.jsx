@@ -20,6 +20,11 @@ import SocialLinksTab from '@/components/admin/SocialLinksTab'
 import TechStackTab from '@/components/admin/TechStackTab'
 import ReportsTab from '@/components/admin/ReportsTab'
 import EditModal from '@/components/admin/modals/EditModal'
+import { outfit } from '@/lib/fonts'
+
+// 后台不用首页的 Fredoka 圆体（没有中文字形，中文会退回系统默认字体，粗细对不上）：
+// 英文用 Outfit，中文指定苹方 / 微软雅黑
+const ADMIN_FONT = `${outfit.style.fontFamily}, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif`
 
 const AdminPageContent = () => {
   const { user, isAdmin, loading, logout, isOnline, lastActivity } = useAuth()
@@ -44,6 +49,8 @@ const AdminPageContent = () => {
     handleAddNew,
     handleTrackReorder,
     handleImageReorder,
+    handleBulkAddImages,
+    handleReplaceImage,
     handleProjectReorder,
     handleProjectTogglePin,
     handleAddTrack,
@@ -69,7 +76,7 @@ const AdminPageContent = () => {
   return (
     <>
       <MouseTrail />
-      <div className="min-h-screen bg-zinc-950 text-white flex">
+      <div className="min-h-screen bg-zinc-950 text-white flex antialiased" style={{ fontFamily: ADMIN_FONT }}>
         {/* Left Sidebar */}
         <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} onLogout={logout} />
 
@@ -96,6 +103,8 @@ const AdminPageContent = () => {
                     onDelete={handleDelete}
                     onAddNew={handleAddNew}
                     onReorder={handleImageReorder}
+                    onBulkAdd={handleBulkAddImages}
+                    onReplace={handleReplaceImage}
                   />
                 )}
                 {activeTab === 'music' && (

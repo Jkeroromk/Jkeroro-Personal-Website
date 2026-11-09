@@ -18,7 +18,7 @@ export async function PATCH(
       where: { id },
       data: {
         ...(src && { src }),
-        ...(alt && { alt }),
+        ...(typeof alt === 'string' && { alt }),
         ...(width !== undefined && { width }),
         ...(height !== undefined && { height }),
         ...(order !== undefined && { order }),
@@ -47,7 +47,7 @@ export async function DELETE(
   if (authError) return authError
   try {
     const { id } = await params
-    
+
     // 添加连接超时保护
     await Promise.race([
       prisma.image.delete({

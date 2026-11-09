@@ -55,9 +55,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { src, alt, width, height, order, priority, imageOffsetX, imageOffsetY } = body
 
-    if (!src || !alt) {
+    // alt 就是首页照片下面那行 caption，可以留空
+    if (!src) {
       return NextResponse.json(
-        { error: 'src and alt are required' },
+        { error: 'src is required' },
         { status: 400 }
       )
     }
@@ -75,7 +76,7 @@ export async function POST(request: NextRequest) {
     const image = await prisma.image.create({
       data: {
         src,
-        alt,
+        alt: typeof alt === 'string' ? alt : '',
         width: width || 550,
         height: height || 384,
         order: finalOrder,

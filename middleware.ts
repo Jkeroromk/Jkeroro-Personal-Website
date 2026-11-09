@@ -34,11 +34,15 @@ const RATE_LIMITS: Array<{
   { pattern: /^\/api\/comments/,        methods: ['POST'], limit: 5, windowMs: 60_000  },
 
   // File uploads — prevent storage abuse
-  { pattern: /^\/api\/upload/,          methods: ['POST'], limit: 5, windowMs: 60_000 },
+  // 上传本身要后台登录；放宽到 60 次/分钟，后台一次批量传十几二十张照片才不会被拦（原来 5 次/分钟，传到第 6 张就 429）
+  { pattern: /^\/api\/upload/,          methods: ['POST'], limit: 60, windowMs: 60_000 },
   { pattern: /^\/api\/music\/upload-audio/, methods: ['POST'], limit: 3, windowMs: 60_000 },
 
   // Stats — prevent fake inflation
   { pattern: /^\/api\/stats/,           methods: ['POST'], limit: 20, windowMs: 60_000 },
+
+  // NAS 推照片：要 NAS 专用 token；限流防止有人暴力猜 token（NAS 那边每次推送之间会自己隔一下）
+  { pattern: /^\/api\/nas\//,           limit: 120, windowMs: 60_000 },
 
   // Auth — brute force protection
   { pattern: /^\/api\/auth\/login/,     methods: ['POST'], limit: 5, windowMs: 300_000 },
