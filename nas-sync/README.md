@@ -20,6 +20,11 @@
 4. Docker → 项目 → 新建，路径选第 1 步的文件夹，用里面的 `docker-compose.yml` 启动
 5. 看容器日志，应该会看到 `[slot] dou dou: 换成 xxx.jpg`
 
+## 常见问题
+
+- **日志里 `401: Unauthorized`**：先确认 `config.toml` 里 `site` 是 `https://www.jkeroro.com`（带 www）。`jkeroro.com` 会跳转到 www，跳转时 token 会被丢掉
+- **日志里 `404`**：网站还没部署 `/api/nas/*` 接口
+
 ## 日常用
 
 - 往文件夹里加照片就行（UGREEN 的 App、SMB、自动备份后挪进去都可以），第二天自动生效
