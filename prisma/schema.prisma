@@ -29,6 +29,10 @@ model Image {
   priority     Boolean  @default(false)
   imageOffsetX Float    @default(50) @map("image_offset_x")
   imageOffsetY Float    @default(50) @map("image_offset_y")
+  // 'manual' = 后台手动上传；'icloud' = 从 iCloud 共享相簿自动同步来的
+  source       String   @default("manual")
+  // iCloud 照片的 photoGuid，用来判断哪些已经同步过、哪些被从相簿里删了
+  externalId   String?  @unique @map("external_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -230,4 +234,22 @@ model MonthlyReport {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("monthly_reports")
+}
+
+// 接到网站上的 iCloud 共享相簿（每天自动同步一次）
+// id: 'snapshots'（首页照片区）| 'anniversary'（纪念日轮播）
+model AlbumSource {
+  id           String    @id
+  shareUrl     String    @map("share_url")
+  albumName    String?   @map("album_name")
+  enabled      Boolean   @default(true)
+  // anniversary: { map: { guid: url } }；两边都有 excluded: 在后台手动删掉、不要再同步回来的 guid
+  items        Json      @default("{}")
+  lastSyncedAt DateTime? @map("last_synced_at")
+  lastResult   Json      @default("{}") @map("last_result")
+  lastError    String?   @map("last_error")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@map("album_sources")
 }

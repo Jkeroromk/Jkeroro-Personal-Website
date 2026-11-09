@@ -20,7 +20,7 @@ const monthLabel = (key) => {
   return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 
-const JOB_LABELS = { 'storage-cleanup': 'Storage cleanup', 'monthly-report': 'Monthly report' }
+const JOB_LABELS = { 'storage-cleanup': 'Storage cleanup', 'monthly-report': 'Monthly report', 'album-sync': 'iCloud album sync' }
 
 const Stat = ({ icon: Icon, label, value, hint }) => (
   <div className="rounded-xl border border-white/5 bg-zinc-950/60 p-3">

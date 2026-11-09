@@ -9,6 +9,7 @@ import AnniversaryPreview from './anniversary/AnniversaryPreview'
 import ImagePositionControls from './anniversary/ImagePositionControls'
 import ImageList from './anniversary/ImageList'
 import ImageUploadSection from './anniversary/ImageUploadSection'
+import AlbumSyncCard from './AlbumSyncCard'
 
 const AnniversaryTab = () => {
   const {
@@ -58,6 +59,18 @@ const AnniversaryTab = () => {
       toast({ title: 'Success', description: `加了 ${uploaded.length} 张照片` })
     } finally {
       setUploading(false)
+    }
+  }
+
+  // iCloud 相簿同步完，重新拿一次背景图列表
+  const reloadBackgrounds = async () => {
+    try {
+      const data = await anniversaryApi.getBackground()
+      setBackgroundImages(data.backgroundImages)
+      setImagePositions(data.imagePositions)
+      if (selectedImageIndex >= data.backgroundImages.length) setSelectedImageIndex(0)
+    } catch (err) {
+      console.error('reload anniversary backgrounds failed', err)
     }
   }
 
@@ -122,6 +135,7 @@ const AnniversaryTab = () => {
 
   return (
     <div className="space-y-6">
+      <AlbumSyncCard target="anniversary" label="纪念日轮播" onSynced={reloadBackgrounds} />
       <Card className="bg-gray-800 border-gray-600">
         <CardHeader>
           <CardTitle className="text-white flex items-center">

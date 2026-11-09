@@ -2,13 +2,17 @@
 
 import React, { useRef, useState } from 'react'
 import { SortableList, SortableItem, SortableHandle } from '@/components/admin/Sortable'
-import { Edit2, Trash2, ImageIcon, Plus, GripVertical, RefreshCw, Loader2, Upload } from 'lucide-react'
+import { Edit2, Trash2, ImageIcon, Plus, GripVertical, RefreshCw, Loader2, Upload, Cloud } from 'lucide-react'
+import AlbumSyncCard from '@/components/admin/AlbumSyncCard'
 import Image from 'next/image'
 import BulkImageUploadModal from '@/components/admin/modals/BulkImageUploadModal'
 import { uploadImage, pickImageFiles } from '@/lib/upload-image'
 import { useToast } from '@/hooks/use-toast'
 
-const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, onReplace }) => {
+// 首页每天随机显示几张（和 /api/media/images 里的 HOME_COUNT 一致）
+const HOME_COUNT = 7
+
+const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, onReplace, onReload }) => {
   const { toast } = useToast()
   const pickRef = useRef(null)
   const replaceRef = useRef(null)
@@ -90,7 +94,9 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
         <div>
           <h2 className="text-base font-semibold text-white">Images</h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            {images.length} image{images.length !== 1 ? 's' : ''} · 可以直接把照片拖到这里
+            {images.length} image{images.length !== 1 ? 's' : ''}
+            {images.length > HOME_COUNT ? ` · 首页每天随机显示 ${HOME_COUNT} 张` : ''}
+            {' · 可以直接把照片拖到这里'}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -110,6 +116,8 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
           </button>
         </div>
       </div>
+
+      <AlbumSyncCard target="snapshots" label="Snapshots" onSynced={onReload} />
 
       {/* Empty state */}
       {images.length === 0 && (
@@ -156,6 +164,12 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                         <GripVertical className="w-3.5 h-3.5 text-white" />
                       </div>
                     </div>
+
+                    {image.source === 'icloud' && (
+                      <div className="absolute top-2 right-2 z-10 p-1 rounded bg-black/60 backdrop-blur-sm" title="来自 iCloud 共享相簿">
+                        <Cloud className="w-3.5 h-3.5 text-sky-300" />
+                      </div>
+                    )}
 
                     {/* Image */}
                     <div className="relative aspect-square bg-zinc-800/50">
@@ -247,7 +261,10 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium truncate ${image.alt ? 'text-white' : 'text-zinc-600 italic'}`}>{image.alt || 'No caption'}</p>
-                      <p className="text-xs text-zinc-500">{image.width} × {image.height}</p>
+                      <p className="text-xs text-zinc-500 flex items-center gap-1">
+                        {image.source === 'icloud' && <Cloud className="w-3 h-3 text-sky-400" />}
+                        {image.width} × {image.height}
+                      </p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {replacingId === image.id

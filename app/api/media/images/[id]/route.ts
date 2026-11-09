@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/requireAuth'
+import { excludeFromSync } from '@/lib/album-sync'
 
 // 更新图片
 export async function PATCH(
@@ -47,6 +48,12 @@ export async function DELETE(
   if (authError) return authError
   try {
     const { id } = await params
+
+    // 从 iCloud 相簿同步来的照片：记下来，下次同步不再加回来
+    const existing = await prisma.image.findUnique({ where: { id }, select: { source: true, externalId: true } })
+    if (existing?.source === 'icloud' && existing.externalId) {
+      await excludeFromSync('snapshots', existing.externalId).catch((e) => console.error('excludeFromSync failed', e))
+    }
     
     // 添加连接超时保护
     await Promise.race([

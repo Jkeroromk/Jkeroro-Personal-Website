@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
 import { requireAuth } from '@/lib/requireAuth'
+import { anniversaryGuidForUrl, excludeFromSync } from '@/lib/album-sync'
 
 // 获取纪念日背景图列表
 export async function GET() {
@@ -219,6 +220,12 @@ export async function DELETE(request: NextRequest) {
   if (authError) return authError
   try {
     const { imageUrl } = await request.json()
+
+    // 从 iCloud 相簿同步来的照片：记下来，下次同步不再加回来
+    if (typeof imageUrl === 'string') {
+      const guid = await anniversaryGuidForUrl(imageUrl).catch(() => null)
+      if (guid) await excludeFromSync('anniversary', guid).catch((e) => console.error('excludeFromSync failed', e))
+    }
 
     if (!imageUrl) {
       return NextResponse.json(
