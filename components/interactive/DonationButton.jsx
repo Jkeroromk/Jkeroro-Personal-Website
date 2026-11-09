@@ -21,9 +21,7 @@ const WeChatIcon = () => (
 
 const donationMethods = [
   { name: 'WeChat Pay', description: '微信支付', qrCode: '/wechatqr.JPG', icon: <WeChatIcon /> },
-  // TODO: 换成真实的 PayPal.me 链接
-  { name: 'PayPal', description: 'PayPal 支付', url: 'https://paypal.me/yourusername', icon: <FaPaypal className="w-5 h-5 text-[#8a8a86]" /> },
-  { name: 'Buy Me a Coffee', description: '请我喝咖啡', qrCode: '/bmc_qr.png', icon: <span className="text-lg leading-none">☕</span> },
+  { name: 'PayPal', description: 'PayPal 支付', qrCode: '/paypal_qr.png', icon: <FaPaypal className="w-5 h-5 text-[#8a8a86]" /> },
 ]
 
 const row =
@@ -35,9 +33,19 @@ export default function DonationDialog({ open, onOpenChange }) {
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="block w-[calc(100vw-24px)] max-w-[440px] max-h-[88dvh] overflow-y-auto p-0 gap-0 rounded-[14px] sm:rounded-[14px] bg-[#0c0c0d] text-[#f4f4f2] border border-[#202020] [color-scheme:dark] [scrollbar-width:thin]">
+      <AlertDialogContent
+        className={
+          // 文字发虚的原因：默认用 translate(-50%,-50%) 居中，弹窗高度是奇数时会落在半像素上，整块文字被重采样。
+          // 改成 inset-0 + m-auto 居中，不再用 transform；slide 动画的位移也归零，只保留淡入和缩放。
+          'block inset-0 m-auto h-fit translate-x-0 translate-y-0 transform-none ' +
+          'data-[state=open]:![--tw-enter-translate-x:0] data-[state=open]:![--tw-enter-translate-y:0] ' +
+          'data-[state=closed]:![--tw-exit-translate-x:0] data-[state=closed]:![--tw-exit-translate-y:0] ' +
+          'w-[calc(100vw-24px)] max-w-[440px] max-h-[88dvh] overflow-y-auto p-0 gap-0 rounded-[14px] sm:rounded-[14px] ' +
+          'bg-[#0c0c0d] text-[#f4f4f2] border border-[#202020] antialiased [text-rendering:optimizeLegibility] [color-scheme:dark] [scrollbar-width:thin]'
+        }
+      >
         <div className="flex items-center justify-between gap-3 px-[18px] pt-4">
-          <AlertDialogTitle className="font-mono text-[11px] font-semibold tracking-[0.18em] uppercase">
+          <AlertDialogTitle className="font-mono text-xs font-semibold tracking-[0.16em] uppercase">
             Support
           </AlertDialogTitle>
           <AlertDialogCancel
@@ -47,7 +55,7 @@ export default function DonationDialog({ open, onOpenChange }) {
             <X className="h-3.5 w-3.5" />
           </AlertDialogCancel>
         </div>
-        <AlertDialogDescription className="px-[18px] pt-2 pb-4 text-sm text-[#8a8a86]">
+        <AlertDialogDescription className="px-[18px] pt-2 pb-4 text-sm leading-relaxed text-[#b4b4ae]">
           If something here helped you, you can buy me a coffee. 谢谢支持！
         </AlertDialogDescription>
 
@@ -60,11 +68,11 @@ export default function DonationDialog({ open, onOpenChange }) {
                     <span className="flex items-center gap-3 min-w-0">
                       <span className="flex w-8 h-8 items-center justify-center rounded-full border border-[#202020] shrink-0">{m.icon}</span>
                       <span className="min-w-0">
-                        <span className="block text-sm">{m.name}</span>
-                        <span className="block font-mono text-[11px] text-[#8a8a86]">{m.description}</span>
+                        <span className="block text-sm font-medium">{m.name}</span>
+                        <span className="block font-mono text-xs text-[#a3a39e]">{m.description}</span>
                       </span>
                     </span>
-                    <span className="flex items-center gap-1 font-mono text-[10px] tracking-[0.12em] uppercase text-[#8a8a86]">
+                    <span className="flex items-center gap-1 font-mono text-[11px] tracking-[0.1em] uppercase text-[#a3a39e]">
                       {selected === i ? 'Hide' : 'QR'}
                       <ChevronDown className={`h-3 w-3 transition-transform ${selected === i ? 'rotate-180' : ''}`} />
                     </span>
@@ -74,7 +82,7 @@ export default function DonationDialog({ open, onOpenChange }) {
                       <div className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-[10px] bg-white p-2">
                         <Image src={m.qrCode} alt={`${m.name} QR code`} fill className="object-contain p-2" unoptimized />
                       </div>
-                      <span className="font-mono text-[10px] tracking-[0.12em] uppercase text-[#8a8a86]">Scan to pay</span>
+                      <span className="font-mono text-[11px] tracking-[0.1em] uppercase text-[#a3a39e]">Scan to pay</span>
                     </div>
                   )}
                 </>
@@ -83,8 +91,8 @@ export default function DonationDialog({ open, onOpenChange }) {
                   <span className="flex items-center gap-3 min-w-0">
                     <span className="flex w-8 h-8 items-center justify-center rounded-full border border-[#202020] shrink-0">{m.icon}</span>
                     <span className="min-w-0">
-                      <span className="block text-sm">{m.name}</span>
-                      <span className="block font-mono text-[11px] text-[#8a8a86]">{m.description}</span>
+                      <span className="block text-sm font-medium">{m.name}</span>
+                      <span className="block font-mono text-xs text-[#a3a39e]">{m.description}</span>
                     </span>
                   </span>
                   <ArrowUpRight className="h-3.5 w-3.5 text-[#8a8a86]" />
