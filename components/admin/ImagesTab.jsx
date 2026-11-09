@@ -10,6 +10,28 @@ import { uploadImage, pickImageFiles } from '@/lib/upload-image'
 import { getAuthHeaders } from '@/lib/auth-client'
 import { useToast } from '@/hooks/use-toast'
 
+// 卡片悬停工具栏里的小图标按钮，悬停时上方显示文字提示
+const ToolButton = ({ label, onClick, disabled, active, danger, children }) => (
+  <button
+    type="button"
+    aria-label={label}
+    disabled={disabled}
+    onClick={(e) => { e.stopPropagation(); onClick() }}
+    className={`group/tb relative w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-40 ${
+      danger
+        ? 'text-zinc-300 hover:text-red-300 hover:bg-red-500/20'
+        : active
+          ? 'text-sky-300 hover:bg-white/10'
+          : 'text-zinc-200 hover:text-white hover:bg-white/10'
+    }`}
+  >
+    {children}
+    <span className="pointer-events-none absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-950 border border-white/10 px-1.5 py-0.5 text-[10px] text-zinc-200 opacity-0 group-hover/tb:opacity-100 transition-opacity">
+      {label}
+    </span>
+  </button>
+)
+
 const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, onReplace, onReload }) => {
   const { toast } = useToast()
   const pickRef = useRef(null)
@@ -189,12 +211,6 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                       </div>
                     </div>
 
-                    {linked[image.id] && (
-                      <div className="absolute top-2 right-2 z-10 p-1 rounded bg-black/60 backdrop-blur-sm" title={`每天从「${linked[image.id]}」换一张`}>
-                        <Cloud className="w-3.5 h-3.5 text-sky-300" />
-                      </div>
-                    )}
-
                     {/* Image */}
                     <div className="relative aspect-square bg-zinc-800/50">
                       {image.src?.trim() ? (
@@ -219,30 +235,42 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                         </div>
                       )}
 
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        {albumButton(image, false)}
-                        {replaceButton(image, false)}
-                        <button
-                          onClick={() => onEdit(image, 'image')}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-medium backdrop-blur-sm transition-colors"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => onDelete(image.id, 'image')}
-                          className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-300 backdrop-blur-sm transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                      {/* 悬停时底部浮出一条图标工具栏 */}
+                      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                      <div className="absolute inset-x-0 bottom-2.5 flex justify-center opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0 transition-all duration-200">
+                        <div className="flex items-center gap-0.5 p-1 rounded-xl bg-zinc-950/75 border border-white/10 backdrop-blur-md shadow-lg shadow-black/40">
+                          <ToolButton
+                            label={linked[image.id] ? `相簿：${linked[image.id]}` : '接 iCloud 相簿'}
+                            active={!!linked[image.id]}
+                            onClick={() => setAlbumFor(image)}
+                          >
+                            <Cloud className="w-3.5 h-3.5" />
+                          </ToolButton>
+                          <ToolButton label="替换照片" disabled={replacingId !== null} onClick={() => startReplace(image)}>
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </ToolButton>
+                          <ToolButton label="编辑" onClick={() => onEdit(image, 'image')}>
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </ToolButton>
+                          <span className="w-px h-4 bg-white/10 mx-0.5" />
+                          <ToolButton label="删除" danger onClick={() => onDelete(image.id, 'image')}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </ToolButton>
+                        </div>
                       </div>
                     </div>
 
                     {/* Info */}
                     <div className="px-3 py-2.5 bg-zinc-900">
                       <p className={`text-xs font-medium truncate ${image.alt ? 'text-white' : 'text-zinc-600 italic'}`}>{image.alt || 'No caption'}</p>
-                      <p className="text-[10px] text-zinc-500 mt-0.5">{image.width} × {image.height}</p>
+                      {linked[image.id] ? (
+                        <p className="text-[10px] text-sky-400/90 mt-0.5 flex items-center gap-1 truncate">
+                          <Cloud className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">{linked[image.id]} · 每天换</span>
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-zinc-500 mt-0.5">{image.width} × {image.height}</p>
+                      )}
                     </div>
                   </SortableItem>
                 )
