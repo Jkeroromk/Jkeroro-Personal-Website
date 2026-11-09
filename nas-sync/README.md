@@ -27,6 +27,13 @@
 - 给其他格子接文件夹：在 `config.toml` 里加一段 `[[slot]]`，重启容器
 - 纪念日里不想要的照片：从 NAS 文件夹里删，别在后台删（后台删了，下次同步会再加回来）
 
+## 版本（不用管 merge 方式）
+
+NAS 的 compose 按 tag 下载 `sync.py`：`.../nas-sync-<7 位 commit>/nas-sync/sync.py`，并校验 sha256。
+main 上 `sync.py` 一有变化，GitHub Action（`.github/workflows/nas-sync-tag.yml`）会自动给那个 commit 打 tag。
+tag 会让 commit 永久保留，所以 PR 用 merge commit 还是 squash 都没关系。
+更新 NAS：Action 的运行摘要里有新的地址和 sha256，换进 compose 再 Redeploy。
+
 ## 安全
 
 - token 只能调用网站的 `/api/nas/*`（换某一格的照片、增删纪念日里 NAS 推上去的照片），和后台登录是两套

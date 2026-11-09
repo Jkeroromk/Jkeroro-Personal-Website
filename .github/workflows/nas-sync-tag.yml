@@ -1,0 +1,31 @@
+# main 上 nas-sync/sync.py 一有变化，就给这个 commit 打一个永久 tag：nas-sync-<7 位 commit>
+# NAS 的 docker-compose 按这个 tag 下载 sync.py。tag 会让 commit 一直保留在 GitHub 上，
+# 所以 PR 用 merge commit 还是 squash、分支删没删，都不会影响 NAS。
+name: Tag nas-sync version
+
+on:
+  push:
+    branches: [main]
+    paths: ['nas-sync/sync.py']
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create tag
+        run: |
+          TAG="nas-sync-${GITHUB_SHA::7}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "$TAG already exists"
+          else
+            git tag "$TAG" "$GITHUB_SHA"
+            git push origin "$TAG"
+          fi
+          echo "### NAS 用的地址" >> "$GITHUB_STEP_SUMMARY"
+          echo "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/$TAG/nas-sync/sync.py" >> "$GITHUB_STEP_SUMMARY"
+          echo "sha256: \`$(sha256sum nas-sync/sync.py | cut -d' ' -f1)\`" >> "$GITHUB_STEP_SUMMARY"
