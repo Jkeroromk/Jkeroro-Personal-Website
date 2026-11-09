@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
+import { requireAuth } from '@/lib/requireAuth'
 
 // 获取纪念日背景图列表
 export async function GET() {
@@ -83,8 +84,15 @@ export async function GET() {
 
 // 添加背景图
 export async function POST(request: NextRequest) {
+  // 改动纪念日照片需要后台登录（之前没校验，任何人都能调）
+  const authError = await requireAuth(request)
+  if (authError) return authError
   try {
-    const { backgroundImage } = await request.json()
+    const body = await request.json()
+    // 支持一次加多张（批量上传），也兼容原来的单张 backgroundImage
+    const newImages: string[] = (Array.isArray(body.backgroundImages) ? body.backgroundImages : [body.backgroundImage])
+      .filter((u: unknown): u is string => typeof u === 'string' && u.trim() !== '')
+    const backgroundImage = newImages[0]
 
     if (!backgroundImage) {
       return NextResponse.json(
@@ -93,7 +101,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Adding anniversary background:', { backgroundImage })
+    console.log('Adding anniversary background:', { count: newImages.length })
 
     // 获取当前设置
     const currentSettings = await withTimeout(
@@ -107,8 +115,8 @@ export async function POST(request: NextRequest) {
       ? currentSettings.backgroundImages
       : (currentSettings?.backgroundImages ? [currentSettings.backgroundImages] : [])
 
-    // 添加新图片到数组
-    const updatedImages = [...currentImages, backgroundImage]
+    // 添加新图片到数组（跳过已经有的）
+    const updatedImages = [...currentImages, ...newImages.filter((u) => !currentImages.includes(u))]
 
     // 获取当前位置数据
     let imagePositions: Record<string, { x: number; y: number }> = {}
@@ -117,8 +125,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 为新图片设置默认位置
-    if (!imagePositions[backgroundImage]) {
-      imagePositions[backgroundImage] = { x: 50, y: 50 }
+    for (const url of newImages) {
+      if (!imagePositions[url]) imagePositions[url] = { x: 50, y: 50 }
     }
 
     const settings = await withTimeout(
@@ -130,8 +138,8 @@ export async function POST(request: NextRequest) {
         },
         create: {
           id: 'main',
-          backgroundImages: [backgroundImage],
-          imagePositions: { [backgroundImage]: { x: 50, y: 50 } },
+          backgroundImages: newImages,
+          imagePositions: Object.fromEntries(newImages.map((u) => [u, { x: 50, y: 50 }])),
         },
       }),
       8000
@@ -206,6 +214,9 @@ export async function POST(request: NextRequest) {
 
 // 删除背景图
 export async function DELETE(request: NextRequest) {
+  // 改动纪念日照片需要后台登录（之前没校验，任何人都能调）
+  const authError = await requireAuth(request)
+  if (authError) return authError
   try {
     const { imageUrl } = await request.json()
 
@@ -291,6 +302,9 @@ export async function DELETE(request: NextRequest) {
 
 // 更新图片位置
 export async function PUT(request: NextRequest) {
+  // 改动纪念日照片需要后台登录（之前没校验，任何人都能调）
+  const authError = await requireAuth(request)
+  if (authError) return authError
   try {
     const { imageUrl, imageOffsetX, imageOffsetY } = await request.json()
 

@@ -37,7 +37,7 @@ export const useAdminImages = () => {
   }
 
   const handleSaveImage = async (formData, editingItem) => {
-    if (!formData.alt?.trim()) throw new Error('请填写图片描述 (Alt Text)')
+    // Caption 可以不填：首页没 caption 的照片就不显示那行小字
     if (!formData.src?.trim()) throw new Error('请上传图片文件')
 
     const isNew = !editingItem || editingItem === 'new'
@@ -46,7 +46,7 @@ export const useAdminImages = () => {
       isNew ? 'POST' : 'PATCH',
       {
         src: formData.src,
-        alt: formData.alt,
+        alt: (formData.alt || '').trim(),
         width: formData.width,
         height: formData.height,
         imageOffsetX: formData.imageOffsetX ?? 50,
@@ -61,6 +61,48 @@ export const useAdminImages = () => {
     } else {
       setImages(prev => (prev || []).map(img => img.id === saved.id ? saved : img))
     }
+  }
+
+  // 批量上传完的照片一次性写进数据库。按顺序一张张建（并发建会抢同一个 order），
+  // placement 为 'start' 时新照片排到最前面，原来的整体往后挪。
+  const handleBulkAddImages = async (uploaded, { placement = 'end' } = {}) => {
+    const current = [...(images || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    const base = placement === 'start' ? 0 : current.reduce((m, img) => Math.max(m, img.order ?? 0), -1) + 1
+
+    const created = []
+    for (let i = 0; i < uploaded.length; i++) {
+      const u = uploaded[i]
+      const res = await apiCall('/api/media/images', 'POST', {
+        src: u.src,
+        alt: u.caption || '',
+        width: u.width,
+        height: u.height,
+        order: base + i,
+        priority: false,
+        imageOffsetX: 50,
+        imageOffsetY: 50,
+      })
+      created.push(await res.json())
+    }
+
+    if (placement === 'start') {
+      const shifted = current.map((img, i) => ({ ...img, order: uploaded.length + i }))
+      const changed = shifted.filter((img, i) => current[i].order !== img.order)
+      await Promise.all(changed.map((img) => apiCall(`/api/media/images/${img.id}`, 'PATCH', { order: img.order })))
+      setImages([...created, ...shifted])
+    } else {
+      setImages([...current, ...created])
+    }
+  }
+
+  // 换一张照片：位置、caption 不变，只换图，取景位置回到居中
+  const handleReplaceImage = async (id, { src, width, height }) => {
+    const res = await apiCall(`/api/media/images/${id}`, 'PATCH', {
+      src, width, height, imageOffsetX: 50, imageOffsetY: 50,
+    })
+    const saved = await res.json()
+    setImages((prev) => (prev || []).map((img) => (img.id === saved.id ? saved : img)))
+    return saved
   }
 
   const handleDeleteImage = async (id) => {
@@ -93,5 +135,6 @@ export const useAdminImages = () => {
   return {
     images, setImages, loadImages,
     handleSaveImage, handleDeleteImage, handleReorderImages,
+    handleBulkAddImages, handleReplaceImage,
   }
 }

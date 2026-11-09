@@ -18,7 +18,7 @@ export async function PATCH(
       where: { id },
       data: {
         ...(src && { src }),
-        ...(alt && { alt }),
+        ...(typeof alt === 'string' && { alt }),
         ...(width !== undefined && { width }),
         ...(height !== undefined && { height }),
         ...(order !== undefined && { order }),

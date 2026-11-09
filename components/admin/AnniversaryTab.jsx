@@ -25,8 +25,6 @@ const AnniversaryTab = () => {
     loading,
     uploading,
     setUploading,
-    uploadKey,
-    setUploadKey,
     positionUpdateTimerRef,
     toast,
   } = useAnniversaryImages()
@@ -42,49 +40,22 @@ const AnniversaryTab = () => {
     toast,
   })
 
-  // 处理文件上传
-  const handleFileSelect = async (file, filePath) => {
-    if (!filePath) {
-      toast({
-        title: "Upload Error",
-        description: "File uploaded but no path returned. Check console for details.",
-        variant: "destructive",
-      })
-      return
-    }
-
+  // 批量上传完成：一次请求把所有新照片加进去，然后选中第一张新的方便调位置
+  const handleBulkSave = async (uploaded) => {
     setUploading(true)
     try {
-      const data = await anniversaryApi.addBackground(filePath)
-      
+      const before = backgroundImages.length
+      const data = await anniversaryApi.addBackgrounds(uploaded.map((u) => u.src))
       setBackgroundImages(data.backgroundImages)
       setImagePositions(data.imagePositions)
-      
-      // 自动选中新上传的图片（最后一张）
-      if (data.backgroundImages.length > 0) {
-        const newIndex = data.backgroundImages.length - 1
+      if (data.backgroundImages.length > before) {
+        const newIndex = before
         setSelectedImageIndex(newIndex)
-        // 加载新图片的位置
-        const newImageUrl = data.backgroundImages[newIndex]
-        const newPosition = data.imagePositions[newImageUrl] || { x: 50, y: 50 }
-        setImageOffsetX(newPosition.x)
-        setImageOffsetY(newPosition.y)
+        const pos = data.imagePositions[data.backgroundImages[newIndex]] || { x: 50, y: 50 }
+        setImageOffsetX(pos.x)
+        setImageOffsetY(pos.y)
       }
-      
-      toast({
-        title: "Success",
-        description: "Background image added successfully",
-      })
-      
-      // 重置上传组件，清空已选择的文件
-      setUploadKey(prev => prev + 1)
-    } catch (error) {
-      console.error('Update error:', error)
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update background image",
-        variant: "destructive",
-      })
+      toast({ title: 'Success', description: `加了 ${uploaded.length} 张照片` })
     } finally {
       setUploading(false)
     }
@@ -191,11 +162,10 @@ const AnniversaryTab = () => {
             <div className="space-y-4">
               {/* 上传新背景图 */}
               <div>
-                <h3 className="text-white font-semibold mb-3 text-sm">Upload New Image</h3>
+                <h3 className="text-white font-semibold mb-3 text-sm">Upload Photos</h3>
                 <ImageUploadSection
                   uploading={uploading}
-                  uploadKey={uploadKey}
-                  onFileSelect={handleFileSelect}
+                  onBulkSave={handleBulkSave}
                 />
               </div>
 

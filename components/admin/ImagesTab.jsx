@@ -1,26 +1,114 @@
 'use client'
 
-import React from 'react'
+import React, { useRef, useState } from 'react'
 import { SortableList, SortableItem, SortableHandle } from '@/components/admin/Sortable'
-import { Edit2, Trash2, ImageIcon, Plus, GripVertical } from 'lucide-react'
+import { Edit2, Trash2, ImageIcon, Plus, GripVertical, RefreshCw, Loader2, Upload } from 'lucide-react'
 import Image from 'next/image'
+import BulkImageUploadModal from '@/components/admin/modals/BulkImageUploadModal'
+import { uploadImage, pickImageFiles } from '@/lib/upload-image'
+import { useToast } from '@/hooks/use-toast'
 
-const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder }) => {
+const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, onReplace }) => {
+  const { toast } = useToast()
+  const pickRef = useRef(null)
+  const replaceRef = useRef(null)
+  const replaceTarget = useRef(null)
+  const [bulkFiles, setBulkFiles] = useState(null) // null = 弹窗关着
+  const [replacingId, setReplacingId] = useState(null)
+  const [isDragOver, setIsDragOver] = useState(false)
+
+  const openBulk = (list) => {
+    const files = pickImageFiles(list)
+    if (files.length) setBulkFiles(files)
+  }
+
+  const startReplace = (image) => {
+    replaceTarget.current = image
+    replaceRef.current?.click()
+  }
+
+  const handleReplacePicked = async (e) => {
+    const file = pickImageFiles(e.target.files)[0]
+    e.target.value = ''
+    const target = replaceTarget.current
+    if (!file || !target) return
+    setReplacingId(target.id)
+    try {
+      const uploaded = await uploadImage(file)
+      await onReplace(target.id, uploaded)
+      toast({ title: '已替换', description: target.alt ? `「${target.alt}」换成了新照片` : '照片已换成新的' })
+    } catch (err) {
+      toast({ title: '替换失败', description: err?.message || '请重试', variant: 'destructive' })
+    } finally {
+      setReplacingId(null)
+    }
+  }
+
+  const replaceButton = (image, compact) => (
+    <button
+      onClick={(e) => { e.stopPropagation(); startReplace(image) }}
+      disabled={replacingId !== null}
+      title="换一张照片（位置和 caption 不变）"
+      className={compact
+        ? 'p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-40'
+        : 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-medium backdrop-blur-sm transition-colors disabled:opacity-40'}
+    >
+      <RefreshCw className={compact ? 'w-3.5 h-3.5' : 'w-3 h-3'} />
+      {!compact && 'Replace'}
+    </button>
+  )
+
   return (
-    <div className="space-y-4">
+    <div
+      className={`space-y-4 rounded-xl transition-shadow ${isDragOver ? 'ring-2 ring-indigo-500/60 ring-offset-4 ring-offset-zinc-950' : ''}`}
+      onDragOver={(e) => {
+        // 只响应从电脑拖进来的文件，不干扰卡片之间的拖动排序
+        if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return
+        e.preventDefault()
+        setIsDragOver(true)
+      }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setIsDragOver(false) }}
+      onDrop={(e) => {
+        if (!e.dataTransfer?.files?.length) return
+        e.preventDefault()
+        setIsDragOver(false)
+        openBulk(e.dataTransfer.files)
+      }}
+    >
+      <input
+        ref={pickRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => { openBulk(e.target.files); e.target.value = '' }}
+      />
+      <input ref={replaceRef} type="file" accept="image/*" className="hidden" onChange={handleReplacePicked} />
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-white">Images</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">{images.length} image{images.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-zinc-500 mt-0.5">
+            {images.length} image{images.length !== 1 ? 's' : ''} · 可以直接把照片拖到这里
+          </p>
         </div>
-        <button
-          onClick={() => onAddNew('image')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Image
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onAddNew('image')}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white text-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add one
+          </button>
+          <button
+            onClick={() => pickRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Upload photos
+          </button>
+        </div>
       </div>
 
       {/* Empty state */}
@@ -30,13 +118,13 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder }) => {
             <ImageIcon className="w-5 h-5 text-zinc-500" />
           </div>
           <p className="text-sm font-medium text-white mb-1">No images yet</p>
-          <p className="text-xs text-zinc-500 mb-4">Upload images to your gallery</p>
+          <p className="text-xs text-zinc-500 mb-4">一次选一堆照片，或者直接拖进来</p>
           <button
-            onClick={() => onAddNew('image')}
+            onClick={() => pickRef.current?.click()}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium transition-colors"
           >
-            <Plus className="w-4 h-4" />
-            Add first image
+            <Upload className="w-4 h-4" />
+            Upload photos
           </button>
         </div>
       )}
@@ -87,8 +175,15 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder }) => {
                         </div>
                       )}
 
+                      {replacingId === image.id && (
+                        <div className="absolute inset-0 z-10 bg-black/60 flex items-center justify-center">
+                          <Loader2 className="w-6 h-6 text-white animate-spin" />
+                        </div>
+                      )}
+
                       {/* Hover overlay */}
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        {replaceButton(image, false)}
                         <button
                           onClick={() => onEdit(image, 'image')}
                           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-medium backdrop-blur-sm transition-colors"
@@ -107,7 +202,7 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder }) => {
 
                     {/* Info */}
                     <div className="px-3 py-2.5 bg-zinc-900">
-                      <p className="text-xs font-medium text-white truncate">{image.alt}</p>
+                      <p className={`text-xs font-medium truncate ${image.alt ? 'text-white' : 'text-zinc-600 italic'}`}>{image.alt || 'No caption'}</p>
                       <p className="text-[10px] text-zinc-500 mt-0.5">{image.width} × {image.height}</p>
                     </div>
                   </SortableItem>
@@ -151,10 +246,13 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder }) => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{image.alt}</p>
+                      <p className={`text-sm font-medium truncate ${image.alt ? 'text-white' : 'text-zinc-600 italic'}`}>{image.alt || 'No caption'}</p>
                       <p className="text-xs text-zinc-500">{image.width} × {image.height}</p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
+                      {replacingId === image.id
+                        ? <Loader2 className="w-3.5 h-3.5 m-1.5 text-white animate-spin" />
+                        : replaceButton(image, true)}
                       <button
                         onClick={() => onEdit(image, 'image')}
                         className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
@@ -173,6 +271,20 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder }) => {
               }}
           </SortableList>
         </>
+      )}
+
+      {bulkFiles && (
+        <BulkImageUploadModal
+          title="Upload photos"
+          initialFiles={bulkFiles}
+          withCaptions
+          withPlacement
+          onClose={() => setBulkFiles(null)}
+          onSave={async (uploaded, opts) => {
+            await onBulkAdd(uploaded, opts)
+            toast({ title: '上传完成', description: `加了 ${uploaded.length} 张照片` })
+          }}
+        />
       )}
     </div>
   )
