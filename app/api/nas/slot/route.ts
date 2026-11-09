@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     const { url, width, height } = await storeNasPhoto(form)
     const image = await prisma.image.update({
       where: { id: slot.id },
-      data: { src: url, width, height, imageOffsetX: 50, imageOffsetY: 50, source: 'nas' },
+      data: { src: url, width, height, imageOffsetX: 50, imageOffsetY: 50, source: 'nas', rotateRequestedAt: null, rotateBlock: false },
     })
     return NextResponse.json({ ok: true, id: image.id, src: image.src })
   } catch (err) {

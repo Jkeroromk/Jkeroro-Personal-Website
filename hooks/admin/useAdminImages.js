@@ -105,6 +105,25 @@ export const useAdminImages = () => {
     return saved
   }
 
+  // NAS 管的格子「换一张」：网站只做标记，家里 NAS 一分钟内推一张新的上来。
+  // 这里每 4 秒看一次图片有没有变，最多等 2 分钟。block=true 时当前这张以后不再出现。
+  const handleRotateImage = async (id, { block = false } = {}) => {
+    const before = (images || []).find((img) => img.id === id)?.src
+    await apiCall(`/api/media/images/${id}/rotate`, 'POST', { block })
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 4000))
+      const res = await fetch('/api/media/images', { cache: 'no-store' })
+      if (!res.ok) continue
+      const list = await res.json()
+      const now = list.find((img) => img.id === id)
+      if (now && now.src !== before) {
+        setImages(list)
+        return now
+      }
+    }
+    throw new Error('NAS 还没响应，可能没开机或者容器没在跑；它下次上线会自动换')
+  }
+
   const handleDeleteImage = async (id) => {
     await apiCall(`/api/media/images/${id}`, 'DELETE')
     await loadImages()
@@ -135,6 +154,6 @@ export const useAdminImages = () => {
   return {
     images, setImages, loadImages,
     handleSaveImage, handleDeleteImage, handleReorderImages,
-    handleBulkAddImages, handleReplaceImage,
+    handleBulkAddImages, handleReplaceImage, handleRotateImage,
   }
 }

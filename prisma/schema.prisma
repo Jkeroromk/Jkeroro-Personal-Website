@@ -31,6 +31,10 @@ model Image {
   imageOffsetY Float    @default(50) @map("image_offset_y")
   // 'manual' = 后台手动上传；'nas' = 这一格由 NAS 每天自动换图
   source       String   @default("manual")
+  // 后台点了「换一张」：NAS 每分钟来问一次，看到就马上推一张新的，推完清空
+  rotateRequestedAt DateTime? @map("rotate_requested_at")
+  // 换的同时「以后别再用这张」：NAS 把当前这张记进黑名单
+  rotateBlock  Boolean  @default(false) @map("rotate_block")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

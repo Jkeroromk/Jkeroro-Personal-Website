@@ -1,13 +1,14 @@
 """
 jkeroro.com NAS 自动换图
 
-每天定时（config.toml 里的 sync_time）跑一次：
+每天定时（config.toml 里的 sync_time）跑一次，另外每分钟问一下网站后台有没有点「换一张」：
 - [[slot]]：从指定文件夹随机挑一张（最近用过的尽量避开），压缩后推到网站，换掉首页对应 caption 的那一格
 - [anniversary]：把文件夹镜像到纪念日轮播 —— 文件夹里新加的推上去，删掉的从网站移除
   （只动由 NAS 推上去的照片，后台手动传的不碰）
 
 只有 NAS 主动往外连网站，不需要开端口、不需要把 NAS 暴露到公网。
 手动立刻跑一次：docker exec jkeroro-nas-sync python /app/sync.py --once
+后台点「换一张」：一分钟内自动换（可在 config.toml 里用 poll_seconds 调，0 表示不轮询）
 """
 
 import hashlib
@@ -98,7 +99,10 @@ class Site:
 
     def req(self, method: str, path: str, **kw):
         for attempt in range(4):
-            r = self.s.request(method, self.base + path, timeout=60, **kw)
+            # 不跟随跳转：跨域名跳转时 requests 会丢掉 token，结果只看到一个莫名其妙的 401
+            r = self.s.request(method, self.base + path, timeout=60, allow_redirects=False, **kw)
+            if 300 <= r.status_code < 400:
+                raise RuntimeError(f"网站跳转到了 {r.headers.get('Location')}，把 config.toml 里的 site 改成跳转后的地址")
             if r.status_code == 429 and attempt < 3:
                 wait = min(int(r.headers.get("Retry-After", "10") or 10), 60)
                 log(f"  被限流，等 {wait}s")
@@ -121,13 +125,15 @@ class Site:
 
 # ---------- 同步 ----------
 
-def sync_slots(site: Site, cfg: dict, state: dict):
+def sync_slots(site: Site, cfg: dict, state: dict, only: dict | None = None):
+    """only: {图片id: {"block": bool, "currentHash": str}}，只处理后台点了「换一张」的格子"""
     slots = cfg.get("slot", [])
     if not slots:
         return
     targets = site.req("GET", "/api/nas/targets")["slots"]
     by_caption = {t["caption"].strip().lower(): t["id"] for t in targets if t["caption"]}
     recent_all = state.setdefault("recent", {})
+    blocked_all = state.setdefault("blocked", {})
 
     for slot in slots:
         name = slot.get("caption") or slot.get("id")
@@ -135,6 +141,15 @@ def sync_slots(site: Site, cfg: dict, state: dict):
         if not target:
             log(f"[slot] 找不到 caption 为「{name}」的照片，检查后台 Images 里的 caption")
             continue
+        if only is not None and target not in only:
+            continue
+        req = (only or {}).get(target) or {}
+        if req.get("block") and req.get("currentHash"):
+            bl = blocked_all.setdefault(name, [])
+            if req["currentHash"] not in bl:
+                bl.append(req["currentHash"])
+                log(f"[slot] {name}: 以后不再用当前这张（黑名单共 {len(bl)} 张）")
+
         folder = Path(slot["folder"])
         photos = list_photos(folder) if folder.is_dir() else []
         if not photos:
@@ -143,8 +158,9 @@ def sync_slots(site: Site, cfg: dict, state: dict):
 
         cache = state.setdefault("hashes", {})
         recent = recent_all.get(name, [])
-        keep = min(RECENT_KEEP, len(photos) - 1)
-        avoid = set(recent[:keep]) if keep > 0 else set()
+        blocked = set(blocked_all.get(name, []))
+        keep = min(RECENT_KEEP, max(len(photos) - len(blocked) - 1, 0))
+        avoid = set(recent[:keep]) | blocked
         random.shuffle(photos)
         for p in photos:
             try:
@@ -200,9 +216,24 @@ def sync_anniversary(site: Site, cfg: dict, state: dict):
     log(f"[anniversary] 文件夹 {len(local)} 张：新加 {added}，移除 {len(gone)}")
 
 
+def load_state() -> dict:
+    return json.loads(STATE_PATH.read_text()) if STATE_PATH.exists() else {}
+
+
+def save_state(state: dict):
+    # 只保留还存在的文件的 hash 缓存
+    state["hashes"] = {k: v for k, v in state.get("hashes", {}).items() if Path(k).exists()}
+    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False))
+
+
+def load_cfg() -> dict:
+    return tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+
+
 def run_once():
-    cfg = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-    state = json.loads(STATE_PATH.read_text()) if STATE_PATH.exists() else {}
+    cfg = load_cfg()
+    state = load_state()
     site = Site(cfg["site"])
     log("开始同步", cfg["site"])
     for step in (sync_slots, sync_anniversary):
@@ -210,11 +241,21 @@ def run_once():
             step(site, cfg, state)
         except Exception as e:
             log(f"{step.__name__} 出错：{e}")
-    # 只保留还存在的文件的 hash 缓存
-    state["hashes"] = {k: v for k, v in state.get("hashes", {}).items() if Path(k).exists()}
-    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False))
+    save_state(state)
     log("同步结束")
+
+
+def check_pending():
+    """后台点了「换一张」的格子，马上换"""
+    cfg = load_cfg()
+    site = Site(cfg["site"])
+    pending = site.req("GET", "/api/nas/pending").get("pending", [])
+    if not pending:
+        return
+    log(f"后台请求换图：{', '.join(p.get('caption') or p['id'] for p in pending)}")
+    state = load_state()
+    sync_slots(site, cfg, state, only={p["id"]: p for p in pending})
+    save_state(state)
 
 
 def seconds_until(hhmm: str) -> float:
@@ -232,16 +273,23 @@ def main():
     if "--once" in sys.argv:
         run_once()
         return
-    cfg = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    cfg = load_cfg()
     sync_time = cfg.get("sync_time", "04:00")
+    poll = int(cfg.get("poll_seconds", 60))
     if cfg.get("run_on_start", True):
         run_once()
     while True:
         wait = seconds_until(sync_time)
-        log(f"下次同步：{sync_time}（{wait / 3600:.1f} 小时后）")
-        time.sleep(wait)
+        log(f"下次同步：{sync_time}（{wait / 3600:.1f} 小时后）" + (f"，每 {poll} 秒检查后台「换一张」" if poll > 0 else ""))
+        deadline = time.time() + wait
+        while time.time() < deadline:
+            time.sleep(min(poll, deadline - time.time()) if poll > 0 else deadline - time.time())
+            if poll > 0 and time.time() < deadline:
+                try:
+                    check_pending()
+                except Exception as e:
+                    log(f"检查换图请求出错：{e}")
         run_once()
-
 
 if __name__ == "__main__":
     main()
