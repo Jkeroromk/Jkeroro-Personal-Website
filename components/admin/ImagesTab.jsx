@@ -212,14 +212,15 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                     </div>
 
                     {/* Image */}
-                    <div className="relative aspect-square bg-zinc-800/50">
+                    <div className="relative aspect-square overflow-hidden bg-zinc-900">
                       {image.src?.trim() ? (
                         <Image
                           src={image.src}
                           alt={image.alt}
                           fill
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                          className="object-contain transition-transform duration-300 group-hover:scale-105"
+                          className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                          style={{ objectPosition: `${image.imageOffsetX ?? 50}% ${image.imageOffsetY ?? 50}%` }}
                           draggable={false}
                           unoptimized={image.src.startsWith('/api/file/') || image.src.startsWith('https://')}
                         />
