@@ -1,0 +1,23 @@
+# jkeroro.com NAS 自动换图
+# 用法见同目录 README.md
+services:
+  nas-sync:
+    image: python:3.12-slim
+    container_name: jkeroro-nas-sync
+    restart: unless-stopped
+    working_dir: /app
+    # 用官方 Python 镜像，启动时装依赖，不需要自己 build
+    command: >
+      sh -c "pip install --no-cache-dir --disable-pip-version-check -q pillow pillow-heif requests
+      && python -u /app/sync.py"
+    environment:
+      TZ: America/New_York
+      NAS_SYNC_TOKEN: "把 token 贴在这里"
+    volumes:
+      - ./sync.py:/app/sync.py:ro
+      - ./config.toml:/app/config.toml:ro
+      - ./state:/app/state
+      # 左边改成 NAS 上放网站照片的文件夹，里面建 doudou、anniversary 等子文件夹
+      - /volume1/Photos/website:/photos:ro
+    # 只需要往外连网站，不开任何端口
+    mem_limit: 512m

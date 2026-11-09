@@ -1,0 +1,31 @@
+# jkeroro.com NAS 自动换图 —— 配置
+# 改完重启容器生效（docker restart jkeroro-nas-sync）
+
+site = "https://jkeroro.com"
+
+# 每天几点换（按 docker-compose 里的 TZ，默认美东时间）
+sync_time = "04:00"
+
+# 容器启动时先跑一次
+run_on_start = true
+
+# ---- 首页 Snapshots 的格子 ----
+# caption 写后台 Images 里那张照片的 caption（不区分大小写）
+# folder 是容器里的路径：docker-compose 把 NAS 上的照片文件夹挂到了 /photos
+[[slot]]
+caption = "dou dou"
+folder = "/photos/doudou"
+
+# 以后要给其他格子接文件夹，照着加：
+# [[slot]]
+# caption = "me"
+# folder = "/photos/me"
+#
+# [[slot]]
+# caption = "coffee"
+# folder = "/photos/coffee"
+
+# ---- 纪念日轮播：整个文件夹镜像过去 ----
+# 文件夹里加照片 → 网站加；删照片 → 网站删（后台手动传的照片不受影响）
+[anniversary]
+folder = "/photos/anniversary"

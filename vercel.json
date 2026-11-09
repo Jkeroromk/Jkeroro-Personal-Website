@@ -53,10 +53,6 @@
     {
       "path": "/api/cron/monthly-report",
       "schedule": "0 10 1 * *"
-    },
-    {
-      "path": "/api/cron/album-sync",
-      "schedule": "0 8 * * *"
     }
   ]
 }

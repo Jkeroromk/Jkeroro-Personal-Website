@@ -15,7 +15,8 @@ export async function uploadToSupabase(
   buffer: Buffer,
   fileName: string,
   contentType: string,
-  bucket: UploadBucket
+  bucket: UploadBucket,
+  { upsert = false }: { upsert?: boolean } = {}
 ): Promise<UploadResult> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -38,7 +39,7 @@ export async function uploadToSupabase(
 
   const { error: uploadError } = await supabase.storage
     .from(bucket)
-    .upload(fileName, buffer, { contentType, upsert: false })
+    .upload(fileName, buffer, { contentType, upsert })
 
   if (uploadError) {
     let msg = uploadError.message

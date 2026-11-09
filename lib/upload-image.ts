@@ -14,13 +14,18 @@ export interface UploadedImage {
 export async function uploadImage(file: File): Promise<UploadedImage> {
   const { file: compressed, width, height } = await compressImage(file)
 
-  const formData = new FormData()
-  formData.append('file', compressed)
-  const res = await fetch('/api/upload', {
-    method: 'POST',
-    headers: await getAuthHeaders(),
-    body: formData,
-  })
+  const send = async () => {
+    const formData = new FormData()
+    formData.append('file', compressed)
+    return fetch('/api/upload', { method: 'POST', headers: await getAuthHeaders(), body: formData })
+  }
+  let res = await send()
+  // 被限流了就按服务器说的时间等一下再传一次
+  if (res.status === 429) {
+    const wait = Math.min(Number(res.headers.get('Retry-After')) || 10, 60)
+    await new Promise((r) => setTimeout(r, wait * 1000))
+    res = await send()
+  }
 
   let result: { success?: boolean; filePath?: string; error?: string } = {}
   try {

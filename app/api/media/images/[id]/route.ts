@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/requireAuth'
-import { detachSlot } from '@/lib/album-sync'
 
 // 更新图片
 export async function PATCH(
@@ -49,9 +48,6 @@ export async function DELETE(
   try {
     const { id } = await params
 
-    // 这一格如果接了 iCloud 相簿，一起断开
-    await detachSlot(id, { keepImage: false }).catch((e) => console.error('detachSlot failed', e))
-    
     // 添加连接超时保护
     await Promise.race([
       prisma.image.delete({

@@ -1,13 +1,11 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { SortableList, SortableItem, SortableHandle } from '@/components/admin/Sortable'
-import { Edit2, Trash2, ImageIcon, Plus, GripVertical, RefreshCw, Loader2, Upload, Cloud } from 'lucide-react'
-import AlbumSyncCard from '@/components/admin/AlbumSyncCard'
+import { Edit2, Trash2, ImageIcon, Plus, GripVertical, RefreshCw, Loader2, Upload, HardDrive } from 'lucide-react'
 import Image from 'next/image'
 import BulkImageUploadModal from '@/components/admin/modals/BulkImageUploadModal'
 import { uploadImage, pickImageFiles } from '@/lib/upload-image'
-import { getAuthHeaders } from '@/lib/auth-client'
 import { useToast } from '@/hooks/use-toast'
 
 // 卡片悬停工具栏里的小图标按钮，悬停时上方显示文字提示
@@ -32,7 +30,7 @@ const ToolButton = ({ label, onClick, disabled, active, danger, children }) => (
   </button>
 )
 
-const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, onReplace, onReload }) => {
+const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, onReplace }) => {
   const { toast } = useToast()
   const pickRef = useRef(null)
   const replaceRef = useRef(null)
@@ -40,36 +38,6 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
   const [bulkFiles, setBulkFiles] = useState(null) // null = 弹窗关着
   const [replacingId, setReplacingId] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [albumFor, setAlbumFor] = useState(null) // 正在给哪一格接相簿
-  const [linked, setLinked] = useState({}) // imageId → 相簿名
-
-  // 哪些格子接了 iCloud 相簿（每天自动换一张）
-  const loadLinked = useCallback(async () => {
-    try {
-      const res = await fetch('/api/album-sources', { headers: await getAuthHeaders(), cache: 'no-store' })
-      if (!res.ok) return
-      const all = await res.json()
-      const map = {}
-      for (const [id, src] of Object.entries(all)) {
-        if (id.startsWith('slot:')) map[id.slice(5)] = src.albumName || 'iCloud'
-      }
-      setLinked(map)
-    } catch {}
-  }, [])
-  useEffect(() => { loadLinked() }, [loadLinked])
-
-  const albumButton = (image, compact) => (
-    <button
-      onClick={(e) => { e.stopPropagation(); setAlbumFor(image) }}
-      title={linked[image.id] ? `每天从「${linked[image.id]}」换一张` : '接 iCloud 相簿，每天自动换一张'}
-      className={compact
-        ? `p-1.5 rounded-md transition-colors hover:bg-white/10 ${linked[image.id] ? 'text-sky-400' : 'text-zinc-400 hover:text-white'}`
-        : 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white text-xs font-medium backdrop-blur-sm transition-colors'}
-    >
-      <Cloud className={compact ? 'w-3.5 h-3.5' : 'w-3 h-3'} />
-      {!compact && 'Album'}
-    </button>
-  )
 
   const openBulk = (list) => {
     const files = pickImageFiles(list)
@@ -144,7 +112,7 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
         <div>
           <h2 className="text-base font-semibold text-white">Images</h2>
           <p className="text-xs text-zinc-500 mt-0.5">
-            {images.length} image{images.length !== 1 ? 's' : ''} · 可以直接把照片拖到这里 · 每张都能接一个 iCloud 相簿，每天自动换图
+            {images.length} image{images.length !== 1 ? 's' : ''} · 可以直接把照片拖到这里
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -240,13 +208,6 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                       <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                       <div className="absolute inset-x-0 bottom-2.5 flex justify-center opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0 transition-all duration-200">
                         <div className="flex items-center gap-0.5 p-1 rounded-xl bg-zinc-950/75 border border-white/10 backdrop-blur-md shadow-lg shadow-black/40">
-                          <ToolButton
-                            label={linked[image.id] ? `相簿：${linked[image.id]}` : '接 iCloud 相簿'}
-                            active={!!linked[image.id]}
-                            onClick={() => setAlbumFor(image)}
-                          >
-                            <Cloud className="w-3.5 h-3.5" />
-                          </ToolButton>
                           <ToolButton label="替换照片" disabled={replacingId !== null} onClick={() => startReplace(image)}>
                             <RefreshCw className="w-3.5 h-3.5" />
                           </ToolButton>
@@ -264,10 +225,10 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                     {/* Info */}
                     <div className="px-3 py-2.5 bg-zinc-900">
                       <p className={`text-[13px] font-medium leading-tight truncate ${image.alt ? 'text-zinc-100' : 'text-zinc-600 italic font-normal'}`}>{image.alt || 'No caption'}</p>
-                      {linked[image.id] ? (
-                        <p className="text-[11px] text-sky-400/90 mt-1 flex items-center gap-1 truncate">
-                          <Cloud className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{linked[image.id]} · 每天换</span>
+                      {image.source === 'nas' ? (
+                        <p className="text-[11px] text-emerald-400/90 mt-1 flex items-center gap-1 truncate" title="这一格由 NAS 每天自动换图">
+                          <HardDrive className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate">NAS · 每天换</span>
                         </p>
                       ) : (
                         <p className="text-[11px] text-zinc-500 mt-1 tabular-nums">{image.width} × {image.height}</p>
@@ -316,7 +277,7 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium truncate ${image.alt ? 'text-white' : 'text-zinc-600 italic'}`}>{image.alt || 'No caption'}</p>
                       <p className="text-xs text-zinc-500 flex items-center gap-1">
-                        {linked[image.id] && <Cloud className="w-3 h-3 text-sky-400" />}
+                        {image.source === 'nas' && <HardDrive className="w-3 h-3 text-emerald-400" />}
                         {image.width} × {image.height}
                       </p>
                     </div>
@@ -324,7 +285,6 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                       {replacingId === image.id
                         ? <Loader2 className="w-3.5 h-3.5 m-1.5 text-white animate-spin" />
                         : replaceButton(image, true)}
-                      {albumButton(image, true)}
                       <button
                         onClick={() => onEdit(image, 'image')}
                         className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
@@ -343,32 +303,6 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
               }}
           </SortableList>
         </>
-      )}
-
-      {albumFor && (
-        <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-3"
-          onClick={() => setAlbumFor(null)}
-        >
-          <div
-            className="w-full max-w-lg rounded-xl border border-white/10 bg-zinc-900 p-4 space-y-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-white">
-                「{albumFor.alt || '这张照片'}」这一格
-              </p>
-              <button onClick={() => setAlbumFor(null)} className="text-xs text-zinc-400 hover:text-white">完成</button>
-            </div>
-            <AlbumSyncCard
-              key={albumFor.id}
-              target={`slot:${albumFor.id}`}
-              mode="slot"
-              bare
-              onSynced={() => { onReload?.(); loadLinked() }}
-            />
-          </div>
-        </div>
       )}
 
       {bulkFiles && (
