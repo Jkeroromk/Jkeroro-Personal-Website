@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from 'react'
 import { SortableList, SortableItem, SortableHandle } from '@/components/admin/Sortable'
-import { Edit2, Trash2, ImageIcon, Plus, GripVertical, RefreshCw, Loader2, Upload, HardDrive } from 'lucide-react'
+import { Edit2, Trash2, ImageIcon, Plus, GripVertical, RefreshCw, Loader2, Upload, HardDrive, Shuffle, Ban } from 'lucide-react'
 import Image from 'next/image'
 import BulkImageUploadModal from '@/components/admin/modals/BulkImageUploadModal'
 import { uploadImage, pickImageFiles } from '@/lib/upload-image'
@@ -30,7 +30,7 @@ const ToolButton = ({ label, onClick, disabled, active, danger, children }) => (
   </button>
 )
 
-const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, onReplace }) => {
+const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, onReplace, onRotate }) => {
   const { toast } = useToast()
   const pickRef = useRef(null)
   const replaceRef = useRef(null)
@@ -38,6 +38,20 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
   const [bulkFiles, setBulkFiles] = useState(null) // null = 弹窗关着
   const [replacingId, setReplacingId] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [rotatingId, setRotatingId] = useState(null)
+
+  // NAS 管的格子：让 NAS 马上从文件夹里换一张（block=true 时这张以后不再出现）
+  const rotate = async (image, block) => {
+    setRotatingId(image.id)
+    try {
+      await onRotate(image.id, { block })
+      toast({ title: '换好了', description: block ? '刚才那张以后不会再出现' : '已经换成新的一张' })
+    } catch (err) {
+      toast({ title: '换图失败', description: err?.message || '请稍后再试', variant: 'destructive' })
+    } finally {
+      setRotatingId(null)
+    }
+  }
 
   const openBulk = (list) => {
     const files = pickImageFiles(list)
@@ -198,9 +212,10 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                         </div>
                       )}
 
-                      {replacingId === image.id && (
-                        <div className="absolute inset-0 z-10 bg-black/60 flex items-center justify-center">
+                      {(replacingId === image.id || rotatingId === image.id) && (
+                        <div className="absolute inset-0 z-10 bg-black/60 flex flex-col items-center justify-center gap-2">
                           <Loader2 className="w-6 h-6 text-white animate-spin" />
+                          {rotatingId === image.id && <span className="text-[11px] text-zinc-300">等 NAS 推新照片…</span>}
                         </div>
                       )}
 
@@ -208,6 +223,17 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                       <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
                       <div className="absolute inset-x-0 bottom-2.5 flex justify-center opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0 transition-all duration-200">
                         <div className="flex items-center gap-0.5 p-1 rounded-xl bg-zinc-950/75 border border-white/10 backdrop-blur-md shadow-lg shadow-black/40">
+                          {image.source === 'nas' && (
+                            <>
+                              <ToolButton label="从 NAS 换一张" disabled={rotatingId !== null} onClick={() => rotate(image, false)}>
+                                <Shuffle className="w-3.5 h-3.5" />
+                              </ToolButton>
+                              <ToolButton label="换掉，以后别再用这张" disabled={rotatingId !== null} onClick={() => rotate(image, true)}>
+                                <Ban className="w-3.5 h-3.5" />
+                              </ToolButton>
+                              <span className="w-px h-4 bg-white/10 mx-0.5" />
+                            </>
+                          )}
                           <ToolButton label="替换照片" disabled={replacingId !== null} onClick={() => startReplace(image)}>
                             <RefreshCw className="w-3.5 h-3.5" />
                           </ToolButton>
@@ -282,6 +308,20 @@ const ImagesTab = ({ images, onEdit, onDelete, onAddNew, onReorder, onBulkAdd, o
                       </p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
+                      {image.source === 'nas' && (
+                        rotatingId === image.id
+                          ? <Loader2 className="w-3.5 h-3.5 m-1.5 text-emerald-400 animate-spin" />
+                          : (
+                            <button
+                              onClick={() => rotate(image, false)}
+                              disabled={rotatingId !== null}
+                              title="从 NAS 换一张"
+                              className="p-1.5 rounded-md text-emerald-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-40"
+                            >
+                              <Shuffle className="w-3.5 h-3.5" />
+                            </button>
+                          )
+                      )}
                       {replacingId === image.id
                         ? <Loader2 className="w-3.5 h-3.5 m-1.5 text-white animate-spin" />
                         : replaceButton(image, true)}

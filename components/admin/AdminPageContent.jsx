@@ -51,6 +51,7 @@ const AdminPageContent = () => {
     handleImageReorder,
     handleBulkAddImages,
     handleReplaceImage,
+    handleRotateImage,
     handleProjectReorder,
     handleProjectTogglePin,
     handleAddTrack,
@@ -105,6 +106,7 @@ const AdminPageContent = () => {
                     onReorder={handleImageReorder}
                     onBulkAdd={handleBulkAddImages}
                     onReplace={handleReplaceImage}
+                    onRotate={handleRotateImage}
                   />
                 )}
                 {activeTab === 'music' && (

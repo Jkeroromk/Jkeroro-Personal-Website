@@ -103,6 +103,7 @@ export const useAdminData = () => {
     handleImageReorder: imageHook.handleReorderImages,
     handleBulkAddImages: imageHook.handleBulkAddImages,
     handleReplaceImage: imageHook.handleReplaceImage,
+    handleRotateImage: imageHook.handleRotateImage,
     handleProjectReorder: projectHook.handleReorderProjects,
     handleProjectTogglePin: projectHook.handleTogglePin,
     handleAddTrack,
