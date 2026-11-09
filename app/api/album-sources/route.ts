@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/requireAuth'
 import { fetchAlbum, parseShareToken } from '@/lib/icloud-album'
-import { isAlbumTarget, syncAlbum } from '@/lib/album-sync'
+import { isAlbumTarget, syncAlbum, detachSlot } from '@/lib/album-sync'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-// 后台用：查看两个位置各接了哪个 iCloud 共享相簿、上次同步情况
+// 后台用：查看各个位置（纪念日轮播、首页每一格）接了哪个 iCloud 共享相簿、上次同步情况
 export async function GET(request: NextRequest) {
   const authError = await requireAuth(request)
   if (authError) return authError
@@ -36,6 +36,11 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: '链接不对，应该是 https://www.icloud.com/sharedalbum/#B0... 这样的' }, { status: 400 })
   }
 
+  if (id.startsWith('slot:')) {
+    const exists = await prisma.image.findUnique({ where: { id: id.slice(5) }, select: { id: true } })
+    if (!exists) return NextResponse.json({ error: '这张照片不存在了' }, { status: 400 })
+  }
+
   let album
   try {
     album = await fetchAlbum(token)
@@ -61,12 +66,13 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// 断开：之后不再同步。已经同步到网站上的照片保留，想删可以在后台删
+// 断开：之后不再同步。已经在网站上的照片保留，想删可以在后台删
 export async function DELETE(request: NextRequest) {
   const authError = await requireAuth(request)
   if (authError) return authError
   const { id } = await request.json().catch(() => ({}))
   if (!isAlbumTarget(id)) return NextResponse.json({ error: 'Invalid target' }, { status: 400 })
-  await prisma.albumSource.deleteMany({ where: { id } })
+  if (id.startsWith('slot:')) await detachSlot(id.slice(5))
+  else await prisma.albumSource.deleteMany({ where: { id } })
   return NextResponse.json({ ok: true })
 }

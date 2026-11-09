@@ -1,19 +1,30 @@
 /**
- * 把 iCloud 共享相簿同步到网站：
- * - 相簿里新加的照片 → 下载存到 Supabase Storage，加进 Snapshots / Anniversary
- * - 相簿里删掉的照片 → 网站上也删掉（文件由每周的存储清理回收）
- * - 在后台手动删掉的同步照片会记进 excluded，不会再被同步回来
+ * iCloud 共享相簿 → 网站。两个位置用法不一样：
  *
- * 每天由 /api/cron/album-sync 跑一次，后台也可以点「立即同步」。
- * 一次最多新加 MAX_NEW_PER_RUN 张、最多跑 TIME_BUDGET_MS，剩下的下次接着同步。
+ * slot:<imageId>（首页照片区的某一格，比如豆豆那张；每一格可以各接一个相簿）：
+ *   每天从相簿里随机挑一张，下载下来替换那一格。只存当天那一张，
+ *   换下来的旧图由每周的存储清理回收。最近用过的会尽量避开，不会连着重复。
+ *
+ * anniversary（纪念日轮播）：整本同步
+ *   - 相簿里新加的照片 → 下载存到 Supabase Storage，加进轮播
+ *   - 相簿里删掉的照片 → 轮播里也删掉
+ *   - 在后台手动删掉的同步照片会记进 excluded，不会再被同步回来
+ *   一次最多新加 MAX_NEW_PER_RUN 张、最多跑 TIME_BUDGET_MS，剩下的下次接着同步。
+ *
+ * 每天由 /api/cron/album-sync 跑一次，后台也可以手动触发。
  */
 
 import { prisma } from '@/lib/prisma'
 import { fetchAlbum, fetchAssetUrls, parseShareToken, type AlbumPhoto } from '@/lib/icloud-album'
 import { uploadToSupabase, generateFileName } from '@/lib/upload-to-supabase'
 
-export const ALBUM_TARGETS = ['snapshots', 'anniversary'] as const
-export type AlbumTarget = (typeof ALBUM_TARGETS)[number]
+// 'anniversary' = 纪念日轮播；'slot:<images.id>' = 首页照片区的某一格
+export type AlbumTarget = 'anniversary' | `slot:${string}`
+
+const SLOT_RE = /^slot:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+export const slotTarget = (imageId: string): AlbumTarget => `slot:${imageId}`
+const slotImageId = (target: AlbumTarget) => (target.startsWith('slot:') ? target.slice(5) : null)
 
 const MAX_NEW_PER_RUN = 24
 const TIME_BUDGET_MS = 40_000
@@ -21,7 +32,8 @@ const CONCURRENCY = 4
 
 interface Items {
   map?: Record<string, string> // anniversary: guid → 网站上的图片地址
-  excluded?: string[]
+  excluded?: string[] // anniversary: 后台手动删掉、不要再同步回来的
+  recent?: string[] // slot: 最近用过的 guid，挑新照片时避开
 }
 
 export interface SyncResult {
@@ -32,10 +44,11 @@ export interface SyncResult {
   remaining: number
   failed: number
   skippedRemoval?: boolean
+  picked?: string // slot: 今天换上的照片地址
 }
 
 export function isAlbumTarget(id: unknown): id is AlbumTarget {
-  return typeof id === 'string' && (ALBUM_TARGETS as readonly string[]).includes(id)
+  return typeof id === 'string' && (id === 'anniversary' || SLOT_RE.test(id))
 }
 
 function asItems(v: unknown): Items {
@@ -83,46 +96,49 @@ async function storeNew(
   return { stored, failed }
 }
 
-async function syncSnapshots(albumGuids: Set<string>, photos: AlbumPhoto[], excluded: Set<string>, ctx: { host: string; token: string; started: number; safeToRemove: boolean }) {
-  const existing = await prisma.image.findMany({
-    where: { source: 'icloud' },
-    select: { id: true, externalId: true },
-  })
-  const have = new Set(existing.map((r) => r.externalId).filter(Boolean) as string[])
+/** 某一格：从相簿随机挑一张（避开最近用过的），替换这一格 */
+async function rotateSlot(imageId: string, photos: AlbumPhoto[], items: Items, ctx: { host: string; token: string }) {
+  const slot = await prisma.image.findUnique({ where: { id: imageId }, select: { id: true, externalId: true } })
+  if (!slot) throw new Error('要替换的那张照片已经被删了，请重新选一格')
+  if (!photos.length) throw new Error('相簿里没有照片（或者 iCloud 这次返回了空列表）')
 
-  let removed = 0
-  if (ctx.safeToRemove) {
-    const gone = existing.filter((r) => r.externalId && !albumGuids.has(r.externalId))
-    if (gone.length) {
-      const del = await prisma.image.deleteMany({ where: { id: { in: gone.map((r) => r.id) } } })
-      removed = del.count
+  // 最多记住最近 30 张，但至少留一张可选
+  const keep = Math.min(30, photos.length - 1)
+  const recent = new Set([slot.externalId, ...(items.recent || [])].filter(Boolean).slice(0, Math.max(keep, 1)) as string[])
+  const pool = photos.filter((p) => !recent.has(p.guid))
+  const candidates = pool.length ? pool : photos
+
+  // 挑一张下载；失败就换一张再试，最多试 3 次
+  const tried = new Set<string>()
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const left = candidates.filter((p) => !tried.has(p.guid))
+    if (!left.length) break
+    const p = left[Math.floor(Math.random() * left.length)]
+    tried.add(p.guid)
+    try {
+      const urls = await fetchAssetUrls(ctx.host, ctx.token, [p.guid])
+      const url = urls[p.checksum]
+      if (!url) continue
+      const src = await downloadAndStore(url, p.guid)
+      await prisma.image.update({
+        where: { id: slot.id },
+        data: {
+          src,
+          width: p.width,
+          height: p.height,
+          imageOffsetX: 50,
+          imageOffsetY: 50,
+          source: 'icloud',
+          externalId: p.guid,
+        },
+      })
+      const nextRecent = [p.guid, ...(items.recent || []).filter((g) => g !== p.guid)].slice(0, 30)
+      return { picked: src, items: { ...items, recent: nextRecent }, failed: attempt }
+    } catch (err) {
+      console.error('[album-sync] rotate failed for', p.guid, err)
     }
   }
-
-  const todo = photos.filter((p) => !have.has(p.guid) && !excluded.has(p.guid))
-  const batch = todo.slice(0, MAX_NEW_PER_RUN)
-  const { stored, failed } = await storeNew(ctx.host, ctx.token, batch, ctx.started)
-
-  const maxOrder = await prisma.image.findFirst({ orderBy: { order: 'desc' }, select: { order: true } })
-  let order = (maxOrder?.order ?? -1) + 1
-  let added = 0
-  for (const p of batch) {
-    const src = stored.get(p.guid)
-    if (!src) continue
-    await prisma.image.create({
-      data: {
-        src,
-        alt: p.caption,
-        width: p.width,
-        height: p.height,
-        order: order++,
-        source: 'icloud',
-        externalId: p.guid,
-      },
-    })
-    added++
-  }
-  return { added, removed, failed, remaining: todo.length - added }
+  throw new Error('下载照片失败，稍后再试')
 }
 
 async function syncAnniversary(albumGuids: Set<string>, photos: AlbumPhoto[], items: Items, ctx: { host: string; token: string; started: number; safeToRemove: boolean }) {
@@ -182,30 +198,27 @@ export async function syncAlbum(target: AlbumTarget): Promise<SyncResult> {
     const album = await fetchAlbum(token)
     const albumGuids = new Set(album.photos.map((p) => p.guid))
     const items = asItems(source.items)
-    const excluded = new Set(items.excluded || [])
 
-    // iCloud 偶尔会返回空列表；相簿突然变空时先不删网站上的照片，免得一次误判全删光
-    const knownCount = target === 'anniversary'
-      ? Object.keys(items.map || {}).length
-      : await prisma.image.count({ where: { source: 'icloud' } })
-    const safeToRemove = album.photos.length > 0 || knownCount === 0
-    const ctx = { host: album.host, token, started, safeToRemove }
-
-    let r: { added: number; removed: number; failed: number; remaining: number }
+    let result: SyncResult
     let nextItems: Items = items
-    if (target === 'snapshots') {
-      r = await syncSnapshots(albumGuids, album.photos, excluded, ctx)
+    const imageId = slotImageId(target)
+    if (imageId) {
+      const r = await rotateSlot(imageId, album.photos, items, { host: album.host, token })
+      nextItems = r.items
+      result = { album: album.name, total: album.photos.length, added: 1, removed: 0, remaining: 0, failed: r.failed, picked: r.picked }
     } else {
-      const { items: updated, ...counts } = await syncAnniversary(albumGuids, album.photos, items, ctx)
-      r = counts
+      // iCloud 偶尔会返回空列表；相簿突然变空时先不删网站上的照片，免得一次误判全删光
+      const safeToRemove = album.photos.length > 0 || Object.keys(items.map || {}).length === 0
+      const { items: updated, ...counts } = await syncAnniversary(albumGuids, album.photos, items, {
+        host: album.host, token, started, safeToRemove,
+      })
       nextItems = updated
-    }
-
-    const result: SyncResult = {
-      album: album.name,
-      total: album.photos.length,
-      ...r,
-      ...(safeToRemove ? {} : { skippedRemoval: true }),
+      result = {
+        album: album.name,
+        total: album.photos.length,
+        ...counts,
+        ...(safeToRemove ? {} : { skippedRemoval: true }),
+      }
     }
     await prisma.albumSource.update({
       where: { id: target },
@@ -225,7 +238,15 @@ export async function syncAlbum(target: AlbumTarget): Promise<SyncResult> {
   }
 }
 
-/** 后台手动删掉了一张同步来的照片：记下来，下次不再同步回来 */
+/** 断开某一格的相簿：照片留着当普通照片（去掉 iCloud 标记） */
+export async function detachSlot(imageId: string, { keepImage = true } = {}) {
+  await prisma.albumSource.deleteMany({ where: { id: slotTarget(imageId) } })
+  if (keepImage) {
+    await prisma.image.updateMany({ where: { id: imageId }, data: { source: 'manual', externalId: null } })
+  }
+}
+
+/** 纪念日轮播里手动删掉了一张同步来的照片：记下来，下次不再同步回来 */
 export async function excludeFromSync(target: AlbumTarget, guid: string) {
   const source = await prisma.albumSource.findUnique({ where: { id: target } })
   if (!source) return

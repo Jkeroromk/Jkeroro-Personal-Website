@@ -172,20 +172,20 @@ const Album = () => {
     if (cached && cached.length > 0) setImages(cached);
 
     let alive = true;
-    // home=1：照片多的时候服务器每天随机挑 7 张（同一天大家看到的一样）
-    const load = () =>
-      fetch("/api/media/images?home=1", { cache: "no-store" })
-        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-        .then((data) => {
-          if (!alive || !Array.isArray(data)) return;
-          setImages((prev) => (sameImages(prev, data) ? prev : data));
-          dataManager.saveImages(data);
-        })
-        .catch((error) => console.error("Album: Error loading images:", error));
-    load();
+    fetch("/api/media/images")
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((data) => {
+        if (!alive || !Array.isArray(data)) return;
+        setImages(data);
+        dataManager.saveImages(data);
+      })
+      .catch((error) => console.error("Album: Error loading images:", error));
 
-    // 后台改了图片，首页实时更新（推过来的是全部照片，所以重新拿一次今天要显示的）
-    const unsubscribe = getRealtimeClient().subscribe("images", () => load());
+    // 后台改了图片，首页实时更新
+    const unsubscribe = getRealtimeClient().subscribe("images", (newData) => {
+      if (!Array.isArray(newData)) return;
+      setImages((prev) => (sameImages(prev, newData) ? prev : newData));
+    });
 
     return () => {
       alive = false;
