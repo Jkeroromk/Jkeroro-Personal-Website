@@ -41,7 +41,7 @@ const SPECS = [
 ];
 
 const BACKGROUNDS = {
-  night: "radial-gradient(120% 100% at 30% 15%, #8f88a8 0%, #6b6890 45%, #3e3d6b 100%)",
+  night: "radial-gradient(120% 100% at 30% 15%, #8d8d92 0%, #5f5f64 45%, #2c2c30 100%)",
   day: "radial-gradient(120% 100% at 50% 20%, #ffffff 0%, #ececee 45%, #c9c9ce 100%)",
 };
 

@@ -32,7 +32,7 @@ const CAMERA_FOV = 30;
 
 // 卡片模式
 const CARD_CAMERA_DISTANCE = 9.2; // 原示例 12，卡片是 2:1 的小画布，所以拉近一些
-const CARD_CAMERA_TARGET = new THREE.Vector3(-0.35, -0.12, 0);
+const CARD_CAMERA_TARGET = new THREE.Vector3(0.05, -0.12, 0);
 const AUTO_YAW_AMPLITUDE = 0.32; // 自己左右转动的幅度（rad）
 const AUTO_YAW_SPEED = 0.22; // 相位速度，约 28 秒一个来回
 const DRAG_SPEED = 0.006; // rad / px
@@ -92,9 +92,55 @@ function loadCarAssets(onProgress) {
   return assetsPromise;
 }
 
+/**
+ * 轮子的 silver primitive 里同时包含轮辐和刹车盘。把三角形按"离车身中线多远"分成两组：
+ * 靠外侧的是轮辐（用轮毂颜色），靠里面的是刹车盘/轮毂内侧（保持原来的金属色）。
+ * 几何体是共享缓存，只处理一次。
+ */
+const WHEEL_DISC_DEPTH = 0.13; // 车坐标系里，比轮子最外侧再往里 13cm 以内的算刹车盘
+function splitWheelGeometry(mesh, root) {
+  const geometry = mesh.geometry;
+  if (geometry.userData.wheelSplit) return geometry.userData.wheelSplit;
+  const position = geometry.attributes.position;
+  const index = geometry.index;
+  if (!index) return null;
+
+  // 顶点在车坐标系下的横向位置（x 是车宽方向）
+  const toRoot = new THREE.Matrix4().copy(root.matrixWorld).invert().multiply(mesh.matrixWorld);
+  const v = new THREE.Vector3();
+  const xs = new Float32Array(position.count);
+  let maxPos = 0;
+  let maxNeg = 0;
+  for (let i = 0; i < position.count; i++) {
+    const x = v.fromBufferAttribute(position, i).applyMatrix4(toRoot).x;
+    xs[i] = x;
+    if (x > maxPos) maxPos = x;
+    if (-x > maxNeg) maxNeg = -x;
+  }
+  const isDisc = (i) => (xs[i] >= 0 ? xs[i] < maxPos - WHEEL_DISC_DEPTH : -xs[i] < maxNeg - WHEEL_DISC_DEPTH);
+
+  const src = index.array;
+  const spokes = [];
+  const discs = [];
+  for (let t = 0; t < src.length; t += 3) {
+    const a = src[t], b = src[t + 1], c = src[t + 2];
+    (isDisc(a) && isDisc(b) && isDisc(c) ? discs : spokes).push(a, b, c);
+  }
+  const out = new (src.constructor)(src.length);
+  out.set(spokes, 0);
+  out.set(discs, spokes.length);
+  geometry.setIndex(new THREE.BufferAttribute(out, 1));
+  geometry.clearGroups();
+  geometry.addGroup(0, spokes.length, 0);
+  geometry.addGroup(spokes.length, discs.length, 1);
+  geometry.userData.wheelSplit = true;
+  return true;
+}
+
 /** 克隆模型并调材质（数值来自原示例，车漆改成黑色、轮毂改成白色、换 JKERORO 车牌） */
 function buildCar({ gltf, plateMap, plateNormal }) {
   const car = gltf.scene.clone(true);
+  car.updateMatrixWorld(true);
   const cloned = new Map();
   const materials = new Map();
   let rim = null;
@@ -107,13 +153,18 @@ function buildCar({ gltf, plateMap, plateNormal }) {
     if (!cloned.has(node.material)) cloned.set(node.material, node.material.clone());
     node.material = cloned.get(node.material);
 
-    // 轮毂：两组轮子的第一个 primitive 是 silver，单独复制一份，车身其它 silver 饰条不受影响
+    // 轮毂：两组轮子的第一个 primitive 是 silver，单独复制一份，车身其它 silver 饰条不受影响；
+    // 刹车盘拆出来继续用原来的 silver
     if (/^Cylinder\.?00[01]_0$/.test(node.name) && node.material.name === "silver") {
       if (!rim) {
         rim = node.material.clone();
         rim.name = "rim";
       }
-      node.material = rim;
+      const silver = node.material;
+      node.material = splitWheelGeometry(node, car) ? [rim, silver] : rim;
+      materials.set("rim", rim);
+      materials.set("silver", silver);
+      return;
     }
     materials.set(node.material.name, node.material);
   });
@@ -163,6 +214,10 @@ function buildCar({ gltf, plateMap, plateNormal }) {
   };
 }
 
+// 环境背景色：原示例是 #444 + 蓝色渐变（偏紫），这里改成中性灰
+const NIGHT_BG = { base: "#3d3d40", a: "#8e8e94", b: "#0d0d0f" };
+const DAY_BG = { base: "#dcdcdc", a: "#ffffff", b: "#9a9a9a" };
+
 // ---------------------------------------------------------------------------
 // 实时环境贴图里的"灯"（对应原示例的 <Lightformers />）
 // ---------------------------------------------------------------------------
@@ -207,11 +262,11 @@ function createLightformers() {
   floatGroup.add(red);
   envScene.add(floatGroup);
 
-  // 背景球：底色 + 从 (100,100,100) 方向的深度渐变（对应 lamina 的 LayerMaterial）
+  // 背景球：底色 + 从 (100,100,100) 方向的深度渐变（对应原示例 lamina 的 LayerMaterial）
   const backgroundUniforms = {
-    uBase: { value: new THREE.Color("#444") },
-    uColorA: { value: new THREE.Color("blue") },
-    uColorB: { value: new THREE.Color("black") },
+    uBase: { value: new THREE.Color(NIGHT_BG.base) },
+    uColorA: { value: new THREE.Color(NIGHT_BG.a) },
+    uColorB: { value: new THREE.Color(NIGHT_BG.b) },
     uOrigin: { value: new THREE.Vector3(100, 100, 100) },
     uFar: { value: 300 },
   };
@@ -251,9 +306,10 @@ function createLightformers() {
   };
 
   const setDay = (day) => {
-    backgroundUniforms.uBase.value.set(day ? "#dcdcdc" : "#444");
-    backgroundUniforms.uColorA.value.set(day ? "#ffffff" : "blue");
-    backgroundUniforms.uColorB.value.set(day ? "#9a9a9a" : "black");
+    const bg = day ? DAY_BG : NIGHT_BG;
+    backgroundUniforms.uBase.value.set(bg.base);
+    backgroundUniforms.uColorA.value.set(bg.a);
+    backgroundUniforms.uColorB.value.set(bg.b);
   };
 
   const dispose = () => {
@@ -377,7 +433,7 @@ function createFloor() {
 
   const floor = new THREE.Mesh(
     new THREE.CircleGeometry(16, 96).rotateX(-Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: "#1c1b22", roughness: 0.42, metalness: 0.25, transparent: true, alphaMap, depthWrite: false })
+    new THREE.MeshStandardMaterial({ color: "#1d1d20", roughness: 0.42, metalness: 0.25, transparent: true, alphaMap, depthWrite: false })
   );
   floor.receiveShadow = true;
   floor.position.y = GROUND_Y - 0.002;
@@ -386,7 +442,7 @@ function createFloor() {
   return {
     floor,
     setDay(day) {
-      floor.material.color.set(day ? "#d6d6d6" : "#1c1b22");
+      floor.material.color.set(day ? "#d6d6d6" : "#1d1d20");
       floor.material.roughness = day ? 0.6 : 0.42;
       floor.material.metalness = day ? 0.05 : 0.25;
     },
@@ -513,7 +569,7 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
 
     views = {
       overview: v(comb([f, 0.78 * L], [s, 1.18 * L], [up, 0.16 * L]), comb([f, 0.04 * L], [up, -0.1 * H])),
-      specs: v(comb([f, 1.05 * L], [s, -1.25 * L], [up, 0.16 * L]), comb([up, -0.08 * H])),
+      specs: v(comb([f, 1.1 * L], [s, -1.3 * L], [up, 0.18 * L]), comb([up, -0.08 * H])),
       wheels: v(comb([f, 0.42 * L], [s, 0.62 * L], [up, -0.12 * H]), comb([f, 0.3 * L], [s, 0.18 * L], [up, -0.28 * H])),
       lights: v(comb([f, 1.05 * L], [s, 0.22 * L], [up, 0.02 * L]), comb([f, 0.35 * L], [up, -0.08 * H])),
       rear: v(comb([f, -0.95 * L], [s, 0.45 * L], [up, 0.1 * L]), comb([f, -0.25 * L], [up, -0.1 * H])),
@@ -521,10 +577,20 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
     return { L };
   };
 
+  // 视角距离随画面比例调整：宽屏稍微拉远一点留出两侧 UI，竖屏（手机）拉得更远让整台车放得下
+  let carLength = 1;
+  const fitPosition = (view) => {
+    const aspect = sizes.width / Math.max(sizes.height, 1);
+    const k = 1.18 * Math.pow(Math.max(1, 1.5 / aspect), 0.85);
+    const position = view.target.clone().add(view.position.clone().sub(view.target).multiplyScalar(k));
+    if (controls) controls.maxDistance = Math.max(2.4 * carLength, position.distanceTo(view.target) * 1.4);
+    return position;
+  };
+
   const jumpTo = (name) => {
     const view = views?.[name];
     if (!view || !controls) return;
-    camera.position.copy(view.position);
+    camera.position.copy(fitPosition(view));
     controls.target.copy(view.target);
     controls.update();
   };
@@ -539,7 +605,7 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
       duration: duration * 1000,
       fromPos: camera.position.clone(),
       fromTarget: controls.target.clone(),
-      toPos: view.position,
+      toPos: fitPosition(view),
       toTarget: view.target,
     };
   };
@@ -578,8 +644,8 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
 
       if (showroom) {
         const { L } = computeViews();
+        carLength = L;
         controls.minDistance = 0.32 * L;
-        controls.maxDistance = 2.2 * L;
         jumpTo(pendingView);
       }
       onReady?.();
@@ -666,7 +732,7 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
       }
       shift += (shiftGoal - shift) * Math.min(delta * 3, 1);
       applyShift();
-      controls.autoRotate = autoRotate && !flight && !reduceMotion;
+      controls.autoRotate = autoRotate && !flight && !reduceMotion && shiftGoal === 0; // 看参数时不转，免得车跑到面板下面
       controls.update(delta);
     } else {
       if (!reduceMotion && !dragging) autoPhase += delta * AUTO_YAW_SPEED;

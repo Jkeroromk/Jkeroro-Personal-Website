@@ -49,7 +49,7 @@ const Car = memo(function Car() {
 
   return (
     <>
-      <div className="relative w-full max-w-[600px] aspect-[2/1] rounded-lg overflow-hidden bg-[#2b2a33]">
+      <div className="relative w-full max-w-[600px] aspect-[2/1] rounded-lg overflow-hidden bg-[#38383c]">
         <canvas
           ref={canvasRef}
           className={`absolute inset-0 w-full h-full transition-opacity duration-700 ${ready ? "opacity-100" : "opacity-0"}`}
