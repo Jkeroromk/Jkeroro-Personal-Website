@@ -29,12 +29,6 @@ export default function MusicPlayer() {
   const [showMiniModal, setShowMiniModal] = useState(false)
   const [showMiniCard, setShowMiniCard] = useState(false) // 桌面：圆球旁弹出的控制卡片
 
-  // 控制面板打开时收起播放卡片（互斥）
-  useEffect(() => {
-    const close = () => setShowMiniCard(false)
-    window.addEventListener('jk:close-mini-card', close)
-    return () => window.removeEventListener('jk:close-mini-card', close)
-  }, [])
   const audioRef = useRef(null)
 
   const {
@@ -428,7 +422,6 @@ export default function MusicPlayer() {
             aria-label={showMiniCard ? '收起播放器' : '打开播放器'}
             onClick={() => {
               if (window.matchMedia('(min-width: 640px)').matches) {
-                if (!showMiniCard) window.dispatchEvent(new Event('jk:close-control-panel'))
                 setShowMiniCard(!showMiniCard)
               } else {
                 setShowMiniModal(true)

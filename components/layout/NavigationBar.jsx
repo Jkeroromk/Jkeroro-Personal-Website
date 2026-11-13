@@ -9,21 +9,17 @@
 import React, { useState, useEffect } from 'react'
 import { MessageCircle } from 'lucide-react'
 import { useAuth } from '@/auth'
-import ModernControlPanel from '@/components/interactive/ModernControlPanel'
-import { useControlPanel } from '@/contexts/ControlPanelContext'
 import NavigationBarAI from './navigation/NavigationBarAI'
 import NavigationBarLogin from './navigation/NavigationBarLogin'
 import JkeroroAvatar from '@/components/media/JkeroroAvatar'
 
 export default function NavigationBar() {
   const { isAdmin } = useAuth()
-  const { guiParams, handleParamChange } = useControlPanel()
   const [isMounted, setIsMounted] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const navRef = React.useRef(null)
   const toggleBtnRef = React.useRef(null)
   const [showLogin, setShowLogin] = useState(false)
-  const [showControlPanel, setShowControlPanel] = useState(false)
   const [showAssistant, setShowAssistant] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
   const [assistantPosition, setAssistantPosition] = useState({ x: 0, y: 0 })
@@ -84,28 +80,17 @@ export default function NavigationBar() {
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
 
-  // 迷你播放卡片打开时关掉控制面板（互斥）
-  useEffect(() => {
-    const close = () => setShowControlPanel(false)
-    window.addEventListener('jk:close-control-panel', close)
-    return () => window.removeEventListener('jk:close-control-panel', close)
-  }, [])
-
   // 键盘事件处理
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // ESC：先关控制面板，再收起菜单
+      // ESC：收起菜单
       if (event.key !== 'Escape') return
-      if (showControlPanel) {
-        setShowControlPanel(false)
-      } else if (isExpanded) {
-        setIsExpanded(false)
-      }
+      if (isExpanded) setIsExpanded(false)
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isExpanded, showControlPanel])
+  }, [isExpanded])
 
   // 拖拽处理函数
   const handleMouseDown = (e, type) => {
@@ -183,8 +168,6 @@ export default function NavigationBar() {
         <div ref={toggleBtnRef} className="relative group/button">
           <button
             onClick={() => {
-              // 收起菜单时连同控制面板一起关掉
-              if (isExpanded) setShowControlPanel(false)
               setIsExpanded(!isExpanded)
             }}
             aria-label={isExpanded ? '收起菜单' : '展开菜单'}
@@ -301,47 +284,6 @@ export default function NavigationBar() {
             </div>
           </div>
 
-          {/* 控制面板按钮 */}
-          <div className="relative group/button">
-            <button
-              onClick={() => {
-                // 控制面板作为菜单的弹出层：打开时菜单保持展开，按钮显示选中态
-                if (!showControlPanel) {
-                  // 和桌面迷你播放卡片互斥，避免两个弹层叠在一起
-                  window.dispatchEvent(new Event('jk:close-mini-card'))
-                }
-                setShowControlPanel(!showControlPanel)
-              }}
-              aria-label={
-                showControlPanel ? '关闭控制面板' : '打开控制面板'
-              }
-              className={`flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105 relative overflow-hidden border ${
-                showControlPanel
-                  ? 'bg-white/20 border-white/40'
-                  : 'bg-white/5 border-white/20 hover:bg-white/10'
-              }`}
-              style={{ backdropFilter: 'blur(20px)' }}
-            >
-              <svg
-                className="w-4 h-4 sm:w-[18px] sm:h-[18px] relative z-10 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
-                />
-              </svg>
-              <div className="absolute inset-0 bg-white opacity-0 hover:opacity-10 transition-opacity duration-300 rounded-full"></div>
-            </button>
-            {/* 工具提示 */}
-            <div className="absolute right-[52px] top-1/2 transform -translate-y-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/button:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none hidden sm:block">
-              控制面板
-            </div>
-          </div>
         </div>
       </div>
 
@@ -361,31 +303,6 @@ export default function NavigationBar() {
         onMouseDown={handleMouseDown}
       />
 
-      {/* 控制面板：贴在菜单列左侧弹出，菜单保持展开 */}
-      {showControlPanel && (
-        <>
-          {/* 透明遮罩：点外面关闭面板并收起菜单；不调暗背景，方便边调边看 3D 效果 */}
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => {
-              setShowControlPanel(false)
-              setIsExpanded(false)
-            }}
-          ></div>
-
-          <div
-            className="fixed z-50 w-64 max-w-[calc(100vw-88px)] right-[76px] sm:right-[92px]"
-            style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
-          >
-            <ModernControlPanel
-              params={guiParams}
-              onParamChange={handleParamChange}
-              isVisible={true}
-              onToggle={() => setShowControlPanel(false)}
-            />
-          </div>
-        </>
-      )}
     </>
   )
 }
