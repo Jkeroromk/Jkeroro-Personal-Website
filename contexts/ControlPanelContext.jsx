@@ -15,8 +15,8 @@ export const useControlPanel = () => {
 const getDefaultParams = () => {
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
   return {
-    basePointSize: isMobile ? 0.9 : 0.35,
-    brightness: isMobile ? 1.2 : 0.35,
+    basePointSize: isMobile ? 0.4 : 0.35,
+    brightness: isMobile ? 0.45 : 0.35,
     displacementStrength: 3.0,
     glowSize: 0.12,
     glowAlpha: 0.3,
