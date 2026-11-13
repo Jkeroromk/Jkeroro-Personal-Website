@@ -6,6 +6,7 @@ import { X, Upload, Music, Loader2, CheckCircle2, AlertCircle } from 'lucide-rea
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getAuthHeaders } from '@/lib/auth-client'
+import { uploadDirect } from '@/lib/upload-direct'
 
 function titleFromFilename(filename) {
   return filename
@@ -47,41 +48,23 @@ const FileUploadModal = ({ onClose, onImported }) => {
     setErrorMsg('')
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('title', title.trim() || titleFromFilename(file.name))
-      formData.append('artist', artist.trim() || 'Unknown')
+      const finalTitle = title.trim() || titleFromFilename(file.name)
 
-      // 用 XMLHttpRequest 显示上传进度
-      const authHeaders = await getAuthHeaders()
-      const track = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.open('POST', '/api/music/upload-audio')
-        Object.entries(authHeaders).forEach(([k, v]) => xhr.setRequestHeader(k, v))
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            setProgress(10 + Math.round((e.loaded / e.total) * 80))
-          }
-        }
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try { resolve(JSON.parse(xhr.responseText)) }
-            catch { reject(new Error('响应解析失败')) }
-          } else {
-            try {
-              const err = JSON.parse(xhr.responseText)
-              reject(new Error(err.error || `上传失败 (${xhr.status})`))
-            } catch {
-              reject(new Error(`上传失败 (${xhr.status})`))
-            }
-          }
-        }
-
-        xhr.onerror = () => reject(new Error('网络错误'))
-        xhr.send(formData)
+      // 1. 浏览器直接传到 Supabase Storage（不经过 Vercel，没有 4.5 MB 上限）
+      const { path } = await uploadDirect(file, {
+        bucket: 'audio',
+        label: finalTitle,
+        onProgress: (r) => setProgress(10 + Math.round(r * 80)),
       })
+
+      // 2. 建歌曲记录
+      const res = await fetch('/api/music/upload-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
+        body: JSON.stringify({ path, title: finalTitle, artist: artist.trim() || 'Unknown' }),
+      })
+      const track = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(track.error || `保存失败 (${res.status})`)
 
       setProgress(100)
       setStatus('success')
@@ -155,7 +138,7 @@ const FileUploadModal = ({ onClose, onImported }) => {
               <div className="flex flex-col items-center justify-center py-8 gap-2">
                 <Upload className="w-6 h-6 text-zinc-600" />
                 <p className="text-sm text-zinc-400">拖拽文件到此处，或点击选择</p>
-                <p className="text-xs text-zinc-600">MP3、M4A、WAV、OGG、FLAC</p>
+                <p className="text-xs text-zinc-600">MP3、M4A、WAV、OGG、FLAC · 最大 50 MB</p>
               </div>
             )}
           </div>

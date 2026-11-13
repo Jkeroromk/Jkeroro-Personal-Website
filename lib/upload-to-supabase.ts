@@ -59,7 +59,8 @@ export async function uploadToSupabase(
 
 /** Generate a timestamped, safe filename preserving extension. */
 export function generateFileName(originalName: string, label?: string): string {
-  const ext = originalName.split('.').pop()?.toLowerCase() || 'bin'
+  const dot = originalName.lastIndexOf('.')
+  const ext = (dot > 0 ? originalName.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, '') : '') || 'bin'
   const safe = (label ?? originalName.replace(/\.[^.]+$/, ''))
     .replace(/[^a-zA-Z0-9]/g, '_')
     .slice(0, 60)
