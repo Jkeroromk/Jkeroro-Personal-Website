@@ -42,11 +42,18 @@ Draco 解码器跑在 blob worker 里，GLB 内嵌的贴图通过 blob URL 加�
 
 ## 首页视频
 
-- 渲染工程：`render-911.blend`（不在 repo 里，放在 Jason 本机的 Downloads/porsche-911 文件夹）。里面是导入的 `porsche-911.glb`，做了这些修改：
-  - 清掉 Draco 量化后的法线，改成按角度自动平滑（不然 Cycles 里车漆上会有噪点）
-  - 车漆改成黑色带清漆
-  - 轮辐改成白色，刹车盘保持原来的材质
-  - 车牌换成 JKERORO 贴图
-- 场景：深灰影棚、反光地面、一组横向灯带沿车身方向移动、两侧轮廓光。镜头左右小幅摆动。灯带和镜头的周期都是 180 帧，所以首尾能无缝循环
-- 1200×600、30fps、Cycles 40 samples + OptiX 降噪。在 RTX 5070 Ti 上整段渲染大约 1 分钟
-- 压缩：`ffmpeg -i src.mp4 -an -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p -movflags +faststart porsche-911-loop.mp4`；封面图是第一帧，存成 webp
+首页卡片放的是 `public/static/porsche-911-loop.mp4`，一段 10 秒、能无缝循环的「夜间隧道飞驰」短片，在 Blender（Cycles）里渲染。
+
+- 工程文件：`tunnel-911.blend`，不在 repo 里，放在 Jason 本机的 Downloads/porsche-911。车模就是网站用的 `porsche-911.glb` 导入后修改的：
+  - 清掉了 Draco 量化法线，改成按角度平滑，避免车漆上出现噪点
+  - 黑色清漆车漆、白色轮辐、JKERORO 车牌
+- 怎么做出速度感：车身不动，只有轮子在转（`WheelSpin000` / `WheelSpin001` 两个 empty 用 driver 驱动）；整条隧道（`TunnelMover`）用 driver 以每帧 1.2 m 的速度往后移动；再加 0.5 快门的运动模糊。车身有轻微颠簸，镜头有轻微抖动，都是 driver 里的 sin 叠加
+- 镜头：4 台相机，用 timeline marker 切换，每台都有缓慢推拉：
+  - 1–75 帧：低机位车头
+  - 76–130 帧：轮毂特写
+  - 131–205 帧：侧面平移
+  - 206–300 帧：车尾 + JKERORO 车牌
+
+  最后一个镜头直接切回第一个，所以循环看不出接缝
+- 渲染参数：1200×600、30fps、64 samples、OptiX 降噪。在 RTX 5070 Ti 上约 6 分钟
+- 压缩命令：`ffmpeg -i src.mp4 -an -c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -movflags +faststart porsche-911-loop.mp4`。封面图取第 1 秒那一帧
