@@ -1,6 +1,13 @@
 # 3D 保时捷 911
 
-首页头像上方的 3D 车由 `components/media/car.jsx` 和 `components/media/carScene.js` 渲染。
+首页头像上方的 3D 车由 `components/media/car.jsx` 和 `components/media/carScene.js` 渲染。卡片右上角的 **Enter Showroom** 按钮会打开全屏展厅 `components/media/Showroom.jsx`，参考的是 3DVista 的汽车展示页。展厅里有这些功能：
+
+- 分区导航：Overview / Specifications / Wheels / Lights / Rear，点了镜头会飞到对应机位，车后面显示大号水印标题
+- 换车漆（5 种）和轮毂（3 种）、开关车灯
+- 白天 / 夜晚切换、隐藏界面、自动旋转
+- 鼠标拖拽环绕、滚轮缩放，有角度和距离限制；按 Esc 关闭
+
+展厅和卡片共用同一份模型缓存，各自克隆一套材质，所以展厅里换颜色不会影响首页卡片。展厅打开时首页卡片会暂停渲染。
 
 场景移植自 pmndrs 的 [Building Live Env Maps](https://github.com/pmndrs/examples/tree/main/examples/building-live-envmaps) 示例（Paul Henschel，[codesandbox.io/s/lwo219](https://codesandbox.io/s/lwo219)），原示例用 React Three Fiber + drei，这里改写成了纯 three.js：
 
