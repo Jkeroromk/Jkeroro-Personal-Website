@@ -131,7 +131,8 @@ const nextConfig: NextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' data: blob: https:",
-              "connect-src 'self' https://api.firebase.com https://*.firebase.com https://*.googleapis.com https://*.supabase.co https://*.supabase.in https://ipapi.co wss:",
+              "connect-src 'self' blob: https://api.firebase.com https://*.firebase.com https://*.googleapis.com https://*.supabase.co https://*.supabase.in https://ipapi.co wss:",
+              "worker-src 'self' blob:", // 3D 车模型的 Draco 解码器跑在 blob worker 里
               "frame-src 'self'",
               "object-src 'none'",
               "base-uri 'self'",
