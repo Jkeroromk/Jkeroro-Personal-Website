@@ -1,13 +1,12 @@
 /**
- * 3D 保时捷 911（写实渲染）—— 首页卡片和全屏 Showroom 共用
+ * 3D 保时捷 911（写实渲染）—— 全屏 Showroom 用（首页卡片放的是用同一台车在 Blender 里渲染的视频）
  *
  * 移植自 pmndrs 的 "Building Live Env Maps" 示例（Paul Henschel / 0xca0a，codesandbox.io/s/lwo219）：
  *   - 实时环境贴图：一排灯带不停从车顶扫过 + 两侧灯条 + 漂浮的红色点缀光，车漆/车窗反射一直在流动
  *   - 带阴影的顶部聚光灯 + 环境光，车身自阴影
  *   - 原示例的 clearcoat 外壳（coat）、内饰、轮胎法线贴图等都保留，这是写实感的主要来源
  *
- * mode = "card"：首页卡片。车自己缓慢左右转动，只能在画布里按住拖拽（有角度限制）
- * mode = "showroom"：全屏展厅。OrbitControls 自由环绕、镜头预设、换车漆/轮毂、开车灯、白天/夜晚
+ * 展厅功能：OrbitControls 自由环绕、镜头预设、换车漆/轮毂、开车灯、白天/夜晚
  *
  * 模型："(FREE) Porsche 911 Carrera 4S"（Sketchfab），CC BY-SA 4.0，见 scripts/porsche-911/README.md
  */
@@ -30,14 +29,6 @@ const CAR_BASE_YAW = Math.PI / 5;
 const GROUND_Y = -1.16;
 const CAMERA_FOV = 30;
 
-// 卡片模式
-const CARD_CAMERA_DISTANCE = 9.2; // 原示例 12，卡片是 2:1 的小画布，所以拉近一些
-const CARD_CAMERA_TARGET = new THREE.Vector3(0.05, -0.12, 0);
-const AUTO_YAW_AMPLITUDE = 0.32; // 自己左右转动的幅度（rad）
-const AUTO_YAW_SPEED = 0.22; // 相位速度，约 28 秒一个来回
-const DRAG_SPEED = 0.006; // rad / px
-const DRAG_LIMIT = 0.6; // 拖拽最多偏离 ±0.6 rad（约 35°）
-const DRAG_RETURN_DELAY = 1.8; // 松手后多久开始回到自动转动（秒）
 
 export const PAINTS = {
   black: { label: "Jet Black", swatch: "#0b0b0c", paint: "#0c0c0c", coat: "#121212", metalness: 0.8, roughness: 0.45 },
@@ -56,7 +47,7 @@ export const RIMS = {
 export const VIEWS = ["overview", "specs", "wheels", "lights", "rear"];
 
 // ---------------------------------------------------------------------------
-// 资源：模型 + 车牌贴图只加载一次，卡片和 Showroom 共用（各自克隆材质）
+// 资源：模型 + 车牌贴图只加载一次（多次打开 Showroom 时复用，每次克隆一套材质）
 // ---------------------------------------------------------------------------
 let assetsPromise = null;
 function loadCarAssets(onProgress) {
@@ -459,17 +450,14 @@ const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2
 /**
  * @param {HTMLCanvasElement} canvas
  * @param {{
- *   mode?: "card" | "showroom",
  *   onReady?: () => void,
  *   onProgress?: (p: number) => void,
  *   onError?: (e: unknown) => void,
  *   onUserInteract?: () => void,
  * }} options
  */
-export function createCarScene(canvas, { mode = "card", onReady, onProgress, onError, onUserInteract } = {}) {
-  const showroom = mode === "showroom";
+export function createCarScene(canvas, { onReady, onProgress, onError, onUserInteract } = {}) {
   let disposed = false;
-  let paused = false;
   let autoRotate = true;
   const container = canvas.parentElement;
 
@@ -479,8 +467,8 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
   };
   let sizes = getSizes();
 
-  // Showroom 用透明画布：背景色和水印标题由页面（CSS）负责，车压在水印上面
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: showroom, powerPreference: "high-performance" });
+  // 透明画布：背景色和水印标题由页面（CSS）负责，车压在水印上面
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(sizes.pixelRatio);
   renderer.setSize(sizes.width, sizes.height, false);
@@ -502,7 +490,7 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
   const ambient = new THREE.AmbientLight(0xffffff, 0.5 * Math.PI);
   scene.add(ambient);
 
-  // ---- 实时环境贴图（同时作为模糊背景） ----
+  // ---- 实时环境贴图 ----
   const lightformers = createLightformers();
   const cubeTarget = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
   const cubeCamera = new THREE.CubeCamera(1, 1000, cubeTarget);
@@ -512,13 +500,11 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
     cubeCamera.update(renderer, lightformers.envScene);
     envTarget = pmrem.fromCubemap(cubeTarget.texture, envTarget);
     scene.environment = envTarget.texture;
-    if (!showroom) scene.background = envTarget.texture;
   };
-  scene.backgroundBlurriness = 1;
   refreshEnvironment();
 
-  const floor = showroom ? createFloor() : null;
-  if (floor) scene.add(floor.floor);
+  const floor = createFloor();
+  scene.add(floor.floor);
 
   // ---- 车 ----
   const pivot = new THREE.Group();
@@ -533,7 +519,7 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
   const pending = { paint: "black", rim: "white", lights: false };
 
   // =========================================================================
-  // Showroom 模式：OrbitControls + 镜头飞行
+  // OrbitControls + 镜头飞行
   // =========================================================================
   let controls = null;
   let flight = null;
@@ -547,7 +533,7 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
     }
     const { width, height } = sizes;
     const narrow = width < 768;
-    camera.setViewOffset(width, height, narrow ? 0 : width * 0.2 * shift, narrow ? height * 0.16 * shift : 0, width, height);
+    camera.setViewOffset(width, height, narrow ? 0 : width * 0.12 * shift, narrow ? height * 0.16 * shift : 0, width, height);
   };
 
   const computeViews = () => {
@@ -569,7 +555,7 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
 
     views = {
       overview: v(comb([f, 0.78 * L], [s, 1.18 * L], [up, 0.16 * L]), comb([f, 0.04 * L], [up, -0.1 * H])),
-      specs: v(comb([f, 1.1 * L], [s, -1.3 * L], [up, 0.18 * L]), comb([up, -0.08 * H])),
+      specs: v(comb([f, 1.3 * L], [s, -1.55 * L], [up, 0.2 * L]), comb([up, -0.08 * H])),
       wheels: v(comb([f, 0.42 * L], [s, 0.62 * L], [up, -0.12 * H]), comb([f, 0.3 * L], [s, 0.18 * L], [up, -0.28 * H])),
       lights: v(comb([f, 1.05 * L], [s, 0.22 * L], [up, 0.02 * L]), comb([f, 0.35 * L], [up, -0.08 * H])),
       rear: v(comb([f, -0.95 * L], [s, 0.45 * L], [up, 0.1 * L]), comb([f, -0.25 * L], [up, -0.1 * H])),
@@ -610,22 +596,20 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
     };
   };
 
-  if (showroom) {
-    controls = new OrbitControls(camera, canvas);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.enablePan = false;
-    controls.maxPolarAngle = Math.PI / 2 - 0.04; // 不钻到地面下面
-    controls.autoRotateSpeed = 0.5;
-    controls.rotateSpeed = 0.6;
-    controls.zoomSpeed = 0.7;
-    controls.addEventListener("start", () => {
-      flight = null; // 用户一拖动就取消正在进行的镜头飞行
-      onUserInteract?.();
-    });
-    camera.position.set(6, 1.2, 9);
-    controls.target.set(-0.5, -0.4, 0);
-  }
+  controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.enablePan = false;
+  controls.maxPolarAngle = Math.PI / 2 - 0.04; // 不钻到地面下面
+  controls.autoRotateSpeed = 0.5;
+  controls.rotateSpeed = 0.6;
+  controls.zoomSpeed = 0.7;
+  controls.addEventListener("start", () => {
+    flight = null; // 用户一拖动就取消正在进行的镜头飞行
+    onUserInteract?.();
+  });
+  camera.position.set(6, 1.2, 9);
+  controls.target.set(-0.5, -0.4, 0);
 
   loadCarAssets(onProgress)
     .then((assets) => {
@@ -642,65 +626,16 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
       pivot.add(groundShadow.group);
       groundShadow.bake();
 
-      if (showroom) {
-        const { L } = computeViews();
-        carLength = L;
-        controls.minDistance = 0.32 * L;
-        jumpTo(pendingView);
-      }
+      const { L } = computeViews();
+      carLength = L;
+      controls.minDistance = 0.32 * L;
+      jumpTo(pendingView);
       onReady?.();
     })
     .catch((error) => onError?.(error));
 
   // =========================================================================
-  // 卡片模式：自动左右转 + 画布内拖拽
-  // =========================================================================
-  let dragging = false;
-  let lastX = 0;
-  let dragYaw = 0;
-  let sinceRelease = Infinity;
-  let autoPhase = 0;
-
-  const handlePointerDown = (event) => {
-    dragging = true;
-    lastX = event.clientX;
-    canvas.setPointerCapture?.(event.pointerId);
-    canvas.style.cursor = "grabbing";
-  };
-  const handlePointerMove = (event) => {
-    if (!dragging) return;
-    const dx = event.clientX - lastX;
-    lastX = event.clientX;
-    dragYaw = THREE.MathUtils.clamp(dragYaw + dx * DRAG_SPEED, -DRAG_LIMIT, DRAG_LIMIT);
-  };
-  const handlePointerUp = (event) => {
-    if (!dragging) return;
-    dragging = false;
-    sinceRelease = 0;
-    canvas.releasePointerCapture?.(event.pointerId);
-    canvas.style.cursor = "grab";
-  };
-
-  const cameraGoal = new THREE.Vector3();
-  const cardCameraAt = (t, out) =>
-    out
-      .set(Math.sin(t / 5), 0, 12 + Math.cos(t / 5) / 2)
-      .multiplyScalar(CARD_CAMERA_DISTANCE / 12)
-      .add(new THREE.Vector3(0, 0.35, 0));
-
-  if (!showroom) {
-    canvas.style.cursor = "grab";
-    canvas.style.touchAction = "pan-y"; // 手机上竖向滑动仍然滚动页面
-    canvas.addEventListener("pointerdown", handlePointerDown);
-    canvas.addEventListener("pointermove", handlePointerMove);
-    canvas.addEventListener("pointerup", handlePointerUp);
-    canvas.addEventListener("pointercancel", handlePointerUp);
-    cardCameraAt(0, camera.position);
-    camera.lookAt(CARD_CAMERA_TARGET);
-  }
-
-  // =========================================================================
-  // 渲染循环（不在视口内 / 被暂停时停止）
+  // 渲染循环（不在视口内时停止）
   // =========================================================================
   const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const clock = new THREE.Clock();
@@ -711,7 +646,7 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
 
   const tick = () => {
     rafId = null;
-    if (!visible || paused || disposed) return;
+    if (!visible || disposed) return;
     const delta = Math.min(clock.getDelta(), 0.1);
     frame += 1;
 
@@ -721,36 +656,25 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
       if (frame % 2 === 0) refreshEnvironment();
     }
 
-    if (showroom) {
-      if (flight) {
-        // 按真实时间推进，掉帧时飞行时长也不变
-        const t = Math.min((performance.now() - flight.start) / flight.duration, 1);
-        const k = easeInOutCubic(t);
-        camera.position.lerpVectors(flight.fromPos, flight.toPos, k);
-        controls.target.lerpVectors(flight.fromTarget, flight.toTarget, k);
-        if (t >= 1) flight = null;
-      }
-      shift += (shiftGoal - shift) * Math.min(delta * 3, 1);
-      applyShift();
-      controls.autoRotate = autoRotate && !flight && !reduceMotion && shiftGoal === 0; // 看参数时不转，免得车跑到面板下面
-      controls.update(delta);
-    } else {
-      if (!reduceMotion && !dragging) autoPhase += delta * AUTO_YAW_SPEED;
-      if (!dragging) {
-        sinceRelease += delta;
-        if (sinceRelease > DRAG_RETURN_DELAY) dragYaw *= Math.pow(0.35, delta);
-      }
-      pivot.rotation.y = CAR_BASE_YAW + Math.sin(autoPhase) * AUTO_YAW_AMPLITUDE + dragYaw;
-      camera.position.lerp(cardCameraAt(elapsed, cameraGoal), 0.05);
-      camera.lookAt(CARD_CAMERA_TARGET);
+    if (flight) {
+      // 按真实时间推进，掉帧时飞行时长也不变
+      const t = Math.min((performance.now() - flight.start) / flight.duration, 1);
+      const k = easeInOutCubic(t);
+      camera.position.lerpVectors(flight.fromPos, flight.toPos, k);
+      controls.target.lerpVectors(flight.fromTarget, flight.toTarget, k);
+      if (t >= 1) flight = null;
     }
+    shift += (shiftGoal - shift) * Math.min(delta * 3, 1);
+    applyShift();
+    controls.autoRotate = autoRotate && !flight && !reduceMotion && shiftGoal === 0; // 看参数时不转，免得车跑到面板下面
+    controls.update(delta);
 
     renderer.render(scene, camera);
     rafId = requestAnimationFrame(tick);
   };
 
   const start = () => {
-    if (rafId === null && !disposed && !paused && visible) {
+    if (rafId === null && !disposed && visible) {
       clock.getDelta();
       rafId = requestAnimationFrame(tick);
     }
@@ -774,10 +698,6 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
   resizeObserver.observe(container);
 
   return {
-    setPaused(value) {
-      paused = value;
-      start();
-    },
     setPaint(key) {
       pending.paint = key;
       carHandle?.setPaint(key);
@@ -792,7 +712,7 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
     },
     setDay(day) {
       lightformers.setDay(day);
-      floor?.setDay(day);
+      floor.setDay(day);
       ambient.intensity = (day ? 0.8 : 0.5) * Math.PI;
     },
     setAutoRotate(value) {
@@ -806,13 +726,9 @@ export function createCarScene(canvas, { mode = "card", onReady, onProgress, onE
       if (rafId !== null) cancelAnimationFrame(rafId);
       observer.disconnect();
       resizeObserver.disconnect();
-      canvas.removeEventListener("pointerdown", handlePointerDown);
-      canvas.removeEventListener("pointermove", handlePointerMove);
-      canvas.removeEventListener("pointerup", handlePointerUp);
-      canvas.removeEventListener("pointercancel", handlePointerUp);
-      controls?.dispose();
+      controls.dispose();
       groundShadow?.dispose();
-      floor?.dispose();
+      floor.dispose();
       lightformers.dispose();
       cubeTarget.dispose();
       envTarget?.dispose();
