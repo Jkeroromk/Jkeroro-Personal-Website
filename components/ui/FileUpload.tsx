@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { getAuthHeaders } from '@/lib/auth-client'
 import { uploadImage } from '@/lib/upload-image'
+import { uploadDirect } from '@/lib/upload-direct'
 
 interface FileUploadProps {
   // 图片会先在浏览器里压缩，meta 里是压缩后的真实宽高
@@ -50,7 +51,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
 
   const validateFile = (file: File): boolean => {
     // 图片会先压缩，原图大一点没关系（手机原图经常超过 10MB）
-    const limit = type === 'image' ? Math.max(maxSize, 40) : maxSize
+    // 音频直接传到 Storage，最大 50MB
+    const limit = type === 'image' ? Math.max(maxSize, 40) : type === 'audio' ? Math.max(maxSize, 50) : maxSize
     if (file.size > limit * 1024 * 1024) {
       toast({
         title: "File too large",
@@ -94,7 +96,15 @@ const FileUpload: React.FC<FileUploadProps> = ({
           return
         }
 
-        // 创建FormData并上传文件
+        // 音频直接传到 Supabase Storage，不经过 Vercel 函数（请求体上限 4.5 MB）
+        if (type === 'audio') {
+          const { publicUrl } = await uploadDirect(file, { bucket: 'audio' })
+          onFileSelect(file, publicUrl)
+          toast({ title: "Upload successful", description: "File uploaded to Supabase Storage successfully" })
+          return
+        }
+
+        // 其他文件
         const formData = new FormData()
         formData.append('file', file)
         
@@ -108,15 +118,12 @@ const FileUpload: React.FC<FileUploadProps> = ({
         const result = await response.json()
         
         if (result.success) {
-          // 上传成功，调用onFileSelect并传递文件路径
           onFileSelect(file, result.filePath)
           toast({
             title: "Upload successful",
             description: result.isSupabase 
               ? "File uploaded to Supabase Storage successfully"
-              : result.isTemporary 
-                ? "File uploaded successfully (temporary storage)"
-                : "File uploaded successfully",
+              : "File uploaded successfully",
           })
         } else {
           throw new Error(result.error || 'Upload failed')
