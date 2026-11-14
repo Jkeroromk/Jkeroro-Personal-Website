@@ -42,27 +42,35 @@ Draco 解码器跑在 blob worker 里，GLB 内嵌的贴图通过 blob URL 加�
 
 ## 首页视频
 
-首页卡片放的是 `public/static/porsche-911-loop.mp4`，一段 18 秒、能无缝循环的混剪：影棚细节特写和夜间隧道飞驰穿插。两部分都在 Blender（Cycles）里渲染，工程文件不在 repo 里，放在 Jason 本机的 Downloads/porsche-911。
+首页卡片放的是 `public/static/porsche-911-loop.mp4`：一段 18 秒、可以无缝循环的「雨夜赛博城市」短片，1200×600、30fps，用 Blender（Cycles）渲染。工程文件 `city-911.blend` 不在 repo 里，在 Jason 本机的 Downloads/porsche-911。
 
-车模就是网站用的 `porsche-911.glb` 导入后修改的：
-- 清掉了 Draco 量化法线，改成按角度平滑，避免车漆上出现噪点
-- 黑色清漆车漆、白色轮辐、JKERORO 车牌
-- 前轮在原模型里是打了方向的，转起来会晃。现在左右轮分开处理：每个轮子用 PCA 求出真实轮轴，在轮轴上转；前轮再用 `Steer001R/L` 回正 20°
+### 场景
 
-### 隧道（`tunnel-911.blend`，300 帧）
+- 速度感的做法：车本身不动，整条街（`CityMover`）以每帧 0.55 m 的速度往后移，再加 0.3 快门的运动模糊
+- 变道超车：第 262–322 帧并入左车道，第 392–452 帧并回原车道。横向移动用的是驱动函数（文本块 `car_drivers.py`），所以后台渲染必须加 `-y`
+- 湿路面带积水倒影，Geometry Nodes 做的雨丝，体积雾，中日文霓虹招牌，全息广告牌，程序化楼体窗户
+- 行人：Mixamo 的 8 个角色，都是原地走路动画，每个角色做了 3 个相位不同的版本，避免步伐同步
+- 车流：地面有超车车、慢车、对向车，空中有飞行器在楼与楼之间穿梭
 
-- 速度感的做法：车身不动，只有轮子在转（`Spin000R/L`、`Spin001R/L`，driver 驱动）；整条隧道（`TunnelMover`）用 driver 以每帧 1.2 m 的速度往后移；再加 0.5 快门的运动模糊。车身轻微颠簸、镜头轻微抖动，都是 driver 里的 sin 叠加
-- 4 台相机用 timeline marker 切换：1–75 车头、76–130 轮毂、131–205 侧面、206–300 车尾
+### 镜头（540 帧，全部硬切，所以首尾接上也看不出缝）
 
-### 影棚特写（`studio-shots-911.blend`，240 帧）
+1–90 车头低机位，91–165 轮毂，166–255 侧面（被超车），256–345 车尾（变道超车），346–435 俯拍，436–540 大灯特写
 
-在影棚场景里用 4 台缓慢推拉的相机拍细节：1–60 大灯、61–120 引擎盖徽标微距、121–180 尾灯条和车牌、181–240 暗调侧面剪影（这一段柔光箱用 driver 调暗）
+### 渲染与压缩
 
-### 剪辑顺序
+- 1200×600、64 samples、OptiX 降噪，输出 PNG 序列。在 RTX 5070 Ti 上每帧约 5 秒，全片约 45 分钟
+- 先在 Blender 里把序列编码成无损 H.264，再压成网页版：`ffmpeg -i src.mp4 -an -c:v libx264 -preset slow -crf 24 -pix_fmt yuv420p -movflags +faststart porsche-911-loop.mp4`，约 6 MB
+- 封面图取第 1 帧
 
-徽标 → 大灯 → 隧道车头 → 隧道轮毂 → 影棚剪影 → 隧道侧面 → 影棚车尾 → 隧道车尾，共 540 帧。全是硬切，最后的隧道车尾直接切回徽标，所以循环和普通切镜头看起来一样，没有接缝。
+### 素材署名
 
-### 参数
+下面这些都来自 Sketchfab，除非另外注明，授权都是 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)：
 
-- 渲染：1200×600、30fps、64 samples、OptiX 降噪，RTX 5070 Ti
-- 用 ffmpeg 的 `trim` + `concat` 拼接，再压缩：`-an -c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -movflags +faststart`，约 2.6 MB。封面图取第 1 帧，和视频开头一致
+- [Cyberpunk car](https://sketchfab.com/3d-models/cyberpunk-car-b4301ff99d214d16a7a43708a5866bf0)，作者 4d_Bob
+- [Dirty car](https://sketchfab.com/3d-models/dirty-car-da77a8c75ddd4d7a8391912ba35735b8)，作者 3D Error 404
+- [Cyberpunk Bike Concept Design](https://sketchfab.com/3d-models/cyberpunk-bike-concept-design-99290272e69d4cd8a56af2d2e1274e0d)，作者 Berk Gedik
+- [(FREE) Cyberpunk Hovercar](https://sketchfab.com/3d-models/free-cyberpunk-hovercar-3205b1075bb44ffc826bce0c2a04d74c)，作者 Lionsharp Studios，授权 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+- [Sky Cab](https://sketchfab.com/3d-models/sky-cab-2322696582de46e2ba816352ff243337)，作者 Helsingr
+- [Delivery Hover MP-1](https://sketchfab.com/3d-models/delivery-hover-mp-1-7de03ad0759f45f0a3795520d2513e1f)，作者 Alt
+- [Cyberpunk_taxi](https://sketchfab.com/3d-models/cyberpunk-taxi-922c7a92bfd047d9bf9b6da22a3421cb)，作者 maosichinchilla
+- 行人角色和走路动画来自 [Mixamo](https://www.mixamo.com)（Adobe），免费使用
