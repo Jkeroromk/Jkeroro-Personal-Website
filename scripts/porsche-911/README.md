@@ -1,5 +1,7 @@
 # 3D 保时捷 911
 
+> 2026-11 起 Showroom 里的车换成了 Lexus LC 500（见 `scripts/lexus-lc500/README.md`），911 的 GLB、车牌贴图和 Draco 解码器已经删除。下面关于展厅场景的说明仍然适用，文件表和模型授权部分是历史记录。
+
 首页头像上方的卡片放的是一段 6 秒循环视频（`public/static/porsche-911-loop.mp4`），是同一台车在 Blender（Cycles）里渲染出来的。卡片右上角的 **Enter Showroom** 才会加载 three.js 和 3D 模型（`components/media/carScene.js`）。卡片右上角的 **Enter Showroom** 按钮会打开全屏展厅 `components/media/Showroom.jsx`，参考的是 3DVista 的汽车展示页。展厅里有这些功能：
 
 - 分区导航：Overview / Specifications / Wheels / Lights / Rear，点了镜头会飞到对应机位，车后面显示大号水印标题

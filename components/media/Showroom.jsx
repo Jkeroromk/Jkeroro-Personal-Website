@@ -3,15 +3,16 @@
 /**
  * 全屏 3D Showroom（参考 3DVista 的汽车展示页）
  * - 左侧：分区导航（镜头飞到预设机位，背景有大号水印标题）
- * - 右侧：车漆 / 轮毂 / 车灯
+ * - 右侧：车漆 / 轮毂 / 内饰 / 车灯 / 车门
+ * - 键盘：A / D 打方向，S 刹车（W 暂时不用）
  * - 左下：白天/夜晚、隐藏界面、自动旋转
  * - 鼠标拖拽环绕、滚轮缩放（有距离和角度限制）；Esc 或右上角关闭
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Disc3, Eye, EyeOff, Lightbulb, Moon, Paintbrush, RotateCw, Sun, X } from "lucide-react";
-import { createCarScene, PAINTS, RIMS, VIEWS } from "./carScene";
+import { Armchair, Disc3, DoorClosed, DoorOpen, Eye, EyeOff, Lightbulb, Moon, Paintbrush, RotateCw, Sun, X } from "lucide-react";
+import { createCarScene, DEFAULT_INTERIOR, DEFAULT_PAINT, DEFAULT_RIM, INTERIORS, PAINTS, RIMS, VIEWS } from "./carScene";
 
 const SECTION_LABELS = {
   overview: "Overview",
@@ -28,16 +29,17 @@ const SECTION_CAPTIONS = {
   rear: "JKERORO",
 };
 
-// 991.1 Carrera 4S Coupé（2012–2015）出厂数据，手动挡
+// Lexus LC 500 Coupé 原厂数据（Wald Sports Line 只是外观套件，动力没改）。
+// 来源：Lexus UK 技术参数表（0–100、极速、自重、10AT）、Parkers（477 PS / 540 Nm）、KBB/cars.com（471 hp）
 const SPECS = [
-  ["Engine", "3.8 L flat-six"],
-  ["Power", "400 PS / 294 kW"],
-  ["Torque", "440 Nm"],
-  ["0–100 km/h", "4.5 s"],
-  ["Top speed", "299 km/h"],
-  ["Drive", "All-wheel drive"],
-  ["Gearbox", "7-speed manual / PDK"],
-  ["Weight", "1,445 kg (DIN)"],
+  ["Engine", "5.0 L V8 (2UR-GSE)"],
+  ["Power", "477 PS / 351 kW"],
+  ["Torque", "540 Nm"],
+  ["0–100 km/h", "4.7 s"],
+  ["Top speed", "270 km/h"],
+  ["Drive", "Rear-wheel drive"],
+  ["Gearbox", "10-speed automatic"],
+  ["Weight", "1,935 kg"],
 ];
 
 const BACKGROUNDS = {
@@ -103,11 +105,13 @@ export default function Showroom({ onClose }) {
   const [progress, setProgress] = useState(0);
   const [failed, setFailed] = useState(false);
   const [view, setView] = useState("overview");
-  const [paint, setPaint] = useState("black");
-  const [rim, setRim] = useState("white");
+  const [paint, setPaint] = useState(DEFAULT_PAINT);
+  const [rim, setRim] = useState(DEFAULT_RIM);
   const [lights, setLights] = useState(false);
+  const [doors, setDoors] = useState(false);
+  const [interior, setInterior] = useState(DEFAULT_INTERIOR);
   const [day, setDay] = useState(false);
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(false); // 默认不自动旋转
   const [uiHidden, setUiHidden] = useState(false);
   const [panel, setPanel] = useState(null); // "paint" | "rim" | null
 
@@ -133,6 +137,43 @@ export default function Showroom({ onClose }) {
   useEffect(() => sceneRef.current?.setPaint(paint), [paint]);
   useEffect(() => sceneRef.current?.setRim(rim), [rim]);
   useEffect(() => sceneRef.current?.setLights(lights), [lights]);
+  useEffect(() => sceneRef.current?.setDoors(doors), [doors]);
+  useEffect(() => sceneRef.current?.setInterior(interior), [interior]);
+
+  // ---- 键盘：A / D 打方向，S 刹车；W 先不做（以后可以加前进） ----
+  useEffect(() => {
+    const held = new Set();
+    const apply = () => {
+      sceneRef.current?.setSteerInput((held.has("a") ? 1 : 0) - (held.has("d") ? 1 : 0));
+      sceneRef.current?.setBrake(held.has("s"));
+    };
+    const isTyping = (event) => /^(INPUT|TEXTAREA|SELECT)$/.test(event.target?.tagName ?? "") || event.target?.isContentEditable;
+    const onDown = (event) => {
+      const key = event.key.toLowerCase();
+      if (!["a", "d", "s"].includes(key) || event.metaKey || event.ctrlKey || event.altKey || isTyping(event)) return;
+      event.preventDefault();
+      held.add(key);
+      apply();
+    };
+    const onUp = (event) => {
+      const key = event.key.toLowerCase();
+      if (!held.delete(key)) return;
+      apply();
+    };
+    // 窗口失焦时松开所有键，避免方向一直打着
+    const onBlur = () => {
+      held.clear();
+      apply();
+    };
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup", onUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup", onUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
   useEffect(() => sceneRef.current?.setDay(day), [day]);
   useEffect(() => sceneRef.current?.setAutoRotate(autoRotate), [autoRotate]);
 
@@ -166,7 +207,7 @@ export default function Showroom({ onClose }) {
     <motion.div
       role="dialog"
       aria-modal="true"
-      aria-label="Porsche 911 Showroom"
+      aria-label="Lexus LC 500 Showroom"
       className="fixed inset-0 z-[200] overflow-hidden select-none"
       style={{ background: BACKGROUNDS[day ? "day" : "night"], transition: "background 0.6s ease" }}
       initial={{ opacity: 0 }}
@@ -250,9 +291,9 @@ export default function Showroom({ onClose }) {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.7, delay: 0.1 }}
             >
-              <h2 className={`font-black uppercase tracking-tight leading-none text-2xl sm:text-4xl ${textMain}`}>Porsche 911</h2>
+              <h2 className={`font-black uppercase tracking-tight leading-none text-2xl sm:text-4xl ${textMain}`}>Lexus LC 500</h2>
               <p className={`mt-1 font-semibold uppercase tracking-wide text-[11px] sm:text-sm ${textMain}`}>
-                Carrera 4S · {PAINTS[paint].label}
+                WALD Sports Line · {PAINTS[paint].label}
               </p>
             </motion.div>
 
@@ -282,6 +323,7 @@ export default function Showroom({ onClose }) {
               {[
                 { key: "paint", label: "Paint", icon: <Paintbrush className="w-[18px] h-[18px]" /> },
                 { key: "rim", label: "Wheels", icon: <Disc3 className="w-[18px] h-[18px]" /> },
+                { key: "interior", label: "Interior", icon: <Armchair className="w-[18px] h-[18px]" /> },
               ].map((tool) => (
                 <div key={tool.key} className="flex items-center gap-2">
                   <AnimatePresence>
@@ -289,9 +331,9 @@ export default function Showroom({ onClose }) {
                       <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}>
                         <Swatches
                           dark={dark}
-                          options={tool.key === "paint" ? PAINTS : RIMS}
-                          value={tool.key === "paint" ? paint : rim}
-                          onChange={tool.key === "paint" ? setPaint : setRim}
+                          options={{ paint: PAINTS, rim: RIMS, interior: INTERIORS }[tool.key]}
+                          value={{ paint, rim, interior }[tool.key]}
+                          onChange={{ paint: setPaint, rim: setRim, interior: setInterior }[tool.key]}
                         />
                       </motion.div>
                     )}
@@ -303,6 +345,9 @@ export default function Showroom({ onClose }) {
               ))}
               <ToolButton dark={dark} label={lights ? "Lights off" : "Lights on"} active={lights} onClick={() => setLights(!lights)}>
                 <Lightbulb className="w-[18px] h-[18px]" />
+              </ToolButton>
+              <ToolButton dark={dark} label={doors ? "Close doors" : "Open doors"} active={doors} onClick={() => setDoors(!doors)}>
+                {doors ? <DoorOpen className="w-[18px] h-[18px]" /> : <DoorClosed className="w-[18px] h-[18px]" />}
               </ToolButton>
             </div>
 
@@ -325,7 +370,7 @@ export default function Showroom({ onClose }) {
                       </div>
                     ))}
                   </dl>
-                  <p className={`mt-4 text-[10px] ${textSub}`}>991.1 Carrera 4S Coupé (2012–2015), factory figures</p>
+                  <p className={`mt-4 text-[10px] ${textSub}`}>LC 500 Coupé, factory figures (WALD body kit is cosmetic)</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -352,6 +397,11 @@ export default function Showroom({ onClose }) {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* 键盘提示（桌面） */}
+            <p className={`hidden md:block absolute bottom-3 sm:bottom-4 inset-x-0 text-center text-[10px] uppercase tracking-[0.25em] ${textSub}`}>
+              A / D steer · S brake
+            </p>
 
             {/* 底部提示 */}
             <AnimatePresence mode="wait">
@@ -410,12 +460,12 @@ export default function Showroom({ onClose }) {
 
       {/* 出处 */}
       <a
-        href="https://sketchfab.com/3d-models/free-porsche-911-carrera-4s-d01b254483794de3819786d93e0e1ebf"
+        href="https://sketchfab.com/3d-models/lexus-lc-500-wald-sports-line-wwwvecarzcom-120879ad2666438b86d080dcf26621fa"
         target="_blank"
         rel="noopener noreferrer"
         className={`absolute right-4 bottom-3 sm:right-6 sm:bottom-4 z-10 text-[10px] ${dark ? "text-white/40 hover:text-white/80" : "text-black/40 hover:text-black/80"}`}
       >
-        Model: Porsche 911 Carrera 4S · CC BY-SA
+        Model: Lexus LC 500 WALD by VeCarz (vecarz.com) · CC BY-NC
       </a>
     </motion.div>
   );
