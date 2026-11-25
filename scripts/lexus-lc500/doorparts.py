@@ -37,6 +37,9 @@ def door_tris(c, I, P_world=None, return_drop=False):
             # 关门时看不见，开门后会悬在半空，直接删掉
             if abs(ctr[0])>0.745 and ctr[2]<0.3:
                 drop[t]=True
+            elif ctr[2]<-0.4:
+                # 车门后段、靠 B 柱的小件是安全带的卡扣和纽扣，属于车身，不跟门走
+                pass
             else:
                 res[t]=True
     return (res, drop) if return_drop else res

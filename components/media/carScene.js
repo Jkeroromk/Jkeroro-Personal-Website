@@ -239,10 +239,11 @@ function splitFrontRear(mesh) {
 }
 
 /**
- * 车门：两扇门在模型里是独立零件（门板、车窗、后视镜、门内饰…），节点名以 L_Door / R_door / r_Door / Door 开头，
+ * 车门：两扇门在模型里是独立零件（门板、车窗、后视镜、门内饰…），节点名以 L_Door / R_door / Door 开头，
  * 左右按位置分（模型 +X 是左边）。每边建一个铰链节点放在门的前上缘，把零件挂上去，开门就是绕 Y 轴转。
  */
-const DOOR_PART = /^(L_Door|R_door|r_Door|Door)/;
+// r_Door001 名字像车门零件，其实是安全带上的纽扣（挂在 B 柱旁边），不跟门走
+const DOOR_PART = /^(L_Door|R_door|Door)/;
 const DOOR_OPEN_ANGLE = THREE.MathUtils.degToRad(62);
 
 function rigDoors(car) {
