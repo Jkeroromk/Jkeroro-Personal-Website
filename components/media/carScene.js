@@ -89,6 +89,7 @@ const GROUPS = {
   amberGlass: ["GlassAmber"],
   grille: ["CSR2_Grille1", "CSR2_Grille5", "CSR2_Grille6", "CSR2_Grille7", "CSR2_Grille8", "CSR2_Grille9"],
   plate: ["Material #13"],
+  cap: ["Material #49"], // 轮毂中心盖（JK 标）
 };
 const GROUP_OF = new Map(Object.entries(GROUPS).flatMap(([group, names]) => names.map((n) => [n, group])));
 
@@ -155,6 +156,10 @@ function tuneMaterial(m, group) {
       break;
     case "grille":
       Object.assign(m, { metalness: 0.4, roughness: 0.35 });
+      break;
+    case "cap":
+      Object.assign(m, { metalness: 0.5, roughness: 0.25, envMapIntensity: 1.6, normalMap: null });
+      if (m.map) m.map.anisotropy = 8;
       break;
     case "plate":
       Object.assign(m, { metalness: 0.1, roughness: 0.4, envMapIntensity: 0.8 });
@@ -550,7 +555,7 @@ const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2
  */
 export function createCarScene(canvas, { onReady, onProgress, onError, onUserInteract } = {}) {
   let disposed = false;
-  let autoRotate = true;
+  let autoRotate = false; // 默认不自动旋转（Showroom 右下角可以打开）
   const container = canvas.parentElement;
 
   const getSizes = () => {

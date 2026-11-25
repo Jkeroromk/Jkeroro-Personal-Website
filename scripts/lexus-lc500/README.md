@@ -6,7 +6,7 @@
 
 - 模型：[“Lexus LC 500 WALD Sports Line | www.vecarz.com”](https://sketchfab.com/3d-models/lexus-lc-500-wald-sports-line-wwwvecarzcom-120879ad2666438b86d080dcf26621fa)，作者 VeCarz（Sketchfab @heynic）
 - 授权：[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/)，只能非商业使用，必须署名 “VeCarz – www.vecarz.com”。展厅右下角有出处链接
-- 修改内容：车尾车牌换成 JKERORO；顶点量化、贴图压缩；材质参数在网页运行时重新调过
+- 修改内容：车尾车牌换成 JKERORO；轮毂中心盖的 MSW 标换成 JK；顶点量化、贴图压缩；材质参数在网页运行时重新调过
 
 ## 文件
 
@@ -15,6 +15,7 @@
 | `public/static/lexus-lc500.glb` | 网页用模型，约 14 MB（33 万面）。由 `build_glb.py` 从 Sketchfab 下载的原版 GLB（Original format，约 53 MB）生成 |
 | `scripts/lexus-lc500/build_glb.py` | 生成脚本：位置 int16、法线 int8（`KHR_mesh_quantization`），贴图最大 2048，没有透明的转 JPEG，车牌换成 `plate_jkeroro.png` |
 | `scripts/lexus-lc500/gl.py` | 读 GLB 的小工具 |
+| `scripts/lexus-lc500/cap_jk.png` | 轮毂中心盖贴图（1024×1024，黑底白字 JK + 细银圈）。贴图中心 (0.485, 0.44) 对着盖子中心，四个轮子上都是正向、不镜像 |
 | `scripts/lexus-lc500/plate_jkeroro.png` | JKERORO 车牌贴图（1024×512，深色底白字，沿用原车 WALD 牌照的配色），正向存储 |
 
 重新生成：
@@ -33,6 +34,8 @@ python3 scripts/lexus-lc500/build_glb.py public/static/lexus-lc500.glb <Sketchfa
 - 轮毂：`Rim_1` / `Rim_2` / `Rim_black`，原色是深灰。换成银色/白色时去掉贴图底色
 - 车灯：车头灯和尾灯共用材质 `CSR2_Light`，而且 `Kit1_Light` 这个网格同时包含车头灯和尾灯。所以按三角形位置（z 正负）拆成两组：开灯时车头白光、车尾红光
 - 车尾车牌：材质 `Material #13`（只有车尾一块，车头没有车牌）
+- 轮毂中心盖：材质 `Material #49`，原来的浮雕法线贴图换成了平的
+- Showroom 默认不自动旋转（右下角按钮可以打开）
 - 环境里那个漂浮的红色光圈在白车上反射很明显，强度从原示例的 1 降到了 0.2
 
 ## 已删除

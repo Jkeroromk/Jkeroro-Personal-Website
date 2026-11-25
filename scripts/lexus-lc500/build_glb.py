@@ -4,6 +4,7 @@
   位置用"每个 mesh 一个均匀缩放 + 平移"的子节点还原，均匀缩放不会让法线变形
 - 贴图：有透明的保留 PNG，其他转 JPEG（q92）；超过 2048 的缩到 2048
 - 车尾车牌（材质 "Material #13"）换成 JKERORO（正向存储，渲染出来是正的）
+- 轮毂中心盖（材质 "Material #49"，原来是 MSW 的标）换成 JK；它的法线贴图换成平的
 - 材质参数不在这里改，网页运行时按材质名调（components/media/carScene.js）
 """
 import io, json, os, struct, sys
@@ -18,6 +19,7 @@ from gl import load, accessor
 SRC = sys.argv[2] if len(sys.argv) > 2 else "source/Sketchfab_2026_11_14_14_55_43.glb"  # 原版不在 repo 里
 OUT = sys.argv[1] if len(sys.argv) > 1 else "public/static/lexus-lc500.glb"
 PLATE = os.path.join(HERE, "plate_jkeroro.png")
+CAP = os.path.join(HERE, "cap_jk.png")
 MAX_TEX = 2048
 
 j, b = load(SRC)
@@ -107,10 +109,16 @@ for mi in alpha_mats:
     if t:
         alpha_images.add(j["textures"][t["index"]]["source"])
 
-plate_img = None
-for m in j["materials"]:
-    if m["name"] == "Material #13":
-        plate_img = j["textures"][m["pbrMetallicRoughness"]["baseColorTexture"]["index"]]["source"]
+def image_of(material_name, slot):
+    for m in j["materials"]:
+        if m["name"] == material_name:
+            t = m["pbrMetallicRoughness"].get("baseColorTexture") if slot == "base" else m.get("normalTexture")
+            return j["textures"][t["index"]]["source"]
+
+
+plate_img = image_of("Material #13", "base")
+cap_img = image_of("Material #49", "base")
+cap_normal_img = image_of("Material #49", "normal")
 
 src_views = j["bufferViews"]
 report = []
@@ -119,6 +127,11 @@ for ii, img in enumerate(j["images"]):
     raw = b[bv.get("byteOffset", 0): bv.get("byteOffset", 0) + bv["byteLength"]]
     if ii == plate_img:
         im = Image.open(PLATE)
+    elif ii == cap_img:
+        # 贴图中心 (0.485, 0.44) 对着盖子中心；四个轮子上都是正向、不镜像
+        im = Image.open(CAP)
+    elif ii == cap_normal_img:
+        im = Image.new("RGB", (8, 8), (128, 128, 255))
     else:
         im = Image.open(io.BytesIO(raw))
         im.load()
@@ -136,7 +149,7 @@ for ii, img in enumerate(j["images"]):
         im.convert("RGBA").save(bio, "PNG", optimize=True)
         mime = "image/png"
     else:
-        im.convert("RGB").save(bio, "JPEG", quality=92, subsampling=0 if ii == plate_img else 2, optimize=True)
+        im.convert("RGB").save(bio, "JPEG", quality=92, subsampling=0 if ii in (plate_img, cap_img) else 2, optimize=True)
         mime = "image/jpeg"
     data = bio.getvalue()
     img["bufferView"] = add_view(data)

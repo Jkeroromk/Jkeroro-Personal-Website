@@ -108,7 +108,7 @@ export default function Showroom({ onClose }) {
   const [rim, setRim] = useState(DEFAULT_RIM);
   const [lights, setLights] = useState(false);
   const [day, setDay] = useState(false);
-  const [autoRotate, setAutoRotate] = useState(true);
+  const [autoRotate, setAutoRotate] = useState(false); // 默认不自动旋转
   const [uiHidden, setUiHidden] = useState(false);
   const [panel, setPanel] = useState(null); // "paint" | "rim" | null
 
