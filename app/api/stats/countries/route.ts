@@ -1,77 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
-import { countryNameFromCode, resolveCountry } from '@/lib/countries'
+import { resolveCountry } from '@/lib/countries'
 
-// 记录访客位置
-export async function POST(request: NextRequest) {
-  try {
-    let country: string | null = null
-
-    const body = await request.json().catch(() => ({}))
-    if (typeof body.country === 'string') {
-      // 只接受认得出来的国家名，免得有人往表里塞任意字符串
-      country = resolveCountry(body.country)?.name ?? null
-    } else {
-      // 直接从 Vercel 注入的请求头读取国家代码，零延迟
-      country = countryNameFromCode(request.headers.get('x-vercel-ip-country'))
-    }
-
-    if (!country || country === 'Unknown') {
-      return NextResponse.json({ success: true, skipped: true })
-    }
-
-    // 更新或创建国家访问记录（8秒超时）
-    const countryVisit = await withTimeout(
-      prisma.countryVisit.upsert({
-        where: { country },
-        update: {
-          count: { increment: 1 },
-          lastVisit: new Date(),
-        },
-        create: {
-          country,
-          count: 1,
-          lastVisit: new Date(),
-        },
-      }),
-      8000
-    )
-
-    return NextResponse.json({
-      success: true,
-      country: countryVisit.country,
-      count: countryVisit.count,
-    })
-  } catch (error) {
-    const errorInfo = getDbErrorInfo(error)
-    
-    // 如果是连接错误或超时，返回成功但跳过记录（不阻塞用户）
-    if (errorInfo.shouldReturnEmpty) {
-      console.error('Database connection/timeout error (track visitor location):', errorInfo.errorMessage)
-      return NextResponse.json({ success: true, skipped: true })
-    }
-    
-    // 其他错误才返回 500
-    console.error('Track visitor location error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
+// 记访问（总数 + 国家）统一走 POST /api/stats/view，在一个事务里同时写，这里只负责读。
 
 // 获取所有国家访问统计
 export async function GET() {
   try {
-    // 使用 Accelerate 缓存策略：SWR 策略，国家统计数据可以缓存 180 秒（3分钟）
+    // 缓存时间跟 /api/stats/view 一样（60 秒），两边的数字新旧程度一致
     const countries = await withTimeout(
       prisma.countryVisit.findMany({
         orderBy: {
           count: 'desc',
         },
         // @ts-expect-error - cacheStrategy 是 Accelerate 扩展的类型，TypeScript 可能无法识别
-        cacheStrategy: { swr: 180, ttl: 180 },
+        cacheStrategy: { swr: 60, ttl: 60 },
       }),
       8000
     )

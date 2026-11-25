@@ -97,8 +97,9 @@ function normalize(rows, now) {
     .sort((a, b) => b.v - a.v);
 }
 
-// totalViews：按钮上 “N Viewers” 的那个数（view_count 表）。地图上的国家只统计认出国家的访问，
-// 所以各国加起来会比它少；顶部显示跟按钮一样的总数，列表下面注明有多少次认出了国家。
+// totalViews：按钮上 “N Viewers” 的那个数（view_count 表）。有一部分访问认不出国家
+// （大多是早期国家识别有 bug 时漏记的），这部分在列表最后显示成 “Unknown” 一行，
+// 这样列表加起来正好等于顶部和按钮上的 Viewers。Unknown 不画在地图上。
 const AudienceMap = ({ totalViews = null }) => {
   const [raw, setRaw] = useState(() => DataManager.getInstance().getCountries() || []);
   const [mode, setMode] = useState("globe");
@@ -129,6 +130,8 @@ const AudienceMap = ({ totalViews = null }) => {
 
   const data = useMemo(() => normalize(raw, now), [raw, now]);
   const total = useMemo(() => data.reduce((s, d) => s + d.v, 0), [data]);
+  const viewers = typeof totalViews === "number" && totalViews > 0 ? Math.max(totalViews, total) : total;
+  const unknown = viewers - total;
   const latest = useMemo(() => data.reduce((a, b) => (!a || b.ts > a.ts ? b : a), null), [data]);
   const maxV = data[0]?.v || 1;
 
@@ -411,7 +414,7 @@ const AudienceMap = ({ totalViews = null }) => {
       <div className={styles.stats}>
         <div className={styles.stat}>
           <span className={styles.k}>Viewers</span>
-          <span className={styles.v}>{(typeof totalViews === "number" && totalViews > 0 ? totalViews : total).toLocaleString("en-US")}</span>
+          <span className={styles.v}>{viewers.toLocaleString("en-US")}</span>
         </div>
         <div className={styles.stat}>
           <span className={styles.k}>Countries</span>
@@ -507,9 +510,24 @@ const AudienceMap = ({ totalViews = null }) => {
           </ul>
         )}
 
+        {unknown > 0 && (
+          <div className={`${styles.row} ${styles.unknown}`} title="Visits we couldn't locate — mostly from before country tracking was fixed">
+            <span className={styles.rk}>–</span>
+            <span className={styles.cc}>??</span>
+            <span className={styles.nm}>
+              <span>Unknown location</span>
+              <span className={styles.track}>
+                <i style={{ width: `${Math.max(2, Math.min(100, (Math.log10(unknown + 1) / maxLog) * 100))}%` }} />
+              </span>
+            </span>
+            <span className={styles.ct}>{unknown.toLocaleString("en-US")}</span>
+            <span className={styles.ago} />
+          </div>
+        )}
+
         {data.length > 0 && (
           <p className={styles.note}>
-            {total.toLocaleString("en-US")} visits with a known country
+            {data.length} countries{unknown > 0 ? " + unknown" : ""} = {viewers.toLocaleString("en-US")} viewers
           </p>
         )}
 

@@ -137,9 +137,11 @@ const SupabaseDebugTab = () => {
   const testLocationTracking = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/stats/countries', { method: 'POST' })
+      // 记国家跟访问计数是同一个接口（同一个事务），所以这个测试也会让总数 +1
+      const response = await fetch('/api/stats/view', { method: 'POST' })
       if (response.ok) {
-        setTestResults(prev => ({ ...prev, locationTracking: { status: 'success', message: 'Location tracking completed' } }))
+        const data = await response.json()
+        setTestResults(prev => ({ ...prev, locationTracking: { status: 'success', message: data.country ? `Location tracked: ${data.country}` : 'Visit counted, country unknown' } }))
       } else {
         throw new Error('Failed to track location')
       }
