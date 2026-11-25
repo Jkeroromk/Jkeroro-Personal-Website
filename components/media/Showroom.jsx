@@ -3,14 +3,14 @@
 /**
  * 全屏 3D Showroom（参考 3DVista 的汽车展示页）
  * - 左侧：分区导航（镜头飞到预设机位，背景有大号水印标题）
- * - 右侧：车漆 / 轮毂 / 车灯
+ * - 右侧：车漆 / 轮毂 / 车灯 / 车门
  * - 左下：白天/夜晚、隐藏界面、自动旋转
  * - 鼠标拖拽环绕、滚轮缩放（有距离和角度限制）；Esc 或右上角关闭
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Disc3, Eye, EyeOff, Lightbulb, Moon, Paintbrush, RotateCw, Sun, X } from "lucide-react";
+import { Disc3, DoorClosed, DoorOpen, Eye, EyeOff, Lightbulb, Moon, Paintbrush, RotateCw, Sun, X } from "lucide-react";
 import { createCarScene, DEFAULT_PAINT, DEFAULT_RIM, PAINTS, RIMS, VIEWS } from "./carScene";
 
 const SECTION_LABELS = {
@@ -107,6 +107,7 @@ export default function Showroom({ onClose }) {
   const [paint, setPaint] = useState(DEFAULT_PAINT);
   const [rim, setRim] = useState(DEFAULT_RIM);
   const [lights, setLights] = useState(false);
+  const [doors, setDoors] = useState(false);
   const [day, setDay] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false); // 默认不自动旋转
   const [uiHidden, setUiHidden] = useState(false);
@@ -134,6 +135,7 @@ export default function Showroom({ onClose }) {
   useEffect(() => sceneRef.current?.setPaint(paint), [paint]);
   useEffect(() => sceneRef.current?.setRim(rim), [rim]);
   useEffect(() => sceneRef.current?.setLights(lights), [lights]);
+  useEffect(() => sceneRef.current?.setDoors(doors), [doors]);
   useEffect(() => sceneRef.current?.setDay(day), [day]);
   useEffect(() => sceneRef.current?.setAutoRotate(autoRotate), [autoRotate]);
 
@@ -304,6 +306,9 @@ export default function Showroom({ onClose }) {
               ))}
               <ToolButton dark={dark} label={lights ? "Lights off" : "Lights on"} active={lights} onClick={() => setLights(!lights)}>
                 <Lightbulb className="w-[18px] h-[18px]" />
+              </ToolButton>
+              <ToolButton dark={dark} label={doors ? "Close doors" : "Open doors"} active={doors} onClick={() => setDoors(!doors)}>
+                {doors ? <DoorOpen className="w-[18px] h-[18px]" /> : <DoorClosed className="w-[18px] h-[18px]" />}
               </ToolButton>
             </div>
 

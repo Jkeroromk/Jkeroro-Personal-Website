@@ -103,6 +103,20 @@ function toPhysical(material) {
   return m;
 }
 
+/**
+ * 车身外板是双面材质，开门后能看到门板背面（原模型的门内饰只盖住中间一块）。
+ * 背面改成深色内衬色，不显示车漆颜色
+ */
+function darkBackFaces(m) {
+  m.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "vec4 diffuseColor = vec4( diffuse, opacity );",
+      "vec4 diffuseColor = vec4( gl_FrontFacing ? diffuse : vec3( 0.025 ), opacity );"
+    );
+  };
+  m.customProgramCacheKey = () => "dark-back-faces";
+}
+
 function tuneMaterial(m, group) {
   m.envMapIntensity = 1.2;
   // 原模型几乎每个材质都挂了一张 32×32 的"平"法线贴图，没有作用，去掉省一次采样
@@ -110,6 +124,7 @@ function tuneMaterial(m, group) {
   switch (group) {
     case "paint":
       Object.assign(m, { metalness: 0.15, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 2 });
+      darkBackFaces(m);
       break;
     case "gloss":
       Object.assign(m, { metalness: 0.2, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.6 });
@@ -210,6 +225,43 @@ function splitFrontRear(mesh) {
   return result;
 }
 
+/**
+ * 车门：两扇门在模型里是独立零件（门板、车窗、后视镜、门内饰…），节点名以 L_Door / R_door / r_Door / Door 开头，
+ * 左右按位置分（模型 +X 是左边）。每边建一个铰链节点放在门的前上缘，把零件挂上去，开门就是绕 Y 轴转。
+ */
+const DOOR_PART = /^(L_Door|R_door|r_Door|Door)/;
+const DOOR_OPEN_ANGLE = THREE.MathUtils.degToRad(62);
+
+function rigDoors(car) {
+  car.updateMatrixWorld(true);
+  const parts = { left: [], right: [] };
+  const box = new THREE.Box3();
+  const center = new THREE.Vector3();
+  car.traverse((node) => {
+    if (!node.isMesh || !DOOR_PART.test(node.name)) return;
+    box.setFromObject(node).getCenter(center);
+    parts[center.x >= 0 ? "left" : "right"].push(node);
+  });
+
+  const hinges = {};
+  for (const side of ["left", "right"]) {
+    if (!parts[side].length) continue;
+    const doorBox = new THREE.Box3();
+    parts[side].forEach((node) => doorBox.expandByObject(node));
+    const sign = side === "left" ? 1 : -1;
+    const hinge = new THREE.Object3D();
+    hinge.name = `DoorHinge_${side}`;
+    // 铰链在门的最前缘、靠外侧
+    const outer = sign > 0 ? doorBox.max.x : doorBox.min.x;
+    hinge.position.set(outer - sign * 0.17, 0, doorBox.max.z - 0.04);
+    car.add(hinge);
+    hinge.updateMatrixWorld(true);
+    parts[side].forEach((node) => hinge.attach(node));
+    hinges[side] = { hinge, sign };
+  }
+  return hinges;
+}
+
 /** 克隆模型并调材质 */
 function buildCar({ gltf }) {
   const car = gltf.scene.clone(true);
@@ -248,6 +300,7 @@ function buildCar({ gltf }) {
   }
 
   const each = (group, fn) => (byGroup.get(group) ?? []).forEach(fn);
+  const doors = rigDoors(car);
 
   return {
     car,
@@ -294,6 +347,10 @@ function buildCar({ gltf }) {
       each("lampGlass", (m) => {
         m.opacity = on ? 0.22 : 0.12;
       });
+    },
+    /** 0 = 关，1 = 全开 */
+    setDoorOpen(t) {
+      for (const { hinge, sign } of Object.values(doors)) hinge.rotation.y = -sign * DOOR_OPEN_ANGLE * t;
     },
     dispose() {
       // 几何体和贴图是共享缓存，不在这里释放；只释放克隆出来的材质
@@ -614,6 +671,8 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
   let views = null; // showroom 镜头预设（加载后根据车的尺寸计算）
   let pendingView = "overview";
   const pending = { paint: DEFAULT_PAINT, rim: DEFAULT_RIM, lights: false };
+  let doorGoal = 0;
+  let doorT = 0;
 
   // =========================================================================
   // OrbitControls + 镜头飞行
@@ -768,6 +827,12 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       controls.target.lerpVectors(flight.fromTarget, flight.toTarget, k);
       if (t >= 1) flight = null;
     }
+    if (carHandle && doorT !== doorGoal) {
+      // 开关门约 1.1 秒，先快后慢；停下后重新烘焙地面阴影
+      doorT = doorGoal > doorT ? Math.min(doorT + delta / 1.1, 1) : Math.max(doorT - delta / 1.1, 0);
+      carHandle.setDoorOpen(easeInOutCubic(doorT));
+      if (doorT === doorGoal) groundShadow?.bake();
+    }
     shift += (shiftGoal - shift) * Math.min(delta * 3, 1);
     applyShift();
     controls.autoRotate = autoRotate && !flight && !reduceMotion && shiftGoal === 0; // 看参数时不转，免得车跑到面板下面
@@ -818,6 +883,14 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       lightformers.setDay(day);
       floor.setDay(day);
       ambient.intensity = (day ? 0.8 : 0.5) * Math.PI;
+    },
+    setDoors(open) {
+      doorGoal = open ? 1 : 0;
+      if (reduceMotion && carHandle) {
+        doorT = doorGoal;
+        carHandle.setDoorOpen(doorT);
+        groundShadow?.bake();
+      }
     },
     setAutoRotate(value) {
       autoRotate = value;
