@@ -1,206 +1,298 @@
 /**
- * 3D 保时捷 911（写实渲染）—— 全屏 Showroom 用（首页卡片放的是用同一台车在 Blender 里渲染的视频）
+ * 3D Lexus LC 500（Wald Sports Line，写实渲染）—— 全屏 Showroom 用
  *
- * 移植自 pmndrs 的 "Building Live Env Maps" 示例（Paul Henschel / 0xca0a，codesandbox.io/s/lwo219）：
+ * 场景移植自 pmndrs 的 "Building Live Env Maps" 示例（Paul Henschel / 0xca0a，codesandbox.io/s/lwo219）：
  *   - 实时环境贴图：一排灯带不停从车顶扫过 + 两侧灯条 + 漂浮的红色点缀光，车漆/车窗反射一直在流动
  *   - 带阴影的顶部聚光灯 + 环境光，车身自阴影
- *   - 原示例的 clearcoat 外壳（coat）、内饰、轮胎法线贴图等都保留，这是写实感的主要来源
  *
  * 展厅功能：OrbitControls 自由环绕、镜头预设、换车漆/轮毂、开车灯、白天/夜晚
  *
- * 模型："(FREE) Porsche 911 Carrera 4S"（Sketchfab），CC BY-SA 4.0，见 scripts/porsche-911/README.md
+ * 模型："Lexus LC 500 WALD Sports Line | www.vecarz.com"（Sketchfab，vecarz），CC BY-NC 4.0，
+ * 见 scripts/lexus-lc500/README.md。原模型所有材质都是同一组默认参数（metalness 0 / roughness 0.45），
+ * 这里在运行时按材质名逐个调成车漆、镀铬、玻璃、轮胎等（见 MATERIAL_TUNING）。
  */
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { HorizontalBlurShader } from "three/addons/shaders/HorizontalBlurShader.js";
 import { VerticalBlurShader } from "three/addons/shaders/VerticalBlurShader.js";
 
-const MODEL_URL = "/static/porsche-911.glb";
-const PLATE_URL = "/static/porsche-plate.png";
-const PLATE_NORMAL_URL = "/static/porsche-plate-normal.png";
-const DRACO_PATH = "/draco/";
+const MODEL_URL = "/static/lexus-lc500.glb";
 
-// 构图（原示例：car scale 1.6, position [-0.5, -0.18, 0], rotation π/5）
-const CAR_SCALE = 1.6;
+// 构图（原示例：car scale 1.6, position [-0.5, -0.18, 0], rotation π/5）。
+// 模型单位是米，车长 4.88 m；缩放后和之前的 911 差不多大。车头朝模型的 +Z。
+const CAR_SCALE = 1.58;
 const CAR_POSITION = new THREE.Vector3(-0.5, -0.18, 0);
 const CAR_BASE_YAW = Math.PI / 5;
 const GROUND_Y = -1.16;
 const CAMERA_FOV = 30;
 
-
+// 车漆：原车身贴图是白色加烘焙 AO，颜色直接乘在贴图上，所以 "original" 就是白色
 export const PAINTS = {
-  black: { label: "Jet Black", swatch: "#0b0b0c", paint: "#0c0c0c", coat: "#121212", metalness: 0.8, roughness: 0.45 },
-  white: { label: "Carrara White", swatch: "#eceae4", paint: "#d9d7d0", coat: "#8f8e8a", metalness: 0.25, roughness: 0.4 },
-  red: { label: "Guards Red", swatch: "#b3121b", paint: "#8f0a10", coat: "#3d0306", metalness: 0.45, roughness: 0.42 },
-  silver: { label: "GT Silver", swatch: "#a9acaf", paint: "#7d8084", coat: "#4d4f52", metalness: 0.85, roughness: 0.4 },
-  blue: { label: "Sapphire Blue", swatch: "#14306e", paint: "#0b2156", coat: "#061232", metalness: 0.8, roughness: 0.42 },
+  white: { label: "Wald White", swatch: "#eeeeea", paint: "#ffffff", metalness: 0.15, roughness: 0.32 },
+  black: { label: "Gloss Black", swatch: "#0b0b0c", paint: "#151516", metalness: 0.35, roughness: 0.3 },
+  red: { label: "Infrared", swatch: "#b3121b", paint: "#a1121a", metalness: 0.35, roughness: 0.3 },
+  silver: { label: "Atomic Silver", swatch: "#a9acaf", paint: "#a7aaae", metalness: 0.8, roughness: 0.32 },
+  blue: { label: "Structural Blue", swatch: "#1f4fb4", paint: "#1f4aa8", metalness: 0.55, roughness: 0.3 },
 };
 
+// 轮毂：原厂是深色（graphite）轮毂，"original" 保留贴图原色
 export const RIMS = {
-  white: { label: "White", swatch: "#f2f2f2", color: "#f2f2f2", metalness: 0.35, roughness: 0.22 },
-  black: { label: "Satin Black", swatch: "#1a1a1a", color: "#161616", metalness: 0.5, roughness: 0.38 },
-  silver: { label: "Silver", swatch: "#c9ccd0", color: "#c8cbcf", metalness: 1, roughness: 0.18 },
+  original: { label: "Graphite", swatch: "#3a3b3d", color: "#ffffff", metalness: 0.75, roughness: 0.32 },
+  black: { label: "Gloss Black", swatch: "#141414", color: "#3a3a3a", metalness: 0.6, roughness: 0.22 },
+  silver: { label: "Silver", swatch: "#c9ccd0", color: "#ffffff", metalness: 1, roughness: 0.18, bright: true },
+  white: { label: "White", swatch: "#f2f2f2", color: "#ffffff", metalness: 0.3, roughness: 0.25, bright: true },
 };
+
+export const DEFAULT_PAINT = "white";
+export const DEFAULT_RIM = "original";
 
 export const VIEWS = ["overview", "specs", "wheels", "lights", "rear"];
 
 // ---------------------------------------------------------------------------
-// 资源：模型 + 车牌贴图只加载一次（多次打开 Showroom 时复用，每次克隆一套材质）
+// 资源：模型只加载一次（多次打开 Showroom 时复用，每次克隆一套材质）
 // ---------------------------------------------------------------------------
 let assetsPromise = null;
 function loadCarAssets(onProgress) {
   if (assetsPromise) return assetsPromise;
-
-  const draco = new DRACOLoader().setDecoderPath(DRACO_PATH).setDecoderConfig({ type: "wasm" });
-  const gltfLoader = new GLTFLoader().setDRACOLoader(draco);
-  const textureLoader = new THREE.TextureLoader();
-  const loadTexture = (url, srgb) =>
-    textureLoader.loadAsync(url).then((texture) => {
-      texture.flipY = false; // 与 glTF 贴图一致（车牌贴图是上下翻转存储的）
-      if (srgb) texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = 4;
-      return texture;
-    });
-
-  assetsPromise = Promise.all([
-    gltfLoader.loadAsync(MODEL_URL, (event) => {
+  const gltfLoader = new GLTFLoader();
+  assetsPromise = gltfLoader
+    .loadAsync(MODEL_URL, (event) => {
       if (event.total) onProgress?.(event.loaded / event.total);
-    }),
-    loadTexture(PLATE_URL, true),
-    loadTexture(PLATE_NORMAL_URL, false),
-  ])
-    .then(([gltf, plateMap, plateNormal]) => {
-      draco.dispose();
-      return { gltf, plateMap, plateNormal };
     })
+    .then((gltf) => ({ gltf }))
     .catch((error) => {
       assetsPromise = null; // 允许重试
-      draco.dispose();
       throw error;
     });
   return assetsPromise;
 }
 
-/**
- * 轮子的 silver primitive 里同时包含轮辐和刹车盘。把三角形按"离车身中线多远"分成两组：
- * 靠外侧的是轮辐（用轮毂颜色），靠里面的是刹车盘/轮毂内侧（保持原来的金属色）。
- * 几何体是共享缓存，只处理一次。
- */
-const WHEEL_DISC_DEPTH = 0.13; // 车坐标系里，比轮子最外侧再往里 13cm 以内的算刹车盘
-function splitWheelGeometry(mesh, root) {
-  const geometry = mesh.geometry;
-  if (geometry.userData.wheelSplit) return geometry.userData.wheelSplit;
-  const position = geometry.attributes.position;
-  const index = geometry.index;
-  if (!index) return null;
+// ---------------------------------------------------------------------------
+// 材质：按原模型的材质名分组调参
+// ---------------------------------------------------------------------------
+const GROUPS = {
+  paint: ["CSR2_CarPaint"],
+  gloss: ["Black", "EXT_BODYBLACK_1", "Lights_Black", "Hood", "CSR2_Base"],
+  carbon: ["CSR2_Carbon1", "CSR2_OEM_Carbon1_100"],
+  chrome: ["Chrome", "EXT_chrome", "steer_chrome", "Mirror"],
+  rim: ["Rim_1", "Rim_2", "Rim_black"],
+  tyre: ["AC_TREAD", "AC_TIRESIDE"],
+  caliper: ["lexus_caliper"],
+  rotor: ["ROTOR"],
+  lamp: ["CSR2_Light"],
+  tail: ["taillight", "light_glass_red"],
+  window: ["Window"],
+  lampGlass: ["GlassClear"],
+  innerGlass: ["Int_glass"],
+  redGlass: ["GlassRed"],
+  amberGlass: ["GlassAmber"],
+  grille: ["CSR2_Grille1", "CSR2_Grille5", "CSR2_Grille6", "CSR2_Grille7", "CSR2_Grille8", "CSR2_Grille9"],
+  plate: ["Material #13"],
+};
+const GROUP_OF = new Map(Object.entries(GROUPS).flatMap(([group, names]) => names.map((n) => [n, group])));
 
-  // 顶点在车坐标系下的横向位置（x 是车宽方向）
-  const toRoot = new THREE.Matrix4().copy(root.matrixWorld).invert().multiply(mesh.matrixWorld);
-  const v = new THREE.Vector3();
-  const xs = new Float32Array(position.count);
-  let maxPos = 0;
-  let maxNeg = 0;
-  for (let i = 0; i < position.count; i++) {
-    const x = v.fromBufferAttribute(position, i).applyMatrix4(toRoot).x;
-    xs[i] = x;
-    if (x > maxPos) maxPos = x;
-    if (-x > maxNeg) maxNeg = -x;
-  }
-  const isDisc = (i) => (xs[i] >= 0 ? xs[i] < maxPos - WHEEL_DISC_DEPTH : -xs[i] < maxNeg - WHEEL_DISC_DEPTH);
+const PHYSICAL_GROUPS = new Set(["paint", "gloss", "carbon", "window", "lampGlass", "innerGlass", "redGlass", "amberGlass"]);
 
-  const src = index.array;
-  const spokes = [];
-  const discs = [];
-  for (let t = 0; t < src.length; t += 3) {
-    const a = src[t], b = src[t + 1], c = src[t + 2];
-    (isDisc(a) && isDisc(b) && isDisc(c) ? discs : spokes).push(a, b, c);
-  }
-  const out = new (src.constructor)(src.length);
-  out.set(spokes, 0);
-  out.set(discs, spokes.length);
-  geometry.setIndex(new THREE.BufferAttribute(out, 1));
-  geometry.clearGroups();
-  geometry.addGroup(0, spokes.length, 0);
-  geometry.addGroup(spokes.length, discs.length, 1);
-  geometry.userData.wheelSplit = true;
-  return true;
+/** 把 glTF 里的 MeshStandardMaterial 换成 MeshPhysicalMaterial（要 clearcoat / 玻璃效果的组） */
+function toPhysical(material) {
+  const m = new THREE.MeshPhysicalMaterial();
+  THREE.MeshStandardMaterial.prototype.copy.call(m, material);
+  m.name = material.name;
+  return m;
 }
 
-/** 克隆模型并调材质（数值来自原示例，车漆改成黑色、轮毂改成白色、换 JKERORO 车牌） */
-function buildCar({ gltf, plateMap, plateNormal }) {
+function tuneMaterial(m, group) {
+  m.envMapIntensity = 1.2;
+  // 原模型几乎每个材质都挂了一张 32×32 的"平"法线贴图，没有作用，去掉省一次采样
+  if (m.normalMap && m.normalMap.image?.width <= 32) m.normalMap = null;
+  switch (group) {
+    case "paint":
+      Object.assign(m, { metalness: 0.15, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 2 });
+      break;
+    case "gloss":
+      Object.assign(m, { metalness: 0.2, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1.6 });
+      break;
+    case "carbon":
+      Object.assign(m, { metalness: 0.3, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.6 });
+      break;
+    case "chrome":
+      Object.assign(m, { metalness: 1, roughness: 0.08, envMapIntensity: 2.2 });
+      break;
+    case "rim":
+      Object.assign(m, { metalness: 0.75, roughness: 0.32, envMapIntensity: 1.8 });
+      break;
+    case "tyre":
+      Object.assign(m, { metalness: 0, roughness: 0.85, envMapIntensity: 0.6 });
+      break;
+    case "caliper":
+      Object.assign(m, { metalness: 0.2, roughness: 0.35, envMapIntensity: 1.4 });
+      break;
+    case "rotor":
+      Object.assign(m, { metalness: 0.9, roughness: 0.45 });
+      break;
+    case "lamp":
+    case "lampRear":
+      Object.assign(m, { metalness: 0.7, roughness: 0.18, envMapIntensity: 1.8 });
+      break;
+    case "tail":
+      Object.assign(m, { metalness: 0.2, roughness: 0.2, envMapIntensity: 1.4 });
+      break;
+    case "window":
+      Object.assign(m, { color: new THREE.Color("#0b0c0e"), metalness: 0, roughness: 0.02, transparent: true, opacity: 0.55, envMapIntensity: 2.5, depthWrite: false });
+      break;
+    case "innerGlass":
+      Object.assign(m, { color: new THREE.Color("#0b0c0e"), metalness: 0, roughness: 0.02, transparent: true, opacity: 0.18, envMapIntensity: 1, depthWrite: false });
+      break;
+    case "lampGlass":
+      Object.assign(m, { color: new THREE.Color("#ffffff"), metalness: 0, roughness: 0, transparent: true, opacity: 0.12, envMapIntensity: 2.5, depthWrite: false });
+      break;
+    case "redGlass":
+      Object.assign(m, { color: new THREE.Color("#c8101a"), metalness: 0, roughness: 0.05, transparent: true, opacity: 0.75, envMapIntensity: 1.6, depthWrite: false });
+      break;
+    case "amberGlass":
+      Object.assign(m, { color: new THREE.Color("#ff9a1e"), metalness: 0, roughness: 0.05, transparent: true, opacity: 0.55, envMapIntensity: 1.6, depthWrite: false });
+      break;
+    case "grille":
+      Object.assign(m, { metalness: 0.4, roughness: 0.35 });
+      break;
+    case "plate":
+      Object.assign(m, { metalness: 0.1, roughness: 0.4, envMapIntensity: 0.8 });
+      if (m.map) m.map.anisotropy = 8;
+      break;
+    default:
+      // 内饰等：保持贴图，偏哑光
+      Object.assign(m, { metalness: 0, roughness: 0.6, envMapIntensity: 0.8 });
+  }
+  m.needsUpdate = true;
+}
+
+/**
+ * 把网格的三角形按车头/车尾（模型 +Z 是车头）分成两个 group：0 = 车头，1 = 车尾。
+ * 几何体是共享缓存，只处理一次。返回 "front" / "rear"（整块都在一边）或 "both"。
+ */
+function splitFrontRear(mesh) {
+  const geometry = mesh.geometry;
+  if (geometry.userData.frontRear) return geometry.userData.frontRear;
+  const position = geometry.attributes.position;
+  const index = geometry.index;
+  const v = new THREE.Vector3();
+  const zs = new Float32Array(position.count);
+  for (let i = 0; i < position.count; i++) zs[i] = v.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld).z;
+
+  let result = "both";
+  if (index) {
+    const src = index.array;
+    const front = [];
+    const rear = [];
+    for (let t = 0; t < src.length; t += 3) {
+      const a = src[t], b = src[t + 1], c = src[t + 2];
+      (zs[a] + zs[b] + zs[c] >= 0 ? front : rear).push(a, b, c);
+    }
+    if (!rear.length) result = "front";
+    else if (!front.length) result = "rear";
+    else {
+      const out = new src.constructor(src.length);
+      out.set(front, 0);
+      out.set(rear, front.length);
+      geometry.setIndex(new THREE.BufferAttribute(out, 1));
+      geometry.clearGroups();
+      geometry.addGroup(0, front.length, 0);
+      geometry.addGroup(front.length, rear.length, 1);
+    }
+  }
+  geometry.userData.frontRear = result;
+  return result;
+}
+
+/** 克隆模型并调材质 */
+function buildCar({ gltf }) {
   const car = gltf.scene.clone(true);
   car.updateMatrixWorld(true);
   const cloned = new Map();
-  const materials = new Map();
-  let rim = null;
+  const byGroup = new Map();
 
   car.traverse((node) => {
     if (!node.isMesh) return;
     node.castShadow = true;
     node.receiveShadow = true;
 
-    if (!cloned.has(node.material)) cloned.set(node.material, node.material.clone());
-    node.material = cloned.get(node.material);
-
-    // 轮毂：两组轮子的第一个 primitive 是 silver，单独复制一份，车身其它 silver 饰条不受影响；
-    // 刹车盘拆出来继续用原来的 silver
-    if (/^Cylinder\.?00[01]_0$/.test(node.name) && node.material.name === "silver") {
-      if (!rim) {
-        rim = node.material.clone();
-        rim.name = "rim";
-      }
-      const silver = node.material;
-      node.material = splitWheelGeometry(node, car) ? [rim, silver] : rim;
-      materials.set("rim", rim);
-      materials.set("silver", silver);
+    // 车灯材质前后共用一个，有的网格（Kit1_Light）甚至把车头灯和尾灯放在一起。
+    // 开灯时前面是白光、后面是红光，所以按三角形位置拆成两组，各用一份材质
+    if (GROUP_OF.get(node.material.name) === "lamp") {
+      const split = splitFrontRear(node);
+      const front = cloneFor(node.material, "lamp:front", "lamp");
+      const rear = cloneFor(node.material, "lamp:rear", "lampRear");
+      node.material = split === "front" ? front : split === "rear" ? rear : [front, rear];
       return;
     }
-    materials.set(node.material.name, node.material);
+    node.material = cloneFor(node.material, node.material, GROUP_OF.get(node.material.name) ?? "other");
+    // 透明件不投影（车窗投影会让车里一片黑）
+    if (node.material.transparent) node.castShadow = false;
   });
 
-  const set = (name, props) => {
-    const m = materials.get(name);
-    if (!m) return;
-    for (const [key, value] of Object.entries(props)) {
-      if (key === "color" || key === "emissive") m[key].set(value);
-      else if (key === "normalScale") m.normalScale.set(value, value);
-      else m[key] = value;
+  function cloneFor(source, key, group) {
+    if (!cloned.has(key)) {
+      const m = PHYSICAL_GROUPS.has(group) ? toPhysical(source) : source.clone();
+      tuneMaterial(m, group);
+      if (!byGroup.has(group)) byGroup.set(group, []);
+      byGroup.get(group).push(m);
+      cloned.set(key, m);
     }
-    m.needsUpdate = true;
-  };
-
-  set("rubber", { color: "#222", roughness: 0.6, roughnessMap: null, normalScale: 4 });
-  set("window", { color: "black", roughness: 0, clearcoat: 0.1 });
-  set("coat", { envMapIntensity: 4, roughness: 0.5, metalness: 1 });
-  set("paint", { envMapIntensity: 2 });
-
-  const license = materials.get("license");
-  if (license) {
-    license.map = plateMap;
-    license.normalMap = plateNormal;
-    license.needsUpdate = true;
+    return cloned.get(key);
   }
+
+  const each = (group, fn) => (byGroup.get(group) ?? []).forEach(fn);
 
   return {
     car,
     setPaint(key) {
-      const p = PAINTS[key] ?? PAINTS.black;
-      set("paint", { color: p.paint, metalness: p.metalness, roughness: p.roughness });
-      set("coat", { color: p.coat });
+      const p = PAINTS[key] ?? PAINTS[DEFAULT_PAINT];
+      each("paint", (m) => {
+        m.color.set(p.paint);
+        m.metalness = p.metalness;
+        m.roughness = p.roughness;
+      });
     },
     setRim(key) {
-      const r = RIMS[key] ?? RIMS.white;
-      set("rim", { color: r.color, metalness: r.metalness, roughness: r.roughness });
+      const r = RIMS[key] ?? RIMS[DEFAULT_RIM];
+      each("rim", (m) => {
+        // 原贴图是深色的；换浅色轮毂时去掉贴图里的底色，只保留明暗
+        if (m.userData.map === undefined) m.userData.map = m.map;
+        m.map = r.bright ? null : m.userData.map;
+        m.color.set(r.bright ? r.swatch : r.color);
+        m.metalness = r.metalness;
+        m.roughness = r.roughness;
+        m.needsUpdate = true;
+      });
     },
     setLights(on) {
-      set("lights", { emissive: on ? "#ffffff" : "#000000", emissiveIntensity: on ? 4 : 1, opacity: on ? 0.9 : 0.25 });
-      set("tex_shiny", { emissiveIntensity: on ? 3 : 1 });
+      // 灯罩贴图在灯珠位置是暗的，用贴图做发光会看不出来，所以直接整块发光
+      each("lamp", (m) => {
+        m.emissive.set(on ? "#e8f0ff" : "#000000");
+        m.emissiveIntensity = on ? 3 : 1;
+      });
+      each("lampRear", (m) => {
+        m.emissive.set(on ? "#ff1a1a" : "#000000");
+        m.emissiveIntensity = on ? 1.4 : 1;
+      });
+      each("tail", (m) => {
+        m.emissiveMap = m.map;
+        m.emissive.set(on ? "#ff2a2a" : "#000000");
+        m.emissiveIntensity = on ? 2.5 : 1;
+        m.needsUpdate = true;
+      });
+      each("redGlass", (m) => {
+        m.emissive.set(on ? "#ff1010" : "#000000");
+        m.emissiveIntensity = on ? 1.2 : 1;
+      });
+      each("lampGlass", (m) => {
+        m.opacity = on ? 0.22 : 0.12;
+      });
     },
     dispose() {
       // 几何体和贴图是共享缓存，不在这里释放；只释放克隆出来的材质
-      new Set([...cloned.values(), rim].filter(Boolean)).forEach((m) => m.dispose());
+      new Set(cloned.values()).forEach((m) => m.dispose());
     },
   };
 }
@@ -248,7 +340,7 @@ function createLightformers() {
   envScene.add(lightformer({ rotation: [0, -Math.PI / 2, 0], position: [10, 1, 0], scale: [20, 1, 1] }));
 
   const floatGroup = new THREE.Group();
-  const red = lightformer({ form: "ring", color: "red", intensity: 1, scale: 10, position: [-15, 4, -18] });
+  const red = lightformer({ form: "ring", color: "red", intensity: 0.2, scale: 10, position: [-15, 4, -18] }); // 白车上原来的强度像一块红斑
   red.lookAt(0, 0, 0);
   floatGroup.add(red);
   envScene.add(floatGroup);
@@ -516,7 +608,7 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
   let groundShadow = null;
   let views = null; // showroom 镜头预设（加载后根据车的尺寸计算）
   let pendingView = "overview";
-  const pending = { paint: "black", rim: "white", lights: false };
+  const pending = { paint: DEFAULT_PAINT, rim: DEFAULT_RIM, lights: false };
 
   // =========================================================================
   // OrbitControls + 镜头飞行
@@ -543,10 +635,8 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
     const H = size.y;
     const L = Math.max(size.x, size.z);
 
-    // 车头方向：前车牌（Plane.006）相对车中心的方向
-    const frontPlate = carHandle.car.getObjectByName("Plane006") ?? carHandle.car.getObjectByName("Plane.006");
-    const f = new THREE.Vector3(0, 0, 1);
-    if (frontPlate) frontPlate.getWorldPosition(f).sub(c).setY(0).normalize();
+    // 车头方向：模型的 +Z
+    const f = new THREE.Vector3(0, 0, 1).transformDirection(carHandle.car.matrixWorld).setY(0).normalize();
     const up = new THREE.Vector3(0, 1, 0);
     const s = new THREE.Vector3().crossVectors(up, f).normalize(); // 车的一侧
 
@@ -619,6 +709,14 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       carHandle.setRim(pending.rim);
       carHandle.setLights(pending.lights);
       carHandle.car.scale.setScalar(CAR_SCALE);
+      // 车底贴地、前后左右居中（在挂到 pivot 之前量，量出来就是 pivot 坐标系里的尺寸）
+      carHandle.car.updateMatrixWorld(true);
+      const local = new THREE.Box3().setFromObject(carHandle.car);
+      carHandle.car.position.set(
+        -(local.min.x + local.max.x) / 2,
+        GROUND_Y - CAR_POSITION.y - local.min.y,
+        -(local.min.z + local.max.z) / 2
+      );
       pivot.add(carHandle.car);
 
       groundShadow = createGroundShadow(renderer, carHandle.car, { size: 10, far: 1.4 });
@@ -626,6 +724,7 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       pivot.add(groundShadow.group);
       groundShadow.bake();
 
+      scene.updateMatrixWorld(true);
       const { L } = computeViews();
       carLength = L;
       controls.minDistance = 0.32 * L;
