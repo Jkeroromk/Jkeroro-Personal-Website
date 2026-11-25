@@ -308,6 +308,160 @@ function luminanceTexture(texture) {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// 车灯"穿雾"效果：体积光锥 + 灯头光晕 + 照亮地面的聚光灯（模型坐标，单位米，车头 +Z）
+// ---------------------------------------------------------------------------
+const HEADLIGHTS = [
+  { origin: [0.66, 0.6, 2.2], dir: [0.06, -0.07, 1] },
+  { origin: [-0.66, 0.6, 2.2], dir: [-0.06, -0.07, 1] },
+];
+const BEAM_LENGTH = 4.6;
+const BEAM_RADIUS = 1.05;
+
+const beamVertex = /* glsl */ `
+  varying vec3 vWorld;
+  varying vec3 vNormal;
+  varying float vAlong;
+  uniform float uLength;
+  void main() {
+    // 圆锥沿 -Y 从灯口（y=0）伸到远端（y=-uLength）
+    vAlong = clamp(-position.y / uLength, 0.0, 1.0);
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vWorld = world.xyz;
+    vNormal = normalize(mat3(modelMatrix) * normal);
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+
+const beamFragment = /* glsl */ `
+  varying vec3 vWorld;
+  varying vec3 vNormal;
+  varying float vAlong;
+  uniform vec3 uColor;
+  uniform float uIntensity;
+  uniform float uTime;
+
+  // 3D value noise，叠两层当作飘动的雾
+  float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+  float noise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+      mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y),
+      f.z);
+  }
+
+  void main() {
+    vec3 view = normalize(cameraPosition - vWorld);
+    // 越正对着光锥中心越亮，边缘软化
+    float facing = pow(abs(dot(normalize(vNormal), view)), 2.2);
+    // 灯口附近最亮，往前逐渐散开变淡
+    float falloff = pow(1.0 - vAlong, 2.2) * smoothstep(0.0, 0.05, vAlong);
+    vec3 drift = vec3(uTime * 0.12, uTime * 0.05, -uTime * 0.18);
+    float fog = 0.55 * noise(vWorld * 1.3 + drift) + 0.45 * noise(vWorld * 3.1 - drift * 1.7);
+    float a = uIntensity * facing * falloff * (0.45 + 0.9 * fog);
+    // 画布是透明的（背景是页面的 CSS 渐变），alpha 也要写：页面显示 = rgb + 背景 × (1 - alpha)
+    gl_FragColor = vec4(uColor * a, a * 0.6);
+  }
+`;
+
+function radialSpriteTexture() {
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.18, "rgba(235,242,255,0.55)");
+  g.addColorStop(0.5, "rgba(210,225,255,0.12)");
+  g.addColorStop(1, "rgba(200,220,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+}
+
+function createHeadlightBeams() {
+  const group = new THREE.Group();
+  group.name = "HeadlightBeams";
+  group.visible = false;
+
+  const uniforms = {
+    uColor: { value: new THREE.Color("#dfe8ff") },
+    uIntensity: { value: 0 },
+    uTime: { value: 0 },
+    uLength: { value: BEAM_LENGTH },
+  };
+  // 开口圆锥：灯口半径 6 cm，远端 BEAM_RADIUS；默认朝 +Y，几何体翻成从原点往 -Y 伸
+  const coneGeometry = new THREE.CylinderGeometry(0.06, BEAM_RADIUS, BEAM_LENGTH, 48, 24, true).translate(0, -BEAM_LENGTH / 2, 0);
+  const beamMaterial = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: beamVertex,
+    fragmentShader: beamFragment,
+    transparent: true,
+    depthWrite: false,
+    // 颜色和 alpha 都直接累加（光是叠加上去的）
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.OneFactor,
+    blendDstAlpha: THREE.OneFactor,
+    side: THREE.DoubleSide,
+  });
+  const glowTexture = radialSpriteTexture();
+  const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: "#ffffff", blending: THREE.AdditiveBlending, depthWrite: false, transparent: true });
+
+  const spots = [];
+  const down = new THREE.Vector3(0, -1, 0);
+  for (const { origin, dir } of HEADLIGHTS) {
+    const o = new THREE.Vector3(...origin);
+    const d = new THREE.Vector3(...dir).normalize();
+
+    const beam = new THREE.Mesh(coneGeometry, beamMaterial);
+    beam.position.copy(o);
+    beam.quaternion.setFromUnitVectors(down, d); // 几何体沿 -Y，转到光的方向
+    beam.renderOrder = 10;
+    beam.castShadow = false;
+    beam.receiveShadow = false;
+    group.add(beam);
+
+    const glow = new THREE.Sprite(glowMaterial);
+    glow.position.copy(o).addScaledVector(d, 0.04);
+    glow.scale.setScalar(0.55);
+    glow.renderOrder = 11;
+    group.add(glow);
+
+    // 照亮地面：不投影（便宜），角度和光锥差不多
+    const spot = new THREE.SpotLight("#e6eeff", 0, 12, Math.atan(BEAM_RADIUS / BEAM_LENGTH) * 1.2, 0.7, 1.2);
+    spot.position.copy(o);
+    spot.target.position.copy(o).addScaledVector(d, 4);
+    spots.push(spot);
+  }
+
+  return {
+    group,
+    spots,
+    // 聚光灯一直挂在场景里，只改强度：灯的数量变化会让所有材质重新编译
+    set(on, day) {
+      group.visible = on;
+      uniforms.uIntensity.value = on ? (day ? 0.3 : 0.7) : 0;
+      glowMaterial.opacity = day ? 0.5 : 1;
+      spots.forEach((spot) => (spot.intensity = on ? (day ? 2.5 : 30) : 0));
+    },
+    update(elapsed) {
+      uniforms.uTime.value = elapsed;
+    },
+    dispose() {
+      coneGeometry.dispose();
+      beamMaterial.dispose();
+      glowMaterial.dispose();
+      glowTexture.dispose();
+    },
+  };
+}
+
 /**
  * 前轮转向：轮胎、三层轮毂、中心盖、刹车盘、卡钳挂到车轮中心的转向节点上，绕 Y 轴转。
  * 车头朝 +Z、左边是 +X，所以正角度是往左打
@@ -790,6 +944,16 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
   let steer = 0;
   let brakeOn = false;
   let pitch = 0;
+  let dayMode = false;
+  const beams = createHeadlightBeams();
+  // 烘焙地面阴影时把光锥藏起来，不然光锥会被当成实体投出阴影
+  const bakeShadow = () => {
+    if (!groundShadow) return;
+    const visible = beams.group.visible;
+    beams.group.visible = false;
+    groundShadow.bake();
+    beams.group.visible = visible;
+  };
 
   // =========================================================================
   // OrbitControls + 镜头飞行
@@ -810,7 +974,11 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
   };
 
   const computeViews = () => {
-    const box = new THREE.Box3().setFromObject(carHandle.car);
+    // 只量车本身（不含车灯光锥）
+    const box = new THREE.Box3();
+    carHandle.car.traverse((o) => {
+      if (o.isMesh && o.parent !== beams.group) box.expandByObject(o);
+    });
     const c = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const H = size.y;
@@ -900,11 +1068,15 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
         -(local.min.z + local.max.z) / 2
       );
       pivot.add(carHandle.car);
+      // 车灯光锥在量完包围盒之后再挂上去（不然光锥会算进车的尺寸）
+      carHandle.car.add(beams.group);
+      beams.spots.forEach((spot) => carHandle.car.add(spot, spot.target));
+      beams.set(pending.lights, dayMode);
 
       groundShadow = createGroundShadow(renderer, carHandle.car, { size: 10, far: 1.4 });
       groundShadow.group.position.y = GROUND_Y - CAR_POSITION.y + 0.002;
       pivot.add(groundShadow.group);
-      groundShadow.bake();
+      bakeShadow();
 
       scene.updateMatrixWorld(true);
       const { L } = computeViews();
@@ -934,6 +1106,7 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
     if (!reduceMotion) {
       elapsed += delta;
       lightformers.update(delta, elapsed);
+      beams.update(elapsed);
       if (frame % 2 === 0) refreshEnvironment();
     }
 
@@ -949,7 +1122,7 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       // 开关门约 1.1 秒，先快后慢；停下后重新烘焙地面阴影
       doorT = doorGoal > doorT ? Math.min(doorT + delta / 1.1, 1) : Math.max(doorT - delta / 1.1, 0);
       carHandle.setDoorOpen(easeInOutCubic(doorT));
-      if (doorT === doorGoal) groundShadow?.bake();
+      if (doorT === doorGoal) bakeShadow();
     }
     if (carHandle) {
       // 方向盘：打方向约 0.35 秒到底，回正稍快
@@ -1011,8 +1184,11 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
     setLights(on) {
       pending.lights = on;
       carHandle?.setLights(on);
+      beams.set(on, dayMode);
     },
     setDay(day) {
+      dayMode = day;
+      beams.set(pending.lights, day);
       lightformers.setDay(day);
       floor.setDay(day);
       ambient.intensity = (day ? 0.8 : 0.5) * Math.PI;
@@ -1034,7 +1210,7 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       if (reduceMotion && carHandle) {
         doorT = doorGoal;
         carHandle.setDoorOpen(doorT);
-        groundShadow?.bake();
+        bakeShadow();
       }
     },
     setAutoRotate(value) {
@@ -1056,6 +1232,7 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       envTarget?.dispose();
       pmrem.dispose();
       carHandle?.dispose();
+      beams.dispose();
       renderer.dispose();
     },
   };
