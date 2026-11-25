@@ -175,3 +175,7 @@
   .v { font-size: 17px; }
   .stage:not([data-mode="grid"]) { height: 300px; }
 }
+
+/* 认不出国家的访问：放在国家列表后面，虚线隔开、颜色淡一点，不能点 */
+.row.unknown { cursor: default; opacity: 0.6; margin-top: 6px; border-top: 1px dashed var(--hair); border-radius: 0 0 8px 8px; }
+.row.unknown:hover { background: transparent; }

@@ -1,28 +1,43 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withTimeout, getDbErrorInfo } from '@/lib/db-error-handler'
+import { countryNameFromCode } from '@/lib/countries'
 
-// 增加访问计数
-export async function POST() {
+// 记一次访问：总数 +1，认得出国家的话该国家也 +1。
+// 两条写在同一个事务里，要么都成功要么都不算，按钮上的 Viewers 和地图上的国家就不会再越差越多。
+// 认不出国家的访问只加总数，地图那边显示成 "Unknown" 一行，所以列表加起来正好等于 Viewers。
+export async function POST(request: NextRequest) {
   try {
-    // 获取或创建单条访问计数记录（8秒超时）
-    const viewCount = await withTimeout(
-      prisma.viewCount.upsert({
+    const country = countryNameFromCode(request.headers.get('x-vercel-ip-country'))
+    const now = new Date()
+
+    const known = !!country && country !== 'Unknown'
+
+    const viewUpsert = prisma.viewCount.upsert({
       where: { id: 'main' },
-      update: {
-        count: { increment: 1 },
-      },
-      create: {
-        id: 'main',
-        count: 1,
-      },
-      }),
-      8000
-    )
+      update: { count: { increment: 1 } },
+      create: { id: 'main', count: 1 },
+    })
+
+    const result = known
+      ? await withTimeout(
+          prisma.$transaction([
+            viewUpsert,
+            prisma.countryVisit.upsert({
+              where: { country: country as string },
+              update: { count: { increment: 1 }, lastVisit: now },
+              create: { country: country as string, count: 1, lastVisit: now },
+            }),
+          ]),
+          8000
+        )
+      : await withTimeout(prisma.$transaction([viewUpsert]), 8000)
+    const viewCount = result[0]
 
     return NextResponse.json({
       count: viewCount.count,
       lastUpdated: viewCount.lastUpdated,
+      country: known ? country : null,
     })
   } catch (error) {
     const errorInfo = getDbErrorInfo(error)

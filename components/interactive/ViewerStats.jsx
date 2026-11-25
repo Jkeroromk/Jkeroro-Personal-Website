@@ -61,14 +61,8 @@ const ViewerStats = () => {
     
     const trackAndIncrement = async () => {
       try {
-        // 并行执行：记录访客位置 + 增加访问计数
-        const [, viewResponse] = await Promise.all([
-          fetch('/api/stats/countries', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          }),
-          fetch('/api/stats/view', { method: 'POST' }),
-        ])
+        // 一个请求同时记总数和国家（服务端同一个事务），两边不会再错开
+        const viewResponse = await fetch('/api/stats/view', { method: 'POST' })
 
         if (viewResponse.ok) {
           const data = await viewResponse.json()
