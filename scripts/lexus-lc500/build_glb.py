@@ -74,14 +74,17 @@ for ni, node in enumerate(list(j["nodes"])):
         P = accessor(j, b, p["attributes"]["POSITION"]).astype(np.float64)
         c = (W[ni][:3, :3] @ P.T).T + W[ni][:3, 3]
         I = accessor(j, b, p["indices"]).reshape(-1, 3).astype(np.int64)
-        d = door_tris(c, I)
-        if not d.any():
+        d, drop = door_tris(c, I, return_drop=True)
+        if not d.any() and not drop.any():
             continue
-        # 原 primitive 留下不属于车门的三角形；车门部分另起一个 primitive（共用顶点）
-        keep, take = I[~d], I[d]
+        # 原 primitive 留下不属于车门的三角形；车门部分另起一个 primitive（共用顶点）；drop 的直接删掉
+        keep = I[~d & ~drop]
+        # 左右两扇门的零件要拆成两个网格（模型 +X 是左边），不然网页上会按整块的中心分到同一扇门
+        side_x = c[I[:, 0], 0] + c[I[:, 1], 0] + c[I[:, 2], 0]
+        take_l, take_r = I[d & (side_x >= 0)], I[d & (side_x < 0)]
         if not len(keep):
             emptied.append(p)
-        for arr, target in ((keep, p), (take, None)):
+        for arr, target in ((keep, p), (take_l, "L"), (take_r, "R")):
             if not len(arr):
                 continue
             data = arr.astype(np.uint32 if arr.max() > 65535 else np.uint16).tobytes()
@@ -90,24 +93,32 @@ for ni, node in enumerate(list(j["nodes"])):
             ai = len(j["accessors"])
             j["accessors"].append({"bufferView": v, "componentType": 5125 if arr.max() > 65535 else 5123,
                                    "count": arr.size, "type": "SCALAR"})
-            if target is not None:
+            if isinstance(target, dict):
                 target["indices"] = ai
             else:
-                door_prims.append({**{k: v2 for k, v2 in p.items() if k != "indices"}, "indices": ai})
-    if emptied and len(emptied) == len(mesh["primitives"]):
-        # 整个网格都是车门的：不拆，直接改名，原来的索引就够用
-        for p, dp in zip(mesh["primitives"], door_prims):
-            p["indices"] = dp["indices"]
-        node["name"] = "Door_" + name
-        continue
-    if emptied:  # 部分 primitive 整个都是车门的，原网格里不再保留
+                door_prims.append((target, {**{k: v2 for k, v2 in p.items() if k != "indices"}, "indices": ai}))
+    if emptied:  # 整个 primitive 都是车门的，原网格里不再保留
         mesh["primitives"] = [p for p in mesh["primitives"] if p not in emptied]
-    if door_prims:
-        j["meshes"].append({"name": "Door_" + mesh.get("name", name), "primitives": door_prims})
+    for side in ("L", "R"):
+        prims = [dp for sd, dp in door_prims if sd == side]
+        if not prims:
+            continue
+        j["meshes"].append({"name": f"Door_{side}_" + mesh.get("name", name), "primitives": prims})
         twin = {k: v2 for k, v2 in node.items() if k in ("translation", "rotation", "scale", "matrix")}
-        twin.update({"name": "Door_" + name, "mesh": len(j["meshes"]) - 1})
+        twin.update({"name": f"Door_{side}_" + name, "mesh": len(j["meshes"]) - 1})
         j["nodes"].append(twin)
         j["nodes"][parent_of[ni]].setdefault("children", []).append(len(j["nodes"]) - 1)
+    if not mesh["primitives"]:
+        # 原网格全部拆走了：节点不再挂网格（空网格在 glTF 里不合法，下面统一删掉）
+        del node["mesh"]
+
+# 删掉空网格，重新编号
+alive = [i for i, m in enumerate(j["meshes"]) if m["primitives"]]
+renumber = {old: new for new, old in enumerate(alive)}
+j["meshes"] = [j["meshes"][i] for i in alive]
+for node in j["nodes"]:
+    if "mesh" in node:
+        node["mesh"] = renumber[node["mesh"]]
 
 # ---------------------------------------------------------------- geometry
 mesh_users = {}
