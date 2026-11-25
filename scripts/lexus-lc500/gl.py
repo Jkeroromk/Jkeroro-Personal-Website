@@ -21,6 +21,8 @@ def worlds(j):
     return W
 def accessor(j,b,ai):
     a=j['accessors'][ai]; bv=j['bufferViews'][a['bufferView']]
+    if '_bytes' in bv:  # build_glb.py 里新加的、还没写进 buffer 的数据
+        b=bv['_bytes']; bv={'byteOffset':0}
     comp={5126:np.float32,5123:np.uint16,5125:np.uint32,5121:np.uint8,5122:np.int16,5120:np.int8}[a['componentType']]
     n={'SCALAR':1,'VEC2':2,'VEC3':3,'VEC4':4}[a['type']]
     o=bv.get('byteOffset',0)+a.get('byteOffset',0); st=bv.get('byteStride',0)

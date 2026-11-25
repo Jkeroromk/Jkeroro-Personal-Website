@@ -15,6 +15,7 @@
 | `public/static/lexus-lc500.glb` | 网页用模型，约 14 MB（33 万面）。由 `build_glb.py` 从 Sketchfab 下载的原版 GLB（Original format，约 53 MB）生成 |
 | `scripts/lexus-lc500/build_glb.py` | 生成脚本：位置 int16、法线 int8（`KHR_mesh_quantization`），贴图最大 2048，没有透明的转 JPEG，车牌换成 `plate_jkeroro.png` |
 | `scripts/lexus-lc500/gl.py` | 读 GLB 的小工具 |
+| `scripts/lexus-lc500/doorparts.py` | 找出整车内饰网格里属于车门的连通块（门内饰板、扶手、把手、皮面），`build_glb.py` 把它们拆成 `Door_` 开头的单独网格 |
 | `scripts/lexus-lc500/cap_jk.png` | 轮毂中心盖贴图（1024×1024，黑底白字 JK + 细银圈）。贴图中心 (0.485, 0.44) 对着盖子中心，四个轮子上都是正向、不镜像 |
 | `scripts/lexus-lc500/plate_jkeroro.png` | JKERORO 车牌贴图（1024×512，深色底白字，沿用原车 WALD 牌照的配色），正向存储 |
 
@@ -36,9 +37,15 @@ python3 scripts/lexus-lc500/build_glb.py public/static/lexus-lc500.glb <Sketchfa
 - 车尾车牌：材质 `Material #13`（只有车尾一块，车头没有车牌）
 - 轮毂中心盖：材质 `Material #49`，原来的浮雕法线贴图换成了平的
 - Showroom 默认不自动旋转（左下角按钮可以打开）
-- 车门：节点名以 `L_Door` / `R_door` / `r_Door` / `Door` 开头的零件是门（门板、车窗、后视镜、门内饰），按 x 正负分左右，挂到门前上缘的铰链节点上绕 Y 轴转 62°。车身漆面是双面材质，开门会看到门板背面，所以车漆 shader 把背面画成深色内衬色。车顶是固定的碳纤维顶，没有能开的天窗
+- 车门：节点名以 `L_Door` / `R_door` / `r_Door` / `Door` 开头的零件是门（门板、车窗、后视镜、门内饰），按 x 正负分左右，挂到门前上缘的铰链节点上绕 Y 轴转 62°。门内饰大多和整车内饰在同一个网格里，`build_glb.py` 按连通块拆出来（整块都在车门范围里的才算，安全带除外）。车身漆面是双面材质，开门会看到门板背面，所以车漆 shader 把背面画成深色内衬色。车顶是固定的碳纤维顶，没有能开的天窗
 - 环境里那个漂浮的红色光圈在白车上反射很明显，强度从原示例的 1 降到了 0.2
 
 ## 已删除
 
 - `public/static/porsche-911.glb`、`porsche-plate*.png`、`public/draco/`：只有 911 展厅用，换车后不再需要（Lexus 模型没有 Draco 压缩）
+
+## 内饰和键盘
+
+- 内饰换色：`Leather`（座椅中间、门板皮面）和 `Leather_2`（座椅包边、中控台、门板）两种材质。黑色是原贴图；其他颜色先把贴图转成只有明暗的灰度图（`luminanceTexture()`，95% 分位数当白），再乘上颜色，缝线和褶皱都保留
+- 键盘（只在 Showroom 打开时生效）：A / D 打方向，最大 30°，松手回正，内侧轮多转一点（阿克曼）；S 刹车，刹车灯比尾灯更亮，车身往前点头约 0.7°。W 暂时不做
+- 转向：轮胎、三层轮毂、中心盖、刹车盘、卡钳按材质组和位置（车头一侧）挑出来，挂到车轮中心的转向节点上

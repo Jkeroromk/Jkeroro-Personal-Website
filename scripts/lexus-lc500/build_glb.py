@@ -51,6 +51,64 @@ def add_accessor(view, ctype, count, typ, normalized=False, mn=None, mx=None):
     return len(accessors) - 1
 
 
+# ---------------------------------------------------------------- 车门内饰拆出来
+# 门内饰（扶手、把手、皮面、门边的饰条）大部分和整车内饰在同一个网格里。按"连通块"判断：
+# 整块都落在车门范围里的，拆成单独的网格，节点名以 Door_ 开头，网页上会跟着车门一起转
+import re
+from doorparts import door_tris
+from gl import worlds
+
+DOOR_NAME = re.compile(r"^(L_Door|R_door|r_Door|Door)")
+DOOR_SPLIT_SKIP = {"SeatBelt.001"}  # 安全带挂在 B 柱上，不跟门走
+W = worlds(j)
+parent_of = {c: i for i, n in enumerate(j["nodes"]) for c in n.get("children", [])}
+new_meshes = []
+for ni, node in enumerate(list(j["nodes"])):
+    name = node.get("name", "")
+    if "mesh" not in node or DOOR_NAME.match(name) or name in DOOR_SPLIT_SKIP:
+        continue
+    mesh = j["meshes"][node["mesh"]]
+    door_prims = []
+    emptied = []
+    for p in mesh["primitives"]:
+        P = accessor(j, b, p["attributes"]["POSITION"]).astype(np.float64)
+        c = (W[ni][:3, :3] @ P.T).T + W[ni][:3, 3]
+        I = accessor(j, b, p["indices"]).reshape(-1, 3).astype(np.int64)
+        d = door_tris(c, I)
+        if not d.any():
+            continue
+        # 原 primitive 留下不属于车门的三角形；车门部分另起一个 primitive（共用顶点）
+        keep, take = I[~d], I[d]
+        if not len(keep):
+            emptied.append(p)
+        for arr, target in ((keep, p), (take, None)):
+            if not len(arr):
+                continue
+            data = arr.astype(np.uint32 if arr.max() > 65535 else np.uint16).tobytes()
+            v = len(j["bufferViews"])
+            j["bufferViews"].append({"buffer": 0, "_bytes": data})
+            ai = len(j["accessors"])
+            j["accessors"].append({"bufferView": v, "componentType": 5125 if arr.max() > 65535 else 5123,
+                                   "count": arr.size, "type": "SCALAR"})
+            if target is not None:
+                target["indices"] = ai
+            else:
+                door_prims.append({**{k: v2 for k, v2 in p.items() if k != "indices"}, "indices": ai})
+    if emptied and len(emptied) == len(mesh["primitives"]):
+        # 整个网格都是车门的：不拆，直接改名，原来的索引就够用
+        for p, dp in zip(mesh["primitives"], door_prims):
+            p["indices"] = dp["indices"]
+        node["name"] = "Door_" + name
+        continue
+    if emptied:  # 部分 primitive 整个都是车门的，原网格里不再保留
+        mesh["primitives"] = [p for p in mesh["primitives"] if p not in emptied]
+    if door_prims:
+        j["meshes"].append({"name": "Door_" + mesh.get("name", name), "primitives": door_prims})
+        twin = {k: v2 for k, v2 in node.items() if k in ("translation", "rotation", "scale", "matrix")}
+        twin.update({"name": "Door_" + name, "mesh": len(j["meshes"]) - 1})
+        j["nodes"].append(twin)
+        j["nodes"][parent_of[ni]].setdefault("children", []).append(len(j["nodes"]) - 1)
+
 # ---------------------------------------------------------------- geometry
 mesh_users = {}
 for i, n in enumerate(j["nodes"]):
@@ -60,19 +118,25 @@ for i, n in enumerate(j["nodes"]):
 new_nodes = list(j["nodes"])
 for mi, mesh in enumerate(j["meshes"]):
     prims = mesh["primitives"]
-    allp = np.concatenate([accessor(j, b, p["attributes"]["POSITION"]).astype(np.float64) for p in prims])
+    # 每个 primitive 只保留它的索引真正用到的顶点（拆出来的车门部分和原网格共用顶点，不压缩会重复存一大堆）
+    used = []
+    for p in prims:
+        I0 = accessor(j, b, p["indices"]).reshape(-1)
+        u, remap = np.unique(I0, return_inverse=True)
+        used.append((u, remap.reshape(-1)))
+    allp = np.concatenate([accessor(j, b, p["attributes"]["POSITION"]).astype(np.float64)[u] for p, (u, _) in zip(prims, used)])
     lo, hi = allp.min(0), allp.max(0)
     c = (lo + hi) / 2
     s = float(max((hi - lo).max() / 2, 1e-6))
-    for p in prims:
-        P = accessor(j, b, p["attributes"]["POSITION"]).astype(np.float64)
+    for p, (u, remap) in zip(prims, used):
+        P = accessor(j, b, p["attributes"]["POSITION"]).astype(np.float64)[u]
         q = np.clip(np.round((P - c) / s * 32767), -32767, 32767).astype(np.int16)
         buf = np.zeros((len(q), 4), np.int16)
         buf[:, :3] = q
         v = add_view(buf.tobytes(), stride=8, target=34962)
         pa = add_accessor(v, 5122, len(q), "VEC3", True, q.min(0).tolist(), q.max(0).tolist())
 
-        N = accessor(j, b, p["attributes"]["NORMAL"]).astype(np.float64)
+        N = accessor(j, b, p["attributes"]["NORMAL"]).astype(np.float64)[u]
         N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
         nq = np.clip(np.round(N * 127), -127, 127).astype(np.int8)
         nb = np.zeros((len(nq), 4), np.int8)
@@ -80,13 +144,13 @@ for mi, mesh in enumerate(j["meshes"]):
         v = add_view(nb.tobytes(), stride=4, target=34962)
         na = add_accessor(v, 5120, len(nq), "VEC3", True)
 
-        UV = accessor(j, b, p["attributes"]["TEXCOORD_0"]).astype(np.float32)
+        UV = accessor(j, b, p["attributes"]["TEXCOORD_0"]).astype(np.float32)[u]
         v = add_view(UV.tobytes(), target=34962)
         ua = add_accessor(v, 5126, len(UV), "VEC2")
 
-        I = accessor(j, b, p["indices"])
-        v = add_view(I.astype(I.dtype).tobytes(), target=34963)
-        ia = add_accessor(v, j["accessors"][p["indices"]]["componentType"], I.size, "SCALAR")
+        I = remap.astype(np.uint16 if len(u) <= 65535 else np.uint32)
+        v = add_view(I.tobytes(), target=34963)
+        ia = add_accessor(v, 5123 if I.dtype == np.uint16 else 5125, I.size, "SCALAR")
 
         p["attributes"] = {"POSITION": pa, "NORMAL": na, "TEXCOORD_0": ua}
         p["indices"] = ia

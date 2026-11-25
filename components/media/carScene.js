@@ -44,7 +44,16 @@ export const RIMS = {
   white: { label: "White", swatch: "#f2f2f2", color: "#ffffff", metalness: 0.3, roughness: 0.25, bright: true },
 };
 
+// 内饰：座椅、门板、中控台的皮面（原模型是黑色）。换色时用贴图的明暗（保留缝线和褶皱）乘上颜色
+export const INTERIORS = {
+  black: { label: "Black", swatch: "#161616", color: null },
+  red: { label: "Rioja Red", swatch: "#8e1b1f", color: "#b3272d" },
+  caramel: { label: "Toasted Caramel", swatch: "#9a5b2e", color: "#b56b33" },
+  white: { label: "White", swatch: "#e9e5dc", color: "#f2ede2" },
+};
+
 export const DEFAULT_PAINT = "white";
+export const DEFAULT_INTERIOR = "black";
 export const DEFAULT_RIM = "original";
 
 export const VIEWS = ["overview", "specs", "wheels", "lights", "rear"];
@@ -90,6 +99,7 @@ const GROUPS = {
   grille: ["CSR2_Grille1", "CSR2_Grille5", "CSR2_Grille6", "CSR2_Grille7", "CSR2_Grille8", "CSR2_Grille9"],
   plate: ["Material #13"],
   cap: ["Material #49"], // 轮毂中心盖（JK 标）
+  leather: ["Leather", "Leather_2"],
 };
 const GROUP_OF = new Map(Object.entries(GROUPS).flatMap(([group, names]) => names.map((n) => [n, group])));
 
@@ -171,6 +181,9 @@ function tuneMaterial(m, group) {
       break;
     case "grille":
       Object.assign(m, { metalness: 0.4, roughness: 0.35 });
+      break;
+    case "leather":
+      Object.assign(m, { metalness: 0, roughness: 0.55, envMapIntensity: 0.9 });
       break;
     case "cap":
       Object.assign(m, { metalness: 0.5, roughness: 0.25, envMapIntensity: 1.6, normalMap: null });
@@ -262,6 +275,73 @@ function rigDoors(car) {
   return hinges;
 }
 
+/**
+ * 把皮面贴图转成"只有明暗"的灰度图：亮度归一化到 0~1（95% 分位数当作白），这样乘上浅色也不会发暗。
+ * 每张原贴图只算一次
+ */
+function luminanceTexture(texture) {
+  if (texture.userData.luminance) return texture.userData.luminance;
+  const image = texture.image;
+  const canvas = document.createElement("canvas");
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0);
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const px = data.data;
+  const lum = new Float32Array(px.length / 4);
+  for (let i = 0; i < lum.length; i++) lum[i] = 0.2126 * px[i * 4] + 0.7152 * px[i * 4 + 1] + 0.0722 * px[i * 4 + 2];
+  const sorted = Float32Array.from(lum).sort();
+  const white = Math.max(sorted[Math.floor(sorted.length * 0.95)], 1);
+  for (let i = 0; i < lum.length; i++) {
+    const v = Math.min(255, (lum[i] / white) * 235);
+    px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = v;
+  }
+  ctx.putImageData(data, 0, 0);
+  const out = new THREE.CanvasTexture(canvas);
+  out.flipY = texture.flipY;
+  out.colorSpace = texture.colorSpace;
+  out.wrapS = texture.wrapS;
+  out.wrapT = texture.wrapT;
+  out.anisotropy = 4;
+  texture.userData.luminance = out;
+  return out;
+}
+
+/**
+ * 前轮转向：轮胎、三层轮毂、中心盖、刹车盘、卡钳挂到车轮中心的转向节点上，绕 Y 轴转。
+ * 车头朝 +Z、左边是 +X，所以正角度是往左打
+ */
+const STEER_GROUPS = new Set(["rim", "tyre", "cap", "rotor", "caliper"]);
+function rigSteering(car) {
+  car.updateMatrixWorld(true);
+  const parts = { left: [], right: [] };
+  const box = new THREE.Box3();
+  const center = new THREE.Vector3();
+  car.traverse((node) => {
+    if (!node.isMesh) return;
+    const group = GROUP_OF.get([].concat(node.material)[0].name);
+    if (!STEER_GROUPS.has(group)) return;
+    box.setFromObject(node).getCenter(center);
+    if (center.z > 0.9 && Math.abs(center.x) > 0.5) parts[center.x >= 0 ? "left" : "right"].push(node);
+  });
+  const knuckles = {};
+  for (const side of ["left", "right"]) {
+    if (!parts[side].length) continue;
+    const wheelBox = new THREE.Box3();
+    parts[side].forEach((node) => wheelBox.expandByObject(node));
+    const c = wheelBox.getCenter(new THREE.Vector3());
+    const knuckle = new THREE.Object3D();
+    knuckle.name = `Steer_${side}`;
+    knuckle.position.set(c.x, 0, c.z);
+    car.add(knuckle);
+    knuckle.updateMatrixWorld(true);
+    parts[side].forEach((node) => knuckle.attach(node));
+    knuckles[side] = knuckle;
+  }
+  return knuckles;
+}
+
 /** 克隆模型并调材质 */
 function buildCar({ gltf }) {
   const car = gltf.scene.clone(true);
@@ -301,6 +381,38 @@ function buildCar({ gltf }) {
 
   const each = (group, fn) => (byGroup.get(group) ?? []).forEach(fn);
   const doors = rigDoors(car);
+  const knuckles = rigSteering(car);
+  const lamps = { lights: false, brake: false };
+
+  const applyLamps = () => {
+    const { lights, brake } = lamps;
+    const rearOn = lights || brake;
+    const rearBoost = brake ? 1.8 : 1; // 刹车比尾灯更亮
+    // 灯罩贴图在灯珠位置是暗的，用贴图做发光会看不出来，所以直接整块发光
+    each("lamp", (m) => {
+      m.emissive.set(lights ? "#e8f0ff" : "#000000");
+      m.emissiveIntensity = lights ? 3 : 1;
+    });
+    each("lampRear", (m) => {
+      m.emissive.set(rearOn ? "#ff1a1a" : "#000000");
+      m.emissiveIntensity = rearOn ? 1.4 * rearBoost : 1;
+    });
+    each("tail", (m) => {
+      if (m.emissiveMap !== m.map) {
+        m.emissiveMap = m.map;
+        m.needsUpdate = true;
+      }
+      m.emissive.set(rearOn ? "#ff2a2a" : "#000000");
+      m.emissiveIntensity = rearOn ? 2.5 * rearBoost : 1;
+    });
+    each("redGlass", (m) => {
+      m.emissive.set(rearOn ? "#ff1010" : "#000000");
+      m.emissiveIntensity = rearOn ? 1.2 * rearBoost : 1;
+    });
+    each("lampGlass", (m) => {
+      m.opacity = lights ? 0.22 : 0.12;
+    });
+  };
 
   return {
     car,
@@ -325,27 +437,26 @@ function buildCar({ gltf }) {
       });
     },
     setLights(on) {
-      // 灯罩贴图在灯珠位置是暗的，用贴图做发光会看不出来，所以直接整块发光
-      each("lamp", (m) => {
-        m.emissive.set(on ? "#e8f0ff" : "#000000");
-        m.emissiveIntensity = on ? 3 : 1;
-      });
-      each("lampRear", (m) => {
-        m.emissive.set(on ? "#ff1a1a" : "#000000");
-        m.emissiveIntensity = on ? 1.4 : 1;
-      });
-      each("tail", (m) => {
-        m.emissiveMap = m.map;
-        m.emissive.set(on ? "#ff2a2a" : "#000000");
-        m.emissiveIntensity = on ? 2.5 : 1;
+      lamps.lights = on;
+      applyLamps();
+    },
+    setBrake(on) {
+      lamps.brake = on;
+      applyLamps();
+    },
+    /** 前轮转角（弧度），正数往左。带一点阿克曼：内侧轮转得多一点 */
+    setSteer(angle) {
+      if (knuckles.left) knuckles.left.rotation.y = angle * (angle > 0 ? 1.1 : 0.9);
+      if (knuckles.right) knuckles.right.rotation.y = angle * (angle > 0 ? 0.9 : 1.1);
+    },
+    setInterior(key) {
+      const option = INTERIORS[key] ?? INTERIORS[DEFAULT_INTERIOR];
+      each("leather", (m) => {
+        if (m.userData.map === undefined) m.userData.map = m.map;
+        const original = m.userData.map;
+        m.map = option.color && original ? luminanceTexture(original) : original;
+        m.color.set(option.color ?? "#ffffff");
         m.needsUpdate = true;
-      });
-      each("redGlass", (m) => {
-        m.emissive.set(on ? "#ff1010" : "#000000");
-        m.emissiveIntensity = on ? 1.2 : 1;
-      });
-      each("lampGlass", (m) => {
-        m.opacity = on ? 0.22 : 0.12;
       });
     },
     /** 0 = 关，1 = 全开 */
@@ -670,9 +781,15 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
   let groundShadow = null;
   let views = null; // showroom 镜头预设（加载后根据车的尺寸计算）
   let pendingView = "overview";
-  const pending = { paint: DEFAULT_PAINT, rim: DEFAULT_RIM, lights: false };
+  const pending = { paint: DEFAULT_PAINT, rim: DEFAULT_RIM, interior: DEFAULT_INTERIOR, lights: false };
   let doorGoal = 0;
   let doorT = 0;
+  // 键盘驾驶：A/D 打方向（松手回正），S 刹车（刹车灯 + 车头微沉）
+  const MAX_STEER = THREE.MathUtils.degToRad(30);
+  let steerInput = 0;
+  let steer = 0;
+  let brakeOn = false;
+  let pitch = 0;
 
   // =========================================================================
   // OrbitControls + 镜头飞行
@@ -772,6 +889,7 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       carHandle.setPaint(pending.paint);
       carHandle.setRim(pending.rim);
       carHandle.setLights(pending.lights);
+      carHandle.setInterior(pending.interior);
       carHandle.car.scale.setScalar(CAR_SCALE);
       // 车底贴地、前后左右居中（在挂到 pivot 之前量，量出来就是 pivot 坐标系里的尺寸）
       carHandle.car.updateMatrixWorld(true);
@@ -833,6 +951,21 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       carHandle.setDoorOpen(easeInOutCubic(doorT));
       if (doorT === doorGoal) groundShadow?.bake();
     }
+    if (carHandle) {
+      // 方向盘：打方向约 0.35 秒到底，回正稍快
+      const goal = steerInput * MAX_STEER;
+      const rate = (goal === 0 ? 2.4 : 1.6) * MAX_STEER * delta;
+      if (steer !== goal) {
+        steer = steer < goal ? Math.min(steer + rate, goal) : Math.max(steer - rate, goal);
+        carHandle.setSteer(steer);
+      }
+      // 刹车点头：车身绕横轴往前倾约 0.7°，松开后回弹
+      const pitchGoal = brakeOn ? 0.012 : 0;
+      if (Math.abs(pitch - pitchGoal) > 1e-5) {
+        pitch += (pitchGoal - pitch) * Math.min(delta * 8, 1);
+        carHandle.car.rotation.x = pitch;
+      }
+    }
     shift += (shiftGoal - shift) * Math.min(delta * 3, 1);
     applyShift();
     controls.autoRotate = autoRotate && !flight && !reduceMotion && shiftGoal === 0; // 看参数时不转，免得车跑到面板下面
@@ -883,6 +1016,18 @@ export function createCarScene(canvas, { onReady, onProgress, onError, onUserInt
       lightformers.setDay(day);
       floor.setDay(day);
       ambient.intensity = (day ? 0.8 : 0.5) * Math.PI;
+    },
+    setInterior(key) {
+      pending.interior = key;
+      carHandle?.setInterior(key);
+    },
+    /** -1 = 右打，0 = 回正，1 = 左打 */
+    setSteerInput(value) {
+      steerInput = Math.max(-1, Math.min(1, value));
+    },
+    setBrake(on) {
+      brakeOn = on;
+      carHandle?.setBrake(on);
     },
     setDoors(open) {
       doorGoal = open ? 1 : 0;
