@@ -429,7 +429,7 @@ function createHeadlightBeams() {
 
     const glow = new THREE.Sprite(glowMaterial);
     glow.position.copy(o).addScaledVector(d, 0.04);
-    glow.scale.setScalar(0.55);
+    glow.scale.setScalar(0.32);
     glow.renderOrder = 11;
     group.add(glow);
 
@@ -446,8 +446,8 @@ function createHeadlightBeams() {
     // 聚光灯一直挂在场景里，只改强度：灯的数量变化会让所有材质重新编译
     set(on, day) {
       group.visible = on;
-      uniforms.uIntensity.value = on ? (day ? 0.3 : 0.7) : 0;
-      glowMaterial.opacity = day ? 0.5 : 1;
+      uniforms.uIntensity.value = on ? (day ? 0.12 : 0.28) : 0;
+      glowMaterial.opacity = day ? 0.3 : 0.6;
       spots.forEach((spot) => (spot.intensity = on ? (day ? 2.5 : 30) : 0));
     },
     update(elapsed) {
