@@ -75,7 +75,7 @@ python3 scripts/lexus-lc500/build_glb.py public/static/lexus-lc500.glb <Sketchfa
 | `lexus-lc500-2k.h264.mp4` | 2048×1024 | H.264 High 5.1 | 21 MB |
 | `lexus-lc500-1200.av1.mp4` | 1200×600 | AV1（约 0.85 Mbps） | 6 MB |
 | `lexus-lc500-1200.h264.mp4` | 1200×600 | H.264 High 5.0 | 11 MB |
-| `lexus-lc500-poster-v3.webp` | 2048×1024 | 第 1 帧 | 50 KB |
+| `lexus-lc500-poster-v4.webp` | 2048×1024 | 第 1380 帧（车外后视镜机位，Jason 选的） | 100 KB |
 
 ### 加载策略（`components/media/car.jsx`）
 

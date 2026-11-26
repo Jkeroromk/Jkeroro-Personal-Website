@@ -12,7 +12,7 @@ const MODEL_PAGE =
   "https://sketchfab.com/3d-models/lexus-lc-500-wald-sports-line-wwwvecarzcom-120879ad2666438b86d080dcf26621fa";
 
 // 视频文件名带版本号：vercel.json 给 .mp4 / .webp 设了一年的 immutable 缓存，换片子必须换文件名
-const POSTER = "/static/lexus-lc500-poster-v3.webp";
+const POSTER = "/static/lexus-lc500-poster-v4.webp";
 const SOURCES = {
   // 2048×1024：卡片实际像素（CSS 宽 × devicePixelRatio）够大时用，比如 Retina 屏
   hi: [
@@ -98,7 +98,6 @@ const Car = memo(function Car() {
           alt=""
           aria-hidden="true"
           decoding="async"
-          fetchPriority="low"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <video
