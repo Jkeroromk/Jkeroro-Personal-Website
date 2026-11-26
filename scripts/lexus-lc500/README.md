@@ -61,13 +61,35 @@ python3 scripts/lexus-lc500/build_glb.py public/static/lexus-lc500.glb <Sketchfa
 
 ## 首页视频
 
-首页卡片放的是 `public/static/lexus-lc500-loop.mp4`（海报帧 `lexus-lc500-poster.webp`）。这是一段 60 秒的雨夜赛博城市短片，镜头从监控画面开始，经过大灯醒来、无人机追车、路口漂移、隧道，最后停在 Showroom 转台上。
+首页卡片放的是一段 60 秒的雨夜赛博城市短片：从监控画面开始，经过大灯醒来、无人机追车、路口漂移、隧道，最后停在 Showroom 转台上。
 
-- 制作：Blender 5.2（Cycles）渲染，2048×1024、512 采样，在 RunPod 上 8 台 GPU 分帧渲染；再用 numpy 调色（黑金：低饱和、偏暖，暗部略提亮；尾灯和 Showroom 红圈单独压亮度、加饱和，避免 AgX 把高亮的红推成粉白）
-- 网页版：缩到 1200×600，30 fps，H.264 CRF 27，无声，约 11 MB。2K 母版不放在 repo 里
-- 工程文件 `city-lexus-60s.blend` 不在 repo 里，在 Jason 本机的 `E:\3D素材\项目\porsche-911`
-- 授权：
-  - 车：Lexus LC 500 WALD Sports Line，作者 VeCarz，CC BY-NC 4.0，改了车漆和车牌
-  - 监控摄像头：Marcel Schanz，CC BY 4.0
-  - 城市：KitBash3D Neo City
-- 以前的 911 循环视频（`porsche-911-loop.mp4` / `porsche-911-poster.webp`）已经从 repo 删掉
+- 制作：Blender 5.2（Cycles）渲染，2048×1024、512 采样，在 RunPod 上用 8 台 GPU 分帧渲染。
+- 调色：用 numpy 做，风格是黑金（低饱和、偏暖，暗部略提亮）。尾灯和 Showroom 红圈单独压亮度、加饱和，否则 AgX 会把高亮的红推成粉白。
+- 工程文件 `city-lexus-60s.blend` 不在 repo 里，在 Jason 本机的 `E:\3D素材\项目\porsche-911`。
+
+### 文件（`public/static/`，都是 30 fps、无声、faststart）
+
+| 文件 | 分辨率 | 编码 | 大小 |
+|---|---|---|---|
+| `lexus-lc500-2k.av1.mp4` | 2048×1024 | AV1（SVT-AV1，约 1.9 Mbps） | 14 MB |
+| `lexus-lc500-2k.h264.mp4` | 2048×1024 | H.264 High 5.1 | 21 MB |
+| `lexus-lc500-1200.av1.mp4` | 1200×600 | AV1（约 0.85 Mbps） | 6 MB |
+| `lexus-lc500-1200.h264.mp4` | 1200×600 | H.264 High 5.0 | 11 MB |
+| `lexus-lc500-poster-v3.webp` | 2048×1024 | 第 1 帧 | 50 KB |
+
+### 加载策略（`components/media/car.jsx`）
+
+- **封面图垫底**：封面图用 `<img>` 一直垫在下面，视频准备好之后再淡入盖住，所以加载期间看到的是封面，不是黑块。
+- **视频延后加载**：`preload="none"`，卡片进入视口附近（300px）才开始加载；而且要等页面 `load` 事件和空闲之后才开始拉，不和首屏资源抢带宽。
+- **选清晰度**：卡片实际像素（CSS 宽 × devicePixelRatio）≥ 1100 时用 2K，例如 Retina 屏上 600px 宽的卡片；手机、普通屏、Save-Data 或 2G/3G 网络用 1200。
+- **选编码**：先用 `canPlayType` 试 AV1（体积大约是 H.264 的 2/3，画质更好），不支持就退回 H.264。
+- **暂停**：离开视口、打开 Showroom、或者系统开了「减少动态效果」时暂停。开了「减少动态效果」时完全不下载视频。
+- **改文件名**：`vercel.json` 给 mp4 和 webp 设了一年的 immutable 缓存，所以换片子时必须换文件名，否则老访客看到的还是旧视频。
+
+### 授权
+
+- 车：Lexus LC 500 WALD Sports Line，作者 VeCarz，CC BY-NC 4.0，改了车漆和车牌
+- 监控摄像头：Marcel Schanz，CC BY 4.0
+- 城市：KitBash3D Neo City
+
+以前的 911 循环视频已经从 repo 删掉。
