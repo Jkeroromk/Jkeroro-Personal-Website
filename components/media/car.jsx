@@ -4,12 +4,12 @@ import React, { useCallback, useEffect, useRef, useState, memo } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence } from "framer-motion";
 
-// Showroom（three.js + 3.4 MB 模型）只在点开时才加载；首页卡片放的是同一台车在 Blender 里渲染的循环视频
+// Showroom（three.js + 3D 模型）只在点开时才加载；首页卡片放的是同一台 Lexus 在 Blender（Cycles）里渲染的 60 秒雨夜短片
 const loadShowroom = () => import("./Showroom");
 const Showroom = dynamic(loadShowroom, { ssr: false });
 
 const MODEL_PAGE =
-  "https://sketchfab.com/3d-models/free-porsche-911-carrera-4s-d01b254483794de3819786d93e0e1ebf";
+  "https://sketchfab.com/3d-models/lexus-lc-500-wald-sports-line-wwwvecarzcom-120879ad2666438b86d080dcf26621fa";
 
 const prefersReducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -35,16 +35,16 @@ const Car = memo(function Car() {
         <video
           ref={videoRef}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${videoReady ? "opacity-100" : "opacity-0"}`}
-          poster="/static/porsche-911-poster.webp"
+          poster="/static/lexus-lc500-poster.webp"
           muted
           loop
           playsInline
           autoPlay
           preload="auto"
-          aria-label="Porsche 911 Carrera 4S with JKERORO plates"
+          aria-label="Lexus LC 500 with JKERORO plates driving through a rainy neon city"
           onLoadedData={() => setVideoReady(true)}
         >
-          <source src="/static/porsche-911-loop.mp4" type="video/mp4" />
+          <source src="/static/lexus-lc500-loop.mp4" type="video/mp4" />
         </video>
         <button
           type="button"
@@ -62,10 +62,10 @@ const Car = memo(function Car() {
           href={MODEL_PAGE}
           target="_blank"
           rel="noopener noreferrer"
-          title='3D model: "(FREE) Porsche 911 Carrera 4S" (Sketchfab), licensed under CC BY-SA 4.0. Modified: black paint, white wheels, custom plates.'
+          title='Car: "Lexus LC 500 WALD Sports Line" by VeCarz (Sketchfab), CC BY-NC 4.0, modified (black paint, custom plates). Surveillance camera model by Marcel Schanz, CC BY 4.0. City: KitBash3D Neo City.'
           className="absolute bottom-1.5 right-2 text-[9px] leading-none text-white/30 hover:text-white/70 transition-colors"
         >
-          Model: Porsche 911 Carrera 4S · CC BY-SA
+          Model: Lexus LC 500 WALD by VeCarz · CC BY-NC · CCTV: Marcel Schanz · CC BY
         </a>
       </div>
 
