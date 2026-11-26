@@ -63,8 +63,8 @@ python3 scripts/lexus-lc500/build_glb.py public/static/lexus-lc500.glb <Sketchfa
 
 首页卡片放的是 `public/static/lexus-lc500-loop.mp4`（海报帧 `lexus-lc500-poster.webp`）。这是一段 60 秒的雨夜赛博城市短片，镜头从监控画面开始，经过大灯醒来、无人机追车、路口漂移、隧道，最后停在 Showroom 转台上。
 
-- 制作：Blender 5.2（Cycles）渲染，2048×1024、512 采样，在 RunPod 上 8 台 GPU 分帧渲染；再用 numpy 调色（冷青霓虹，暗部提亮）
-- 网页版：缩到 1200×600，30 fps，H.264 CRF 27，无声，约 12 MB。2K 母版不放在 repo 里
+- 制作：Blender 5.2（Cycles）渲染，2048×1024、512 采样，在 RunPod 上 8 台 GPU 分帧渲染；再用 numpy 调色（黑金：低饱和、偏暖，暗部略提亮）
+- 网页版：缩到 1200×600，30 fps，H.264 CRF 27，无声，约 11 MB。2K 母版不放在 repo 里
 - 工程文件 `city-lexus-60s.blend` 不在 repo 里，在 Jason 本机的 `E:\3D素材\项目\porsche-911`
 - 授权：
   - 车：Lexus LC 500 WALD Sports Line，作者 VeCarz，CC BY-NC 4.0，改了车漆和车牌
